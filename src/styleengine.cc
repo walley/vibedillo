@@ -999,30 +999,6 @@ void StyleEngine::restyle (BrowserWindow *bw) {
    }
 }
 
-/**
- * \brief Recompute style information for the current element only.
- * This is used after class/id attributes are set on the node,
- * so selectors like .class or #id can match correctly.
- * Safer than restyle() as it only touches the top of the stack.
- */
-void StyleEngine::restyleCurrent (BrowserWindow *bw) {
-   Node *n = stack->getRef (stack->size () - 1);
-   if (n->style) {
-      n->style->unref ();
-      n->style = NULL;
-   }
-   if (n->wordStyle) {
-      n->wordStyle->unref ();
-      n->wordStyle = NULL;
-   }
-   if (n->backgroundStyle) {
-      n->backgroundStyle->unref ();
-      n->backgroundStyle = NULL;
-   }
-
-   style0 (stack->size () - 1, bw);
-}
-
 void StyleEngine::parse (DilloHtml *html, DilloUrl *url, const char *buf,
                          int buflen, CssOrigin origin) {
    if (importDepth > 10) { // avoid looping with recursive @import directives

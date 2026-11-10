@@ -4101,27 +4101,11 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       /* Parse attributes that can appear on any tag */
       Html_parse_common_attrs(html, tag, tagsize);
 
-      /* Re-apply CSS for this element now that class/id attributes are set,
-       * so selectors like .class or #id match correctly.
-       * restyleCurrent() only touches this element (safe for complex pages). */
-      html->restyleCurrent ();
-
-      /* Mark this element as a flex container if CSS says display:flex.
-       * Child elements will then be rendered inline-block so they flow
-       * horizontally instead of stacking vertically. */
-      S_TOP(html)->flex_container = (html->style()->display == DISPLAY_FLEX);
-
       /* Call the open function for this tag */
       _MSG("Html_process_tag Open : %s\n", Tags[ni].name);
       Tags[ni].open (html, tag, tagsize);
 
       if (! S_TOP(html)->display_none) {
-         /* Children of flex containers render inline-block */
-         if (html->stack->size() >= 2 &&
-             html->stack->getRef(html->stack->size()-2)->flex_container &&
-             html->style()->display != DISPLAY_FLEX)
-            html->style()->display = DISPLAY_INLINE_BLOCK;
-
          switch (html->style ()->display) {
             case DISPLAY_BLOCK:
                Html_display_block(html);
