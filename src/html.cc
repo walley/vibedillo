@@ -4140,7 +4140,21 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
                   Html_display_block(html);
                break;
             case DISPLAY_FLEX:
-               /* Flex container: no true flexbox layout engine, render as block */
+            case DISPLAY_INLINE_FLEX:
+            case DISPLAY_INLINE_GRID:
+            case DISPLAY_INLINE_TABLE:
+            case DISPLAY_RUN_IN:
+               /* No true flexbox/grid/layout engine, render as block */
+               Html_display_block(html);
+               break;
+            case DISPLAY_CONTENTS:
+               /* Element disappears; children render directly */
+               break;
+            case DISPLAY_TABLE:
+            case DISPLAY_TABLE_ROW_GROUP:
+            case DISPLAY_TABLE_HEADER_GROUP:
+            case DISPLAY_TABLE_FOOTER_GROUP:
+               /* Table containers render as block */
                Html_display_block(html);
                break;
             default:
