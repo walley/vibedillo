@@ -480,6 +480,7 @@ DilloHtml::DilloHtml(BrowserWindow *p_bw, const DilloUrl *url,
    stack->getRef(0)->table = NULL;
    stack->getRef(0)->ref_list_item = NULL;
    stack->getRef(0)->hand_over_break = false;
+   stack->getRef(0)->flex_container = false;
 
    InFlags = IN_NONE;
 
@@ -3999,16 +4000,20 @@ static void Html_display_listitem(DilloHtml *html)
    ListItem *list_item;
    int *list_number;
    char buf[16];
+   /* Check if parent element (e.g. <menu>) is a flex container */
+   bool flex_parent = html->stack->getRef(html->stack->size()-2)->flex_container;
 
    /* Get our parent tag's variables (used as state storage) */
    list_number = &html->stack->getRef(html->stack->size()-2)->list_number;
    ref_list_item = &html->stack->getRef(html->stack->size()-2)->ref_list_item;
 
-   HT2TB(html)->addParbreak (0, wordStyle);
+   if (!flex_parent)
+      HT2TB(html)->addParbreak (0, wordStyle);
 
    list_item = new ListItem ((ListItem*)*ref_list_item,prefs.limit_text_width);
    HT2TB(html)->addWidget (list_item, style);
-   HT2TB(html)->addParbreak (0, wordStyle);
+   if (!flex_parent)
+      HT2TB(html)->addParbreak (0, wordStyle);
    *ref_list_item = list_item;
    S_TOP(html)->textblock = html->dw = list_item;
 
@@ -4093,14 +4098,34 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       html->startElement (ni);
       _MSG("Open : %*s%s\n", html->stack->size(), " ", Tags[ni].name);
 
+      /* Mark this element as a flex container if CSS says display:flex.
+       * Child elements will then be rendered inline-block so they flow
+       * horizontally instead of stacking vertically. */
+      S_TOP(html)->flex_container = (html->style()->display == DISPLAY_FLEX);
+
       /* Parse attributes that can appear on any tag */
       Html_parse_common_attrs(html, tag, tagsize);
+
+      /* Re-apply CSS now that class/id attributes are set on the node,
+       * so selectors like .class or #id match correctly. Then re-check
+       * flex_container since styles may have changed. */
+      html->restyle ();
+      S_TOP(html)->flex_container = (html->style()->display == DISPLAY_FLEX);
+
+      MSG("html tag: %s display=%d flex_container=%d\n",
+          Tags[ni].name, html->style()->display, S_TOP(html)->flex_container);
 
       /* Call the open function for this tag */
       _MSG("Html_process_tag Open : %s\n", Tags[ni].name);
       Tags[ni].open (html, tag, tagsize);
 
       if (! S_TOP(html)->display_none) {
+         /* Children of flex containers render inline-block */
+         if (html->stack->size() >= 2 &&
+             html->stack->getRef(html->stack->size()-2)->flex_container &&
+             html->style()->display != DISPLAY_FLEX)
+            html->style()->display = DISPLAY_INLINE_BLOCK;
+
          switch (html->style ()->display) {
             case DISPLAY_BLOCK:
                Html_display_block(html);
@@ -4117,6 +4142,10 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
             case DISPLAY_INLINE:
                if (html->style()->vloat != FLOAT_NONE)
                   Html_display_block(html);
+               break;
+            case DISPLAY_FLEX:
+               /* Flex container: no true flexbox layout engine, render as block */
+               Html_display_block(html);
                break;
             default:
                break;

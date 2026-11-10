@@ -124,6 +124,9 @@ typedef struct {
    DilloHtmlListMode list_type;
    int list_number;
 
+   /** True if current element is a flex container (e.g. <menu> with display:flex) */
+   bool flex_container;
+
    /** TagInfo index for the tag that's being processed */
    int tag_idx;
 
