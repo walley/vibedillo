@@ -1367,6 +1367,7 @@ static void Html_push_tag(DilloHtml *html, int tag_idx)
     * instead of copying all fields except for tag.  --Jcid */
    *html->stack->getRef(n_items) = *html->stack->getRef(n_items - 1);
    html->stack->getRef(n_items)->tag_idx = tag_idx;
+    html->stack->getRef(n_items)->flex_container = false;
    html->dw = S_TOP(html)->textblock;
 }
 
@@ -3992,6 +3993,24 @@ static void Html_display_inline_block(DilloHtml *html)
    Html_add_textblock(html, false, 0, true);
 }
 
+/**
+ * Render an element as a flex item: like inline-block, so that it is
+ * laid out side by side with its siblings inside a flex container.
+ */
+static void Html_display_flex_item(DilloHtml *html)
+{
+   Textblock *textblock = new Textblock (prefs.limit_text_width);
+   StyleAttrs attrs = *(html->style ());
+   attrs.display = DISPLAY_INLINE_BLOCK;
+   Style *style = Style::create (&attrs);
+
+   HT2TB(html)->addWidget (textblock, style);
+   HT2TB(html)->addBreakOption (html->style (), false);
+   S_TOP(html)->textblock = html->dw = textblock;
+
+   style->unref ();
+}
+
 static void Html_display_listitem(DilloHtml *html)
 {
    Style *style = html->style ();
@@ -4106,9 +4125,16 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       Tags[ni].open (html, tag, tagsize);
 
       if (! S_TOP(html)->display_none) {
+         bool flex_parent =
+            html->stack->getRef(html->stack->size()-2)->flex_container;
          switch (html->style ()->display) {
             case DISPLAY_BLOCK:
-               Html_display_block(html);
+               /* Inside a flex container, block children become flex
+                * items and are laid out side by side (row direction) */
+               if (flex_parent)
+                  Html_display_flex_item(html);
+               else
+                  Html_display_block(html);
                break;
             case DISPLAY_INLINE_BLOCK:
                Html_display_inline_block(html);
@@ -4125,10 +4151,15 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
                break;
             case DISPLAY_FLEX:
             case DISPLAY_INLINE_FLEX:
+               /* Basic flexbox support: container is a block, its block
+                * children are rendered as inline-block flex items */
+               Html_display_block(html);
+               S_TOP(html)->flex_container = true;
+               break;
             case DISPLAY_INLINE_GRID:
             case DISPLAY_INLINE_TABLE:
             case DISPLAY_RUN_IN:
-               /* No true flexbox/grid/layout engine, render as block */
+               /* No true grid/table layout engine, render as block */
                Html_display_block(html);
                break;
             case DISPLAY_CONTENTS:
