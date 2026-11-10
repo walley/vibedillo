@@ -117,6 +117,7 @@ class StyleEngine {
       void inheritNonCssHints ();
       void clearNonCssHints ();
       void restyle (BrowserWindow *bw);
+      void restyleCurrent (BrowserWindow *bw);
       void inheritBackgroundColor (); /* \todo get rid of this somehow */
       dw::core::style::Style *backgroundStyle (BrowserWindow *bw);
       dw::core::style::Color *backgroundColor ();

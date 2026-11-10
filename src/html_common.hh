@@ -252,6 +252,7 @@ public:
    { return styleEngine->wordStyle (bw); }
 
    inline void restyle () { styleEngine->restyle (bw); }
+   inline void restyleCurrent () { styleEngine->restyleCurrent (bw); }
 
 };
 

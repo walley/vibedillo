@@ -4098,22 +4098,18 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       html->startElement (ni);
       _MSG("Open : %*s%s\n", html->stack->size(), " ", Tags[ni].name);
 
+      /* Parse attributes that can appear on any tag */
+      Html_parse_common_attrs(html, tag, tagsize);
+
+      /* Re-apply CSS for this element now that class/id attributes are set,
+       * so selectors like .class or #id match correctly.
+       * restyleCurrent() only touches this element (safe for complex pages). */
+      html->restyleCurrent ();
+
       /* Mark this element as a flex container if CSS says display:flex.
        * Child elements will then be rendered inline-block so they flow
        * horizontally instead of stacking vertically. */
       S_TOP(html)->flex_container = (html->style()->display == DISPLAY_FLEX);
-
-      /* Parse attributes that can appear on any tag */
-      Html_parse_common_attrs(html, tag, tagsize);
-
-      /* Re-apply CSS now that class/id attributes are set on the node,
-       * so selectors like .class or #id match correctly. Then re-check
-       * flex_container since styles may have changed. */
-      html->restyle ();
-      S_TOP(html)->flex_container = (html->style()->display == DISPLAY_FLEX);
-
-      MSG("html tag: %s display=%d flex_container=%d\n",
-          Tags[ni].name, html->style()->display, S_TOP(html)->flex_container);
 
       /* Call the open function for this tag */
       _MSG("Html_process_tag Open : %s\n", Tags[ni].name);
