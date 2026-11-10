@@ -1,3 +1,9 @@
+# what is this repo
+cloned from original https://github.com/dillo-browser/dillo, detached, 
+and applied patches from https://git.dillo-browser.org/dillo/ (26/11/10).
+AI will be continuing working on this fork.
+It will also be renamedmost probably.
+
 # Dillo web browser
 
 Dillo is a multi-platform graphical web browser, known for its speed and
