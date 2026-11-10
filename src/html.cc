@@ -2870,16 +2870,10 @@ static void Html_tag_open_dir(DilloHtml *html, const char *tag, int tagsize)
  */
 static void Html_tag_open_menu(DilloHtml *html, const char *tag, int tagsize)
 {
-   /* In another bit of ridiculous mess from the HTML5 world, the menu
-    * element, which was deprecated in HTML4:
-    * - does not appear at all in W3C's HTML5 spec
-    * - appears in WHATWG's HTML5 doc and the W3C's 5.1 draft, where it
-    *   means something totally different than it did in the old days
-    *   (now it's for popup menus and toolbar menus rather than being a
-    *   sort of list).
+   /* <menu> is semantically an unordered list, like <ul>/<dir>.
+    * It can contain LI and inline content, so treat it the same way.
     */
-   if (!(html->DocType == DT_HTML && html->DocTypeVersion >= 5.0f))
-      Html_tag_open_dir(html, tag, tagsize);
+   Html_tag_open_dir(html, tag, tagsize);
 }
 
 /*
@@ -3548,7 +3542,7 @@ static const TagInfo Tags[] = {
  {"map", B8(01101),'R', Html_tag_open_default, Html_tag_content_map,
                         Html_tag_close_map},
  {"mark", B8(01011),'R', Html_tag_open_default, NULL, NULL},
- /* menu 1010 -- TODO: not exactly 1010, it can contain LI and inline */
+ /* menu: unordered list, like ul/dir; can contain LI and inline */
  {"menu", B8(01100),'R', Html_tag_open_menu, NULL, Html_tag_close_par},
  {"meta", B8(11001),'F', Html_tag_open_meta, NULL, NULL},
  {"nav", B8(01110),'R', Html_tag_open_sectioning, NULL, NULL},
