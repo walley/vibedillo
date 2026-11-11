@@ -4,6 +4,8 @@ and applied patches from https://git.dillo-browser.org/dillo/ (26/11/10).
 AI will be continuing working on this fork.
 It will also be renamedmost probably.
 
+we are working on acid tests now.
+
 # Dillo web browser
 
 Dillo is a multi-platform graphical web browser, known for its speed and

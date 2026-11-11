@@ -71,9 +71,6 @@ private:
       int externalIndex;
       int index; // TODO Needed after SRDOP?
       int yReq, yReal; // relative to container
-      int xReal; // relative to container; -1 = not yet positioned. May
-                 // differ from the base position (calcFloatX) when several
-                 // same-side floats are stacked horizontally.
       int sideSpanningIndex;
       core::Requisition size;
       bool dirty;
@@ -188,9 +185,6 @@ private:
 
    bool collidesV (Float *vloat, Float *other, int *yReal);
    bool collidesH (Float *vloat, Float *other);
-
-   int calcStackedX (Float *vloat, SortedFloatsVector *listSame, Side side,
-                     int y);
 
    void getFloatsListsAndSide (Float *vloat, SortedFloatsVector **listSame,
                                SortedFloatsVector **listOpp, Side *side);
