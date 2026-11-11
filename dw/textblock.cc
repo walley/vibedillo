@@ -3118,8 +3118,11 @@ int Textblock::getGeneratorX (int oofmIndex)
    if (findSizeRequestReference (oofmIndex, &xRef, NULL))
       x = xRef;
    else {
-      // Only called for floats, so this should not happen:
-      assertNotReached ();
+      // Only called for floats; may happen transiently during a
+      // sizeRequest without references (e.g. when parsing triggers
+      // line breaking of a textblock containing a float). The value is
+      // only used transiently and re-calculated during the real
+      // layout, so fall back to 0 instead of aborting.
       x = 0;
    }
 
@@ -3135,8 +3138,7 @@ int Textblock::getGeneratorY (int oofmIndex)
    if (findSizeRequestReference (oofmIndex, NULL, &yRef))
       y = yRef;
    else {
-      // Only called for floats, so this should not happen:
-      assertNotReached ();
+      // See getGeneratorX().
       y = 0;
    }
 
@@ -3154,8 +3156,7 @@ int Textblock::getGeneratorRest (int oofmIndex)
    if (container != NULL && findSizeRequestReference (container, &xRef, NULL))
       rest = container->getGeneratorWidth () - (xRef + getGeneratorWidth ());
    else {
-      // Only callend for floats, so this should not happen:
-      assertNotReached ();
+      // See getGeneratorX().
       rest = 0;
    }
 
