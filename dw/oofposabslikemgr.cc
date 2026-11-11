@@ -46,8 +46,20 @@ void OOFPosAbsLikeMgr::sizeAllocateChildren ()
 {
    DBG_OBJ_ENTER0 ("resize.oofm", 0, "sizeAllocateChildren");
 
-   int refWidth = container->getAvailWidth (true) - containerBoxDiffWidth ();
-   int refHeight = container->getAvailHeight (true) - containerBoxDiffHeight ();
+   int availWidth = container->getAvailWidth (true);
+   int availHeight = container->getAvailHeight (true);
+   int refWidth, refHeight;
+   if (availWidth == -1) {
+      // Not yet allocated; use the current allocation. The result is
+      // transient and recalculated on the next resize pass.
+      refWidth = container->getAllocation ()->width;
+   } else
+      refWidth = availWidth - containerBoxDiffWidth ();
+   if (availHeight == -1) {
+      Allocation *a = container->getAllocation ();
+      refHeight = a->ascent + a->descent;
+   } else
+      refHeight = availHeight - containerBoxDiffHeight ();
 
    for (int i = 0; i < children->size(); i++) {
       Child *child = children->get (i);
@@ -80,6 +92,15 @@ void OOFPosAbsLikeMgr::getSize (Requisition *containerReq, int *oofWidth,
 
    int refWidth = container->getAvailWidth (true);
    int refHeight = container->getAvailHeight (true);
+
+   // During a sizeRequest, the container may not be allocated yet, so
+   // the available size may be unknown (-1). Fall back to the container
+   // requisition; the values computed here are transient and recalculated
+   // when the container is allocated (assert in calcVPos... would abort).
+   if (refWidth == -1)
+      refWidth = containerReq->width;
+   if (refHeight == -1)
+      refHeight = containerReq->ascent + containerReq->descent;
 
    for (int i = 0; i < children->size(); i++) {
       Child *child = children->get(i);
