@@ -38,6 +38,13 @@ protected:
                                      int *yPtr, int *ascentPtr,
                                      int *descentPtr);
 
+   /**
+    * \brief Resolve a min-/max-{width|height} length to pixels;
+    *        percentages refer to refLength. Returns -1 when undefined
+    *        (auto).
+    */
+   int calcLimitedLength (core::style::Length cssValue, int refLength);
+
 
 public:
    OOFPosAbsLikeMgr (OOFAwareWidget *container);

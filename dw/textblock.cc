@@ -1757,8 +1757,10 @@ void Textblock::drawLevel (core::View *view, core::Rectangle *area,
             if (word->content.type == core::Content::WIDGET_OOF_REF &&
                 getOOFMIndex (word->content.widgetReference->widget)
                 == oofmIndex &&
-                doesWidgetOOFInterruptDrawing (word->content.widget))
-               word->content.widget->drawInterruption (view, area, context);
+                doesWidgetOOFInterruptDrawing (word->content.widgetReference
+                                               ->widget))
+               word->content.widgetReference->widget
+                  ->drawInterruption (view, area, context);
          }
       }
       break;

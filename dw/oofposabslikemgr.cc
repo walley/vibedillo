@@ -261,6 +261,18 @@ bool OOFPosAbsLikeMgr::posYAbsolute (Child *child)
    return b;
 }
 
+int OOFPosAbsLikeMgr::calcLimitedLength (style::Length cssValue,
+                                         int refLength)
+{
+   if (style::isAbsLength (cssValue))
+      return style::absLengthVal (cssValue);
+   else if (style::isPerLength (cssValue))
+      return style::multiplyWithPerLength (refLength, cssValue);
+   else
+      // LENGTH_AUTO or undefined:
+      return -1;
+}
+
 void OOFPosAbsLikeMgr::calcPosAndSizeChildOfChild (Child *child, int refWidth,
                                                    int refHeight, int *xPtr,
                                                    int *yPtr, int *widthPtr,
@@ -315,6 +327,22 @@ void OOFPosAbsLikeMgr::calcHPosAndSizeChildOfChild (Child *child, int refWidth,
       DBG_OBJ_MSG ("resize.oofm", 1, "width not specified");
       width = origChildWidth;
       widthDefined = false;
+   }
+
+   // Apply min-/max-width (CSS 10.4). If min-width > max-width,
+   // min-width wins, which is achieved by applying max-width first.
+   {
+      int boxDiffW = child->widget->boxDiffWidth ();
+      int contentWidth = width - boxDiffW;
+      int maxW = calcLimitedLength (child->widget->getStyle()->maxWidth,
+                                    refWidth);
+      int minW = calcLimitedLength (child->widget->getStyle()->minWidth,
+                                    refWidth);
+      if (maxW != -1 && contentWidth > maxW)
+         contentWidth = maxW;
+      if (minW != -1 && contentWidth < minW)
+         contentWidth = minW;
+      width = contentWidth + boxDiffW;
    }
 
    int left, right;
@@ -414,6 +442,23 @@ void OOFPosAbsLikeMgr::calcVPosAndSizeChildOfChild (Child *child, int refHeight,
       }
 
       DBG_OBJ_MSGF ("resize.oofm", 0, "=> y = %d", *yPtr);
+   }
+
+   // Apply min-/max-height (CSS 10.7). If min-height > max-height,
+   // min-height wins (max-height is ignored), achieved by applying
+   // max-height first.
+   {
+      int boxDiffH = child->widget->boxDiffHeight ();
+      int contentH = ascent + descent - boxDiffH;
+      int maxH = calcLimitedLength (child->widget->getStyle()->maxHeight,
+                                    refHeight);
+      int minH = calcLimitedLength (child->widget->getStyle()->minHeight,
+                                    refHeight);
+      if (maxH != -1 && contentH > maxH)
+         contentH = maxH;
+      if (minH != -1 && contentH < minH)
+         contentH = minH;
+      splitHeightPreserveAscent (contentH + boxDiffH, &ascent, &descent);
    }
 
    if (ascentPtr)
