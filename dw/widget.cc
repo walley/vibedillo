@@ -651,6 +651,19 @@ int Widget::getMinWidth (Extremes *extremes, bool forceValue)
    } else
       minWidth = 0;
 
+   /* If the widget has a definite (absolute) width, the content-based
+    * minimum width must not exceed it: per CSS, a block box with a
+    * specified width uses that width (content may overflow visibly),
+    * so it must not widen its ancestors either. A 'min-width' property
+    * is still honored, since it is applied separately in
+    * calcFinalWidth(). */
+   if (style::isAbsLength (getStyle()->width)) {
+      int definiteWidth = style::absLengthVal (getStyle()->width) +
+         boxDiffWidth ();
+      if (minWidth > definiteWidth)
+         minWidth = definiteWidth;
+   }
+
    DBG_OBJ_LEAVE_VAL ("%d", minWidth);
    return minWidth;
 }

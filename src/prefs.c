@@ -78,7 +78,7 @@ void a_Prefs_init(void)
    prefs.load_images=TRUE;
    prefs.ignore_image_formats = NULL;
    prefs.mark_unloaded_images=FALSE;
-   prefs.load_background_images=FALSE;
+   prefs.load_background_images=TRUE;
    prefs.load_stylesheets=TRUE;
    prefs.middle_click_drags_page = TRUE;
    prefs.middle_click_opens_new_tab = TRUE;
