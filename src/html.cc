@@ -393,8 +393,18 @@ bool a_Html_tag_set_valign_attr(DilloHtml *html, const char *tag, int tagsize)
 static void Html_add_textblock(DilloHtml *html, bool addBreaks, int breakSpace,
                                bool addBreakOpt)
 {
-   Textblock *textblock = new Textblock (prefs.limit_text_width);
+   Textblock *textblock;
    Style *style;
+
+   /* An element gets only one textblock: when its open handler has
+    * already created one (e.g. for <dd> or <blockquote>), the generic
+    * display handling must not add a second one, which would render a
+    * doubled box. */
+   if (S_TOP(html)->textblock !=
+       html->stack->getRef(html->stack->size() - 2)->textblock)
+      return;
+
+   textblock = new Textblock (prefs.limit_text_width);
 
    if (addBreaks) {
       StyleAttrs attrs = *(html->style ());
@@ -2789,7 +2799,12 @@ static void Html_tag_close_a(DilloHtml *html)
 static void Html_tag_open_blockquote(DilloHtml *html,
                                      const char *tag, int tagsize)
 {
-   Html_add_textblock(html, true, 9, false);
+   /* Flex items get their textblock from Html_display_flex_item(). */
+   if (html->stack->getRef(html->stack->size() - 2)->flex_container)
+      return;
+   /* Out-of-flow elements (e.g. floated) get their textblock, without
+    * extra breaks, from the generic display handling. */
+   Html_add_textblock(html, Html_must_add_breaks(html), 9, false);
 }
 
 /*
@@ -2857,7 +2872,8 @@ static void Html_tag_open_ul(DilloHtml *html, const char *tag, int tagsize)
 static void Html_tag_open_dir(DilloHtml *html, const char *tag, int tagsize)
 {
    html->styleEngine->inheritBackgroundColor ();
-   HT2TB(html)->addParbreak (9, html->wordStyle ());
+   if (Html_must_add_breaks(html))
+      HT2TB(html)->addParbreak (9, html->wordStyle ());
 
    S_TOP(html)->list_type = HTML_LIST_UNORDERED;
    S_TOP(html)->list_number = 0;
@@ -3020,12 +3036,16 @@ static void Html_tag_open_hr(DilloHtml *html, const char *tag, int tagsize)
 static void Html_tag_content_hr(DilloHtml *html, const char *tag, int tagsize)
 {
    Widget *hruler;
-   HT2TB(html)->addParbreak (5, html->wordStyle ());
+   bool add_breaks = Html_must_add_breaks(html);
+
+   if (add_breaks)
+      HT2TB(html)->addParbreak (5, html->wordStyle ());
 
    hruler = new Ruler();
    hruler->setStyle (html->style ());
    HT2TB(html)->addWidget (hruler, html->style ());
-   HT2TB(html)->addParbreak (5, html->wordStyle ());
+   if (add_breaks)
+      HT2TB(html)->addParbreak (5, html->wordStyle ());
 }
 
 /*
@@ -3035,7 +3055,8 @@ static void Html_tag_open_dl(DilloHtml *html, const char *tag, int tagsize)
 {
    /* may want to actually do some stuff here. */
    html->styleEngine->inheritBackgroundColor ();
-   HT2TB(html)->addParbreak (9, html->wordStyle ());
+   if (Html_must_add_breaks(html))
+      HT2TB(html)->addParbreak (9, html->wordStyle ());
 }
 
 /*
@@ -3044,7 +3065,8 @@ static void Html_tag_open_dl(DilloHtml *html, const char *tag, int tagsize)
 static void Html_tag_open_dt(DilloHtml *html, const char *tag, int tagsize)
 {
    html->styleEngine->inheritBackgroundColor ();
-   HT2TB(html)->addParbreak (9, html->wordStyle ());
+   if (Html_must_add_breaks(html))
+      HT2TB(html)->addParbreak (9, html->wordStyle ());
 }
 
 /*
@@ -3052,7 +3074,13 @@ static void Html_tag_open_dt(DilloHtml *html, const char *tag, int tagsize)
  */
 static void Html_tag_open_dd(DilloHtml *html, const char *tag, int tagsize)
 {
-   Html_add_textblock(html, true, 9, false);
+   /* Flex items get their textblock from Html_display_flex_item(). */
+   if (html->stack->getRef(html->stack->size() - 2)->flex_container)
+      return;
+   /* Out-of-flow elements (e.g. floated) get their textblock, without
+    * extra breaks, from the generic display handling: a break before the
+    * widget would push the float's anchor onto the next line. */
+   Html_add_textblock(html, Html_must_add_breaks(html), 9, false);
 }
 
 /*
@@ -3061,7 +3089,8 @@ static void Html_tag_open_dd(DilloHtml *html, const char *tag, int tagsize)
 static void Html_tag_open_pre(DilloHtml *html, const char *tag, int tagsize)
 {
    html->styleEngine->inheritBackgroundColor ();
-   HT2TB(html)->addParbreak (9, html->wordStyle ());
+   if (Html_must_add_breaks(html))
+      HT2TB(html)->addParbreak (9, html->wordStyle ());
 
    html->InFlags |= IN_PRE;
 }
@@ -3437,7 +3466,11 @@ static void Html_tag_open_div(DilloHtml *html, const char *tag, int tagsize)
  */
 static void Html_tag_close_par(DilloHtml *html)
 {
-   HT2TB(html)->addParbreak (9, html->wordStyle ());
+   /* No break after out-of-flow elements: it would push the anchor of a
+    * following float onto the next line (e.g. the <dd> after a floated
+    * <dt> in the CSS1 test suite). */
+   if (Html_must_add_breaks(html))
+      HT2TB(html)->addParbreak (9, html->wordStyle ());
 }
 
 /*
@@ -3999,6 +4032,11 @@ static void Html_display_inline_block(DilloHtml *html)
  */
 static void Html_display_flex_item(DilloHtml *html)
 {
+   /* Only one textblock per element (see Html_add_textblock). */
+   if (S_TOP(html)->textblock !=
+       html->stack->getRef(html->stack->size() - 2)->textblock)
+      return;
+
    Textblock *textblock = new Textblock (prefs.limit_text_width);
    StyleAttrs attrs = *(html->style ());
    attrs.display = DISPLAY_INLINE_BLOCK;
@@ -4026,12 +4064,14 @@ static void Html_display_listitem(DilloHtml *html)
    list_number = &html->stack->getRef(html->stack->size()-2)->list_number;
    ref_list_item = &html->stack->getRef(html->stack->size()-2)->ref_list_item;
 
-   if (!flex_parent)
+   /* No breaks for flex items or out-of-flow (e.g. floated) list items:
+    * they would push the float anchors onto separate lines. */
+   if (!flex_parent && Html_must_add_breaks(html))
       HT2TB(html)->addParbreak (0, wordStyle);
 
    list_item = new ListItem ((ListItem*)*ref_list_item,prefs.limit_text_width);
    HT2TB(html)->addWidget (list_item, style);
-   if (!flex_parent)
+   if (!flex_parent && Html_must_add_breaks(html))
       HT2TB(html)->addParbreak (0, wordStyle);
    *ref_list_item = list_item;
    S_TOP(html)->textblock = html->dw = list_item;
