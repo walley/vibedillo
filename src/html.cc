@@ -401,13 +401,8 @@ static void Html_add_textblock(DilloHtml *html, bool addBreaks, int breakSpace,
     * display handling must not add a second one, which would render a
     * doubled box. */
    if (S_TOP(html)->textblock !=
-       html->stack->getRef(html->stack->size() - 2)->textblock) {
-      fprintf(stderr, "DBG add_textblock SKIP tagidx=%d\n",
-              S_TOP(html)->tag_idx);
+       html->stack->getRef(html->stack->size() - 2)->textblock)
       return;
-   }
-   fprintf(stderr, "DBG add_textblock CREATE tagidx=%d addBreaks=%d\n",
-           S_TOP(html)->tag_idx, addBreaks);
 
    textblock = new Textblock (prefs.limit_text_width);
 
@@ -1361,9 +1356,6 @@ static bool Html_match_tag(const char *tagstr, char *tag, int tagsize)
  */
 static void Html_eventually_pop_dw(DilloHtml *html, bool hand_over_break)
 {
-   fprintf(stderr, "DBG pop_dw tagidx=%d dw=%p top_tb=%p hob=%d\n",
-           S_TOP(html)->tag_idx, html->dw, S_TOP(html)->textblock,
-           hand_over_break);
    if (html->dw != S_TOP(html)->textblock) {
       if (hand_over_break)
          HT2TB(html)->handOverBreak (html->style ());
@@ -4173,9 +4165,6 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       Tags[ni].open (html, tag, tagsize);
 
       if (! S_TOP(html)->display_none) {
-         fprintf(stderr, "DBG tag=%s display=%d vloat=%d flex=%d\n",
-                 Tags[ni].name, html->style()->display, html->style()->vloat,
-                 html->stack->getRef(html->stack->size()-2)->flex_container);
          bool flex_parent =
             html->stack->getRef(html->stack->size()-2)->flex_container;
          switch (html->style ()->display) {

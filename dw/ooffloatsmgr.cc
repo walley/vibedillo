@@ -50,6 +50,7 @@ OOFFloatsMgr::Float::Float (OOFFloatsMgr *oofm, Widget *widget,
    this->externalIndex = externalIndex;
 
    yReq = yReal = size.width = size.ascent = size.descent = 0;
+   xReal = -1;
    dirty = true;
    index = -1;
 
@@ -436,6 +437,15 @@ int OOFFloatsMgr::calcFloatX (Float *vloat)
 
    ensureFloatSize (vloat);
 
+   // When the float has already been positioned (see tellPosition1()),
+   // xReal is the actual position, which may differ from the base
+   // position calculated below when same-side floats are stacked
+   // horizontally.
+   if (vloat->xReal >= 0) {
+      DBG_OBJ_LEAVE_VAL ("%d (xReal)", vloat->xReal);
+      return vloat->xReal;
+   }
+
    switch (vloat->getWidget()->getStyle()->vloat) {
    case FLOAT_LEFT:
       // Left floats are always aligned on the left side of the generator
@@ -748,6 +758,37 @@ Widget *OOFFloatsMgr::getFloatWidgetAtPoint (SortedFloatsVector *list, int x,
    return widgetAtPoint;
 }
 
+/**
+ * \brief Calculate the x position of a float at the given y position,
+ *        stacked beside previous same-side floats which vertically
+ *        overlap it.
+ *
+ * "y" is given relative to the container. vloat->xReal must be -1 when
+ * calling this method, so that calcFloatX() returns the base position.
+ */
+int OOFFloatsMgr::calcStackedX (Float *vloat, SortedFloatsVector *listSame,
+                                Side side, int y)
+{
+   int x = calcFloatX (vloat); // base position (vloat->xReal == -1)
+   int height = vloat->size.ascent + vloat->size.descent;
+
+   for (int i = 0; i < vloat->index; i++) {
+      Float *other = listSame->get (i);
+      if (other->xReal < 0)
+         continue;
+      ensureFloatSize (other);
+      int otherH = other->size.ascent + other->size.descent;
+      if (y < other->yReal + otherH && y + height > other->yReal) {
+         if (side == LEFT)
+            x = max (x, other->xReal + other->size.width);
+         else
+            x = min (x, other->xReal - vloat->size.width);
+      }
+   }
+
+   return x;
+}
+
 void OOFFloatsMgr::tellPosition1 (Widget *widget, int x, int y)
 {
    DBG_OBJ_ENTER ("resize.oofm", 0, "tellPosition1", "%p, %d, %d",
@@ -763,6 +804,7 @@ void OOFFloatsMgr::tellPosition1 (Widget *widget, int x, int y)
    ensureFloatSize (vloat);
 
    int oldYReal = vloat->yReal;
+   int oldXReal = vloat->xReal;
 
    // "yReal" may change due to collisions (see below).
    vloat->yReq = vloat->yReal = y;
@@ -770,16 +812,55 @@ void OOFFloatsMgr::tellPosition1 (Widget *widget, int x, int y)
    DBG_OBJ_SET_NUM_O (vloat->getWidget (), "<Float>.yReq", vloat->yReq);
    DBG_OBJ_SET_NUM_O (vloat->getWidget (), "<Float>.yReal", vloat->yReal);
 
-   // Test collisions (on this side). Although there are (rare) cases
-   // where it could make sense, the horizontal dimensions are not
-   // tested; especially since searching and border calculation would
-   // be confused. For this reaspn, only the previous float is
-   // relevant. (Cf. below, collisions on the other side.)
+   // Test collisions on this side. Same-side floats are stacked
+   // horizontally ("as far as possible to the side, as high as
+   // possible"); only when there is not enough horizontal room in the
+   // generator, the float is moved below the floats it would collide
+   // with.
    int yRealNew;
-   if (vloat->index >= 1 &&
-       collidesV (vloat, listSame->get (vloat->index - 1), &yRealNew)) {
-      vloat->yReal = yRealNew;
+   vloat->xReal = -1;
+   {
+      int height = vloat->size.ascent + vloat->size.descent;
+      int genLeft = vloat->generator->getGeneratorX (oofmIndex)
+         + vloat->generator->getStyle()->boxOffsetX ();
+      int genRight = genLeft + vloat->generator->getMaxGeneratorWidth ();
+      int yCand = y;
+
+      for (int iter = 0; iter <= listSame->size (); iter++) {
+         int xCand = calcStackedX (vloat, listSame, side, yCand);
+
+         // Bottom of all previous same-side floats vertically
+         // overlapping the candidate position.
+         int bottomMax = -1;
+         for (int i = 0; i < vloat->index; i++) {
+            Float *other = listSame->get (i);
+            ensureFloatSize (other);
+            int otherH = other->size.ascent + other->size.descent;
+            if (yCand < other->yReal + otherH &&
+                yCand + height > other->yReal)
+               bottomMax = max (bottomMax, other->yReal + otherH);
+         }
+
+         bool fits = side == LEFT
+            ? xCand + vloat->size.width <= genRight
+            : xCand >= genLeft;
+
+         if (fits || bottomMax < 0) {
+            vloat->yReal = yCand;
+            vloat->xReal = xCand;
+            break;
+         }
+         yCand = bottomMax;
+      }
+
+      if (vloat->xReal < 0) {
+         // Safety net; should not happen.
+         vloat->yReal = yCand;
+         vloat->xReal = calcStackedX (vloat, listSame, side, yCand);
+      }
+
       DBG_OBJ_SET_NUM_O (vloat->getWidget (), "<Float>.yReal", vloat->yReal);
+      DBG_OBJ_SET_NUM_O (vloat->getWidget (), "<Float>.xReal", vloat->xReal);
    }
 
    // Test collisions (on the opposite side). There are cases when
@@ -844,7 +925,13 @@ void OOFFloatsMgr::tellPosition1 (Widget *widget, int x, int y)
    // Notice that #c would be updated otherwise, if it had at least one word
    // content.
 
-   if (vloat->yReal != oldYReal)
+   // The opposite-side test above may have moved the float down;
+   // re-calculate the same-side stacking for the final position.
+   vloat->xReal = -1;
+   vloat->xReal = calcStackedX (vloat, listSame, side, vloat->yReal);
+   DBG_OBJ_SET_NUM_O (vloat->getWidget (), "<Float>.xReal", vloat->xReal);
+
+   if (vloat->yReal != oldYReal || vloat->xReal != oldXReal)
       updateGenerators (vloat);
 
    DBG_OBJ_LEAVE ();
@@ -1146,19 +1233,27 @@ int OOFFloatsMgr::getBorder (Side side, int y, int h, OOFAwareWidget *lastGB,
             int d;
             switch (side) {
             case LEFT:
-               d = vloat->generator->getGeneratorX (oofmIndex)
-                  + vloat->generator->getStyle()->boxOffsetX ();
+               // calcFloatX() returns xReal when the float has already
+               // been positioned (possibly stacked beside other same-side
+               // floats), and otherwise the generator's left content edge.
+               d = calcFloatX (vloat);
                break;
 
             case RIGHT:
-               // There is no simple possibility to get the difference between
-               // container and generator at the right border (as it is at the
-               // left border, see above). We have to calculate the difference
-               // between the maximal widths.
-               d = container->getMaxGeneratorWidth ()
-                  - (vloat->generator->getGeneratorX (oofmIndex)
-                     + vloat->generator->getMaxGeneratorWidth ())
-                  + vloat->generator->getStyle()->boxRestWidth ();
+               if (vloat->xReal >= 0) {
+                  // Stacked position (see tellPosition1()).
+                  d = container->getMaxGeneratorWidth ()
+                     - vloat->xReal - vloat->size.width;
+               } else {
+                  // There is no simple possibility to get the difference
+                  // between container and generator at the right border (as
+                  // it is at the left border, see above). We have to
+                  // calculate the difference between the maximal widths.
+                  d = container->getMaxGeneratorWidth ()
+                     - (vloat->generator->getGeneratorX (oofmIndex)
+                        + vloat->generator->getMaxGeneratorWidth ())
+                     + vloat->generator->getStyle()->boxRestWidth ();
+               }
                break;
 
             default:
