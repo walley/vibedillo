@@ -611,7 +611,33 @@ void CssParser::nextToken()
       tval[0] = c;
       i = 1;
       c = getChar();
-      while (dIsalnum(c) || c == '_' || c == '-') {
+      while (dIsalnum(c) || c == '_' || c == '-' || c == '\\') {
+         if (c == '\\') {
+            /* Escape sequence within an identifier (e.g. "second\ two"
+             * in [class=second\ two]): a hex escape or a literal char. */
+            int d = getChar();
+            if (d == EOF) {
+               break;
+            } else if (dIsxdigit(d)) {
+               char hexbuf[7];
+               int j = 0;
+               hexbuf[j++] = (char) d;
+               d = getChar();
+               while (j < 6 && dIsxdigit(d)) {
+                  hexbuf[j++] = (char) d;
+                  d = getChar();
+               }
+               hexbuf[j] = 0;
+               /* One whitespace char after a hex escape is consumed. */
+               if (!dIsspace(d))
+                  ungetChar();
+               c = (int) strtol (hexbuf, NULL, 16);
+               if (c == 0)
+                  c = 0xFFFD; /* replacement character */
+            } else {
+               c = d; /* take character literally (e.g. '\ ' -> ' ') */
+            }
+         }
          if (i < maxStrLen - 1) {
             tval[i] = c;
             i++;
@@ -1408,6 +1434,69 @@ void CssParser::parseDeclaration(CssPropertyList *props,
       nextToken();
 }
 
+/**
+ * \brief Parse an attribute selector. The current token must be '['.
+ *        On return, the token after ']' is current.
+ */
+bool CssParser::parseAttributeSelector (CssSimpleSelector *selector)
+{
+   nextToken (); // consume '['
+   if (ttype != CSS_TK_SYMBOL)
+      return false;
+   char *name = dStrdup (tval);
+
+   nextToken ();
+   int op = CssSimpleSelector::ATTR_OP_NONE;
+   char *value = NULL;
+
+   if (ttype == CSS_TK_CHAR && tval[0] == ']') {
+      // [attr] -- presence only; ']' is the current token.
+   } else {
+      if (ttype == CSS_TK_CHAR && tval[0] == '=') {
+         op = CssSimpleSelector::ATTR_OP_EQ;
+      } else if (ttype == CSS_TK_CHAR &&
+                 (tval[0] == '~' || tval[0] == '|' || tval[0] == '^' ||
+                  tval[0] == '$' || tval[0] == '*')) {
+         char c = tval[0];
+         nextToken ();
+         if (ttype != CSS_TK_CHAR || tval[0] != '=') {
+            dFree (name);
+            return false;
+         }
+         switch (c) {
+            case '~': op = CssSimpleSelector::ATTR_OP_INCLUDES; break;
+            case '|': op = CssSimpleSelector::ATTR_OP_DASH; break;
+            case '^': op = CssSimpleSelector::ATTR_OP_PREFIX; break;
+            case '$': op = CssSimpleSelector::ATTR_OP_SUFFIX; break;
+            default:  op = CssSimpleSelector::ATTR_OP_SUBSTRING; break;
+         }
+      } else {
+         dFree (name);
+         return false;
+      }
+
+      nextToken ();
+      if (ttype == CSS_TK_SYMBOL || ttype == CSS_TK_STRING) {
+         value = dStrdup (tval);
+         nextToken ();
+      } else {
+         dFree (name);
+         return false;
+      }
+      if (ttype != CSS_TK_CHAR || tval[0] != ']') {
+         dFree (name);
+         dFree (value);
+         return false;
+      }
+   }
+
+   nextToken (); // consume ']'
+   selector->setAttribute (name, op, value);
+   dFree (name);
+   dFree (value);
+   return true;
+}
+
 bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
 {
    CssSimpleSelector::SelectType selectType;
@@ -1425,14 +1514,17 @@ bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
    } else if (ttype == CSS_TK_CHAR &&
               (tval[0] == '#' ||
                tval[0] == '.' ||
-               tval[0] == ':')) {
+               tval[0] == ':' ||
+               tval[0] == '[')) {
       // nothing to be done in this case
    } else {
       return false;
    }
 
+   bool attrParsed;
    do {
       selectType = CssSimpleSelector::SELECT_NONE;
+      attrParsed = false;
       if (ttype == CSS_TK_CHAR) {
          switch (tval[0]) {
          case '#':
@@ -1451,6 +1543,15 @@ bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
                // \todo adapt this when supporting :hover, :active...
                return false;
             break;
+         case '[':
+            // Attribute selector: [attr], [attr=v], [attr~=v], [attr|=v],
+            // [attr^=v], [attr$=v], [attr*=v]
+            if (! parseAttributeSelector (selector))
+               return false;
+            attrParsed = true;
+            if (spaceSeparated)
+               return true;
+            break;
          }
       }
 
@@ -1468,7 +1569,7 @@ bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
          if (spaceSeparated)
             return true;
       }
-   } while (selectType != CssSimpleSelector::SELECT_NONE);
+   } while (selectType != CssSimpleSelector::SELECT_NONE || attrParsed);
 
    DEBUG_MSG(DEBUG_PARSE_LEVEL, "end of simple selector (%s, %s, %s, %d)\n",
       selector->id, selector->klass,

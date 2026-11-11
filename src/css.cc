@@ -232,6 +232,9 @@ CssSimpleSelector::CssSimpleSelector () {
    element = ELEMENT_ANY;
    id = NULL;
    pseudo = NULL;
+   attrName = NULL;
+   attrOp = ATTR_OP_NONE;
+   attrValue = NULL;
 }
 
 CssSimpleSelector::~CssSimpleSelector () {
@@ -239,6 +242,8 @@ CssSimpleSelector::~CssSimpleSelector () {
       dFree (klass.get (i));
    dFree (id);
    dFree (pseudo);
+   dFree (attrName);
+   dFree (attrValue);
 }
 
 void CssSimpleSelector::setSelect (SelectType t, const char *v) {
@@ -258,6 +263,13 @@ void CssSimpleSelector::setSelect (SelectType t, const char *v) {
       default:
          break;
    }
+}
+
+void CssSimpleSelector::setAttribute (const char *name, int op,
+                                      const char *value) {
+   attrName = dStrdup (name);
+   attrOp = op;
+   attrValue = value ? dStrdup (value) : NULL;
 }
 
 /**
@@ -287,6 +299,102 @@ bool CssSimpleSelector::match (const DoctreeNode *n) {
          return false;
    }
 
+   if (attrName != NULL) {
+      // Only "class" and "id" are stored in the DoctreeNode; other
+      // attributes cannot be matched (yet).
+      const char *attrVal = NULL;
+      char *classStr = NULL;
+      if (dStrAsciiCasecmp (attrName, "class") == 0) {
+         if (n->klass == NULL || n->klass->size () == 0)
+            return false;
+         // Reconstruct the class attribute value ("a b c").
+         int len = 0;
+         for (int i = 0; i < n->klass->size (); i++)
+            len += strlen (n->klass->get (i)) + 1;
+         classStr = (char *) dMalloc (len + 1);
+         classStr[0] = '\0';
+         for (int i = 0; i < n->klass->size (); i++) {
+            if (i > 0)
+               strcat (classStr, " ");
+            strcat (classStr, n->klass->get (i));
+         }
+         attrVal = classStr;
+      } else if (dStrAsciiCasecmp (attrName, "id") == 0) {
+         attrVal = n->id;
+      } else {
+         return false;
+      }
+      if (attrVal == NULL)
+         return false;
+
+      bool result = false;
+      switch (attrOp) {
+         case ATTR_OP_NONE:
+            result = true;
+            break;
+         case ATTR_OP_EQ:
+            result = dStrAsciiCasecmp (attrValue, attrVal) == 0;
+            break;
+         case ATTR_OP_INCLUDES: {
+            // attrVal consists of whitespace-separated words; one of
+            // them must equal attrValue.
+            const char *p = attrVal;
+            while (*p) {
+               while (dIsspace (*p)) p++;
+               const char *start = p;
+               while (*p && !dIsspace (*p)) p++;
+               int wlen = p - start;
+               if (wlen == (int) strlen (attrValue)) {
+                  // Compare manually (start is not zero-terminated):
+                  bool eq = true;
+                  for (int k = 0; k < wlen; k++)
+                     if (tolower (attrValue[k]) != tolower (start[k])) {
+                        eq = false;
+                        break;
+                     }
+                  if (eq) { result = true; break; }
+               }
+            }
+            break;
+         }
+         case ATTR_OP_DASH:
+            result = dStrAsciiCasecmp (attrValue, attrVal) == 0 ||
+               (strncmp (attrValue, attrVal, strlen (attrValue)) == 0 &&
+                attrVal[strlen (attrValue)] == '-');
+            break;
+         case ATTR_OP_PREFIX:
+            result = strncmp (attrValue, attrVal, strlen (attrValue)) == 0;
+            break;
+         case ATTR_OP_SUFFIX: {
+            int vl = strlen (attrValue), al = strlen (attrVal);
+            result = vl <= al &&
+               dStrAsciiCasecmp (attrValue, attrVal + al - vl) == 0;
+            break;
+         }
+         case ATTR_OP_SUBSTRING: {
+            // Case-insensitive substring search (attrValue is never
+            // empty here, since it comes from a token).
+            int vl = strlen (attrValue);
+            for (const char *p = attrVal; *p; p++) {
+               bool eq = true;
+               for (int k = 0; k < vl; k++) {
+                  char a = p[k];
+                  if (!a) { eq = false; break; }
+                  if (tolower (a) != tolower (attrValue[k])) {
+                     eq = false;
+                     break;
+                  }
+               }
+               if (eq) { result = true; break; }
+            }
+            break;
+         }
+      }
+      dFree (classStr);
+      if (! result)
+         return false;
+   }
+
    return true;
 }
 
@@ -301,7 +409,7 @@ int CssSimpleSelector::specificity () {
    if (id)
       spec += 1 << 20;
    spec += klass.size() << 10;
-   if (pseudo)
+   if (pseudo || attrName)
       spec += 1 << 10;
    if (element != ELEMENT_ANY)
       spec += 1;

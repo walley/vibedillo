@@ -40,6 +40,7 @@ class CssParser {
       void parseDeclaration(CssPropertyList * props,
                             CssPropertyList * importantProps);
       bool parseSimpleSelector(CssSimpleSelector *selector);
+      bool parseAttributeSelector(CssSimpleSelector *selector);
       char *parseUrl();
       void parseImport(DilloHtml *html);
       void parseMedia();

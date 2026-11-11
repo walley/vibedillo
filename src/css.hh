@@ -358,6 +358,14 @@ class CssSimpleSelector {
       char *pseudo, *id;
       lout::misc::SimpleVector <char *> klass;
 
+      // Attribute selector ([attr], [attr=v], [attr~=v], [attr|=v],
+      // [attr^=v], [attr$=v], [attr*=v]). Only "class" and "id" can
+      // currently be matched, since only these attributes are stored
+      // in the DoctreeNode.
+      char *attrName;
+      int attrOp;
+      char *attrValue;
+
    public:
       enum {
          ELEMENT_NONE = -1,
@@ -368,13 +376,26 @@ class CssSimpleSelector {
          SELECT_NONE,
          SELECT_CLASS,
          SELECT_PSEUDO_CLASS,
-         SELECT_ID
+         SELECT_ID,
+         SELECT_ATTRIBUTE
       } SelectType;
+
+      // Operators for attribute selectors.
+      typedef enum {
+         ATTR_OP_NONE = 0, // [attr] -- presence only
+         ATTR_OP_EQ,       // [attr=v]
+         ATTR_OP_INCLUDES, // [attr~=v] -- whitespace-separated word
+         ATTR_OP_DASH,     // [attr|=v] -- v or v-...
+         ATTR_OP_PREFIX,   // [attr^=v]
+         ATTR_OP_SUFFIX,   // [attr$=v]
+         ATTR_OP_SUBSTRING // [attr*=v]
+      } AttrOp;
 
       CssSimpleSelector ();
       ~CssSimpleSelector ();
       inline void setElement (int e) { element = e; };
       void setSelect (SelectType t, const char *v);
+      void setAttribute (const char *name, int op, const char *value);
       inline lout::misc::SimpleVector <char *> *getClass () { return &klass; };
       inline const char *getPseudoClass () { return pseudo; };
       inline const char *getId () { return id; };
