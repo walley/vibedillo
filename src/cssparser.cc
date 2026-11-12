@@ -167,7 +167,8 @@ static const char *const Css_word_spacing_enum_vals[] = {
 const CssPropertyInfo Css_property_info[CSS_PROPERTY_LAST] = {
    {"background-attachment", {CSS_TYPE_ENUM, CSS_TYPE_UNUSED},
     Css_background_attachment_enum_vals},
-   {"background-color", {CSS_TYPE_COLOR, CSS_TYPE_UNUSED}, NULL},
+   {"background-color", {CSS_TYPE_ENUM, CSS_TYPE_COLOR, CSS_TYPE_UNUSED},
+    Css_border_color_enum_vals},
    {"background-image", {CSS_TYPE_URI, CSS_TYPE_UNUSED}, NULL},
    {"background-position", {CSS_TYPE_BACKGROUND_POSITION, CSS_TYPE_UNUSED},
     NULL},
@@ -1424,11 +1425,36 @@ void CssParser::parseDeclaration(CssPropertyList *props,
       }
    }
 
-   /* Skip all tokens until the expected end. */
-   while (!(ttype == CSS_TK_END ||
-            (ttype == CSS_TK_CHAR &&
-             (tval[0] == ';' || tval[0] == '}'))))
-      nextToken();
+   /* Skip all tokens until the expected end, respecting nested
+    * blocks, parentheses and brackets (CSS 2.1 error recovery for
+    * malformed declarations: an invalid declaration ends at the next
+    * ';' or at the end of the block, with nested {} () [] balanced). */
+   {
+      int braceDepth = 0, parenDepth = 0, brackDepth = 0;
+      while (ttype != CSS_TK_END) {
+         if (ttype == CSS_TK_CHAR) {
+            char c = tval[0];
+            if (c == '{')
+               braceDepth++;
+            else if (c == '}') {
+               if (braceDepth == 0)
+                  break; /* end of the declaration block */
+               braceDepth--;
+            } else if (c == '(')
+               parenDepth++;
+            else if (c == ')') {
+               if (parenDepth > 0) parenDepth--;
+            } else if (c == '[')
+               brackDepth++;
+            else if (c == ']') {
+               if (brackDepth > 0) brackDepth--;
+            } else if (c == ';' && braceDepth == 0 && parenDepth == 0 &&
+                       brackDepth == 0)
+               break;
+         }
+         nextToken();
+      }
+   }
 
    if (ttype == CSS_TK_CHAR && tval[0] == ';')
       nextToken();

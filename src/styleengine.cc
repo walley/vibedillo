@@ -526,7 +526,10 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                (BackgroundAttachment) p->value.intVal;
             break;
          case CSS_PROPERTY_BACKGROUND_COLOR:
-            if (prefs.allow_white_bg || p->value.intVal != 0xffffff)
+            if (p->type == CSS_TYPE_ENUM)
+               /* 'transparent' */
+               attrs->backgroundColor = NULL;
+            else if (prefs.allow_white_bg || p->value.intVal != 0xffffff)
                attrs->backgroundColor = Color::create(layout, p->value.intVal);
             else
                attrs->backgroundColor =

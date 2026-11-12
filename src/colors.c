@@ -169,6 +169,9 @@ static const struct key {
    { "powderblue", 0xb0e0e6},
 #endif
    { "purple", 0x800080},
+#ifdef EXTENDED_COLOR
+   { "rebeccapurple", 0x663399},
+#endif
    { "red", 0xff0000},
 #ifdef EXTENDED_COLOR
    { "rosybrown", 0xbc8f8f},
