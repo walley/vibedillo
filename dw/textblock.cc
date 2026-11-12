@@ -1526,8 +1526,25 @@ void Textblock::drawLine (Line *line, core::View *view, core::Rectangle *area,
                   core::Rectangle childArea;
                   if (!core::StackingContextMgr::handledByStackingContextMgr
                           (child) &&
-                      child->intersects (this, area, &childArea))
-                     child->draw (view, &childArea, context);
+                      child->intersects (this, area, &childArea)) {
+                     oof::OOFAwareWidget *oawChild =
+                        child->getOOFAwareWidget ();
+                     if (oawChild &&
+                         child->getStyle()->display !=
+                            core::style::DISPLAY_INLINE &&
+                         child->getStyle()->display !=
+                            core::style::DISPLAY_INLINE_BLOCK) {
+                        /* The box of this block-level child has already
+                         * been drawn at SL_IN_FLOW_BLOCKS (CSS 2.1
+                         * appendix E, step 3); here only its content is
+                         * drawn, so that it does not cover inline-level
+                         * content drawn before it (step 5). */
+                        oawChild->drawExceptBackground (view, &childArea,
+                                                        context);
+                     } else {
+                        child->draw (view, &childArea, context);
+                     }
+                  }
                } else {
                   int wordIndex2 = wordIndex;
                   while (wordIndex2 < line->lastWord &&
@@ -1739,6 +1756,35 @@ void Textblock::drawLevel (core::View *view, core::Rectangle *area,
                   stackingLevelText (level));
 
    switch (level) {
+   case SL_IN_FLOW_BLOCKS:
+      /* CSS 2.1 appendix E, step 3: paint the boxes (background and
+       * borders) of in-flow block-level children first, so that floats
+       * (step 4) and inline-level content (step 5) paint above them. */
+      for (int lineIndex = findLineIndexWhenAllocated (area->y);
+           lineIndex < lines->size (); lineIndex++) {
+         Line *line = lines->getRef (lineIndex);
+         if (lineYOffsetWidget (line) >= area->y + area->height)
+            break;
+
+         for (int wordIndex = line->firstWord;
+              wordIndex <= line->lastWord; wordIndex++) {
+            Word *word = words->getRef (wordIndex);
+            if (word->content.type == core::Content::WIDGET_IN_FLOW) {
+               core::Widget *child = word->content.widget;
+               if (child->getStyle()->display != core::style::DISPLAY_INLINE &&
+                   child->getStyle()->display !=
+                      core::style::DISPLAY_INLINE_BLOCK) {
+                  core::Rectangle childArea;
+                  if (!core::StackingContextMgr::handledByStackingContextMgr
+                          (child) &&
+                      child->intersects (this, area, &childArea))
+                     child->drawWidgetBox (view, &childArea, false);
+               }
+            }
+         }
+      }
+      break;
+
    case SL_IN_FLOW:
       for (int lineIndex = findLineIndexWhenAllocated (area->y);
            lineIndex < lines->size (); lineIndex++) {
@@ -2407,6 +2453,13 @@ bool Textblock::calcSizeOfWidgetInFlow (int wordIndex, Widget *widget,
 
          DBG_OBJ_MSG_END ();
       }
+
+      /* Apply the child's CSS height/min-height/max-height to its
+       * requisition, as Widget::sizeRequest() does for its children.
+       * This is needed e.g. for height:0 blocks whose content must
+       * overflow and overlap following content. */
+      correctReqHeightOfChild (widget, size,
+                               core::splitHeightPreserveAscent, true);
 
       DBG_OBJ_MSG_END ();
       

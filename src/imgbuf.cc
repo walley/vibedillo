@@ -61,6 +61,9 @@ static uchar_t *Imgbuf_rgb_line(const uchar_t *buf,
    case DILLO_IMG_TYPE_RGB:
       /* avoid a memcpy here!  --Jcid */
       return (uchar_t *)buf;
+   case DILLO_IMG_TYPE_RGBA:
+      memcpy(linebuf, buf, width * 4);
+      return linebuf;
    case DILLO_IMG_TYPE_NOTSET:
       MSG_ERR("Imgbuf_rgb_line: type not set...\n");
       break;
@@ -98,13 +101,14 @@ void *a_Imgbuf_new(void *layout, int img_type, uint_t width, uint_t height,
       exit(1);
    }
    // Assert linebuf is wide enough.
-   if (3 * width > linebuf_size) {
-      linebuf_size = 3 * width;
+   if (4 * width > linebuf_size) {
+      linebuf_size = 4 * width;
       linebuf = (uchar_t*) dRealloc(linebuf, linebuf_size);
    }
 
-   return (void*)((Layout*)layout)->createImgbuf(Imgbuf::RGB, width, height,
-                                                 gamma);
+   return (void*)((Layout*)layout)->createImgbuf(
+      img_type == DILLO_IMG_TYPE_RGBA ? Imgbuf::RGBA : Imgbuf::RGB,
+      width, height, gamma);
 }
 
 /**

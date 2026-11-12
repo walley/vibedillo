@@ -711,7 +711,11 @@ protected:
 
    inline int lineYOffsetWidget (Line *line, core::Allocation *allocation)
    {
-      return line->top + (allocation->ascent - lines->getRef(0)->borderAscent);
+      /* When the allocation is smaller than the first line (e.g. a
+       * block with height:0), the content overflows *below* the top
+       * edge, not above it (CSS overflow:visible). */
+      int off = allocation->ascent - lines->getRef(0)->borderAscent;
+      return line->top + (off < 0 ? 0 : off);
    }
 
    inline int lineYOffsetWidget (Line *line)

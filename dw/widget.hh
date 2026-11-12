@@ -33,6 +33,7 @@
 typedef void (*DW_Callback_t)(void *data);
 
 namespace dw {
+namespace oof { class OOFAwareWidget; }
 namespace core {
 
 /**
@@ -558,6 +559,9 @@ public:
 
    /** Area is given in widget coordinates. */
    virtual void draw (View *view, Rectangle *area, DrawingContext *context) = 0;
+
+   /** Return this widget as OOFAwareWidget, or NULL if it is not one. */
+   virtual oof::OOFAwareWidget *getOOFAwareWidget () { return NULL; }
    void drawInterruption (View *view, Rectangle *area, DrawingContext *context);
 
    virtual Widget *getWidgetAtPoint (int x, int y,

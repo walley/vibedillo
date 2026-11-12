@@ -42,6 +42,7 @@ typedef struct _DilloImage DilloImage;
 typedef enum {
    DILLO_IMG_TYPE_INDEXED,
    DILLO_IMG_TYPE_RGB,
+   DILLO_IMG_TYPE_RGBA,
    DILLO_IMG_TYPE_GRAY,
    DILLO_IMG_TYPE_CMYK_INV,
    DILLO_IMG_TYPE_NOTSET    /* Initial value */

@@ -121,6 +121,10 @@ typedef struct {
    DilloHtmlTableBorderMode table_border_mode;
    bool cell_text_align_set;
    bool display_none;
+
+   /** True if the current <object> is rendered as an image (its nested
+       fallback content must then be skipped). */
+   bool object_is_image;
    DilloHtmlListMode list_type;
    int list_number;
 
@@ -278,6 +282,8 @@ DilloUrl *a_Html_url_new(DilloHtml *html,
 
 void a_Html_common_image_attrs(DilloHtml *html, const char *tag, int tagsize);
 DilloImage *a_Html_image_new(DilloHtml *html, const char *tag, int tagsize);
+DilloImage *a_Html_image_new2(DilloHtml *html, const char *tag, int tagsize,
+                              const char *attr);
 
 char *a_Html_parse_entities(DilloHtml *html, const char *token, int toksize);
 void a_Html_pop_tag(DilloHtml *html, int TagIdx);

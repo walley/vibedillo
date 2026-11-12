@@ -275,12 +275,10 @@ void a_Dicache_set_parms(DilloUrl *url, int version, DilloImage *Image,
 
    _MSG("  RefCount=%d version=%d\n", DicEntry->RefCount, DicEntry->version);
 
-   /* BUG: there's just one image-type now */
-   #define I_RGB 0
    DicEntry->v_imgbuf =
-      a_Imgbuf_new(Image->layout, I_RGB, width, height, gamma);
+      a_Imgbuf_new(Image->layout, type, width, height, gamma);
 
-   DicEntry->TotalSize = width * height * 3;
+   DicEntry->TotalSize = width * height * (type == DILLO_IMG_TYPE_RGBA ? 4 : 3);
    DicEntry->width = width;
    DicEntry->height = height;
    DicEntry->type = type;

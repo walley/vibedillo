@@ -216,7 +216,9 @@ Png_datainfo_callback(png_structp png_ptr, png_infop info_ptr)
    /* Initialize the dicache-entry here */
    a_Dicache_set_parms(png->url, png->version, png->Image,
                        (uint_t)png->width, (uint_t)png->height,
-                       DILLO_IMG_TYPE_RGB, file_gamma);
+                       png->channels == 4 ? DILLO_IMG_TYPE_RGBA :
+                                            DILLO_IMG_TYPE_RGB,
+                       file_gamma);
    png->Image = NULL; /* safeguard: hereafter it may be freed by its owner */
 }
 
@@ -249,42 +251,12 @@ static void
                       (uint_t)row_num);
       break;
    case 4:
-     {
-        /* TODO: get the background color from the parent
-         * of the image widget -- Livio.                 */
-        int a, bg_red, bg_green, bg_blue;
-        uchar_t *pl = png->linebuf;
-        uchar_t *data = png->image_data + (row_num * png->rowbytes);
-
-        /* TODO: maybe change prefs.bg_color to `a_Dw_widget_get_bg_color`,
-         * when background colors are correctly implemented */
-        bg_blue  = (png->bgcolor) & 0xFF;
-        bg_green = (png->bgcolor>>8) & 0xFF;
-        bg_red   = (png->bgcolor>>16) & 0xFF;
-
-        for (i = 0; i < png->width; i++) {
-           a = *(data+3);
-
-           if (a == 255) {
-              *(pl++) = *(data++);
-              *(pl++) = *(data++);
-              *(pl++) = *(data++);
-              data++;
-           } else if (a == 0) {
-              *(pl++) = bg_red;
-              *(pl++) = bg_green;
-              *(pl++) = bg_blue;
-              data += 4;
-           } else {
-              png_composite(*(pl++), *(data++), a, bg_red);
-              png_composite(*(pl++), *(data++), a, bg_green);
-              png_composite(*(pl++), *(data++), a, bg_blue);
-              data++;
-           }
-        }
-        a_Dicache_write(png->url, png->version, png->linebuf, (uint_t)row_num);
-        break;
-     }
+      /* RGBA: pass the row through unchanged; alpha blending is done
+       * when the buffer is drawn (fl_draw_image with 4 bpp). */
+      a_Dicache_write(png->url, png->version,
+                      png->image_data + (row_num * png->rowbytes),
+                      (uint_t)row_num);
+      break;
    default:
       MSG("Png_datarow_callback: unexpected number of channels=%d pass=%d\n",
           png->channels, pass);

@@ -170,6 +170,7 @@ protected:
 
    virtual void drawLevel (core::View *view, core::Rectangle *area, int level,
                            core::DrawingContext *context);
+
    void drawOOF (core::View *view, core::Rectangle *area,
                  core::DrawingContext *context);
 
@@ -191,9 +192,17 @@ protected:
    virtual bool adjustExtraSpaceWhenCorrectingRequisitionByOOF ();
 
 public:
+   virtual oof::OOFAwareWidget *getOOFAwareWidget () { return this; }
+
+   /** Draw all stacking levels except SL_BACKGROUND (whose box has
+    * already been drawn separately, e.g. at SL_IN_FLOW_BLOCKS). */
+   void drawExceptBackground (core::View *view, core::Rectangle *area,
+                              core::DrawingContext *context);
+
    enum {
-      SL_START, SL_BACKGROUND, SL_SC_BOTTOM, SL_IN_FLOW, SL_OOF_REF,
-      SL_OOF_CONT, SL_SC_TOP, SL_END };
+      SL_START, SL_BACKGROUND, SL_SC_BOTTOM, SL_IN_FLOW_BLOCKS,
+      SL_OOF_FLOATS, SL_IN_FLOW, SL_OOF_REF, SL_OOF_CONT, SL_SC_TOP,
+      SL_END };
 
    static int CLASS_ID;
 

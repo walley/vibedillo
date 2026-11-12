@@ -74,6 +74,8 @@ const char *OOFAwareWidget::stackingLevelText (int level)
    case SL_START:      return "START";
    case SL_BACKGROUND: return "BACKGROUND";
    case SL_SC_BOTTOM:  return "SC_BOTTOM";
+   case SL_IN_FLOW_BLOCKS: return "IN_FLOW_BLOCKS";
+   case SL_OOF_FLOATS: return "OOF_FLOATS";
    case SL_IN_FLOW:    return "IN_FLOW";
    case SL_OOF_REF:    return "OOF_REF";
    case SL_OOF_CONT:   return "OOF_CONT";
@@ -415,6 +417,19 @@ void OOFAwareWidget::drawLevel (View *view, Rectangle *area, int level,
          stackingContextMgr->drawBottom (view, area, context);
       break;
 
+   case SL_IN_FLOW_BLOCKS:
+      /* Boxes of in-flow block-level children (CSS 2.1 appendix E,
+       * step 3). Implemented by sub classes (Textblock); the base
+       * class has no in-flow children. */
+      break;
+
+   case SL_OOF_FLOATS:
+      /* Per CSS 2.1 appendix E, non-positioned floats (step 4) are
+       * painted below in-flow inline-level content (step 5). */
+      if (outOfFlowMgr[OOFM_FLOATS])
+         outOfFlowMgr[OOFM_FLOATS]->draw (view, area, context);
+      break;
+
    case SL_IN_FLOW:
       // Should be implemented in the sub class.
       break;
@@ -444,10 +459,21 @@ void OOFAwareWidget::drawLevel (View *view, Rectangle *area, int level,
    DBG_OBJ_LEAVE ();
 }
 
+void OOFAwareWidget::drawExceptBackground (View *view, Rectangle *area,
+                                           DrawingContext *context)
+{
+   for (int level = SL_START + 1; level < SL_END; level++)
+      if (level != SL_BACKGROUND)
+         drawLevel (view, area, level, context);
+}
+
 void OOFAwareWidget::drawOOF (View *view, Rectangle *area,
                               DrawingContext *context)
 {
-   for (int i = 0; i < NUM_OOFM; i++) {
+   /* Floats are drawn separately at SL_OOF_FLOATS; here only the
+    * positioned managers (absolute, relative, fixed), which per CSS
+    * appendix E steps 6+ paint above in-flow content. */
+   for (int i = OOFM_ABSOLUTE; i < NUM_OOFM; i++) {
       if(outOfFlowMgr[i])
          outOfFlowMgr[i]->draw (view, area, context);
    }
@@ -489,6 +515,16 @@ Widget *OOFAwareWidget::getWidgetAtPointLevel (int x, int y, int level,
       if (stackingContextMgr)
          widgetAtPoint =
             stackingContextMgr->getBottomWidgetAtPoint (x, y, context);
+      break;
+
+   case SL_IN_FLOW_BLOCKS:
+      /* Boxes of in-flow block-level children are hit-tested together
+       * with the children themselves at SL_IN_FLOW. */
+      break;
+
+   case SL_OOF_FLOATS:
+      /* Floats are hit-tested together with the other OOF widgets at
+       * SL_OOF_CONT. */
       break;
 
    case SL_IN_FLOW:

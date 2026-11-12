@@ -340,14 +340,15 @@ inline void FltkImgbuf::scaleBuffer (const core::byte *src, int srcWidth,
             for(int yo = yo1; yo < yo2; yo++) {
                const core::byte *ps = src + bpp * (yo * srcWidth + xo);
                for(int i = 0; i < bpp; i++)
-                  v[i] +=
-                     (scaleMode == BEAUTIFUL_GAMMA ? gammaMap2[ps[i]] : ps[i]);
+                  /* Do not gamma-correct the alpha channel. */
+                  v[i] += (scaleMode == BEAUTIFUL_GAMMA &&
+                           !(bpp == 4 && i == 3)) ? gammaMap2[ps[i]] : ps[i];
             }
 
          core::byte *pd = dest + bpp * (y * destWidth + x);
          for(int i = 0; i < bpp; i++)
-            pd[i] =
-               scaleMode == BEAUTIFUL_GAMMA ? gammaMap1[v[i] / n] : v[i] / n;
+            pd[i] = (scaleMode == BEAUTIFUL_GAMMA && !(bpp == 4 && i == 3)) ?
+               gammaMap1[v[i] / n] : v[i] / n;
       }
    }
    delete[] v;
@@ -605,8 +606,33 @@ void FltkImgbuf::draw (Fl_Widget *target, int xRoot, int yRoot,
       height = this->height - y;
    }
 
-   fl_draw_image(rawdata+bpp*(y*this->width + x), xRoot + x, yRoot + y, width,
-                 height, bpp, this->width * bpp);
+   if (bpp == 4) {
+      /* FLTK 1.3 does not alpha-blend when D == 4, so blend manually:
+       * read the current pixels, composite the RGBA source over them,
+       * and draw the result as opaque RGB. */
+      const uchar *src = rawdata + bpp * (y * this->width + x);
+      int srcLd = this->width * bpp;
+      uchar *dst = new uchar[width * height * 3];
+      fl_read_image(dst, xRoot + x, yRoot + y, width, height, 0);
+      for (int row = 0; row < height; row++) {
+         const uchar *sp = src + row * srcLd;
+         uchar *dp = dst + row * width * 3;
+         for (int col = 0; col < width; col++) {
+            int a = sp[3];
+            int ia = 255 - a;
+            dp[0] = (uchar)((sp[0] * a + dp[0] * ia) / 255);
+            dp[1] = (uchar)((sp[1] * a + dp[1] * ia) / 255);
+            dp[2] = (uchar)((sp[2] * a + dp[2] * ia) / 255);
+            sp += 4;
+            dp += 3;
+         }
+      }
+      fl_draw_image(dst, xRoot + x, yRoot + y, width, height, 3, width * 3);
+      delete[] dst;
+   } else {
+      fl_draw_image(rawdata+bpp*(y*this->width + x), xRoot + x, yRoot + y,
+                    width, height, bpp, this->width * bpp);
+   }
 
 }
 

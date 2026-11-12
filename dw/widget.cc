@@ -167,6 +167,12 @@ bool Widget::intersects (Widget *refWidget, Rectangle *area,
            widget = widget->parent) {
          assert (widget != NULL); // refWidget must be ancestor.
 
+         /* Content of a widget with 'overflow: visible' (the default)
+          * may overflow its allocation (e.g. the content of a block
+          * with height:0), so don't clip to its allocation. */
+         if (widget->getStyle()->overflow == style::OVERFLOW_VISIBLE)
+            continue;
+
          Rectangle widgetArea, newIntersection;
          widgetArea.x = widget->allocation.x;
          widgetArea.y = widget->allocation.y;

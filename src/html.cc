@@ -483,6 +483,7 @@ DilloHtml::DilloHtml(BrowserWindow *p_bw, const DilloUrl *url,
    stack->getRef(0)->table_border_mode = DILLO_HTML_TABLE_BORDER_SEPARATE;
    stack->getRef(0)->cell_text_align_set = false;
    stack->getRef(0)->display_none = false;
+   stack->getRef(0)->object_is_image = false;
    stack->getRef(0)->list_type = HTML_LIST_NONE;
    stack->getRef(0)->list_number = 0;
    stack->getRef(0)->tag_idx = -1;               /* MUST not be used */
@@ -2154,13 +2155,19 @@ void a_Html_common_image_attrs(DilloHtml *html, const char *tag, int tagsize)
 
 DilloImage *a_Html_image_new(DilloHtml *html, const char *tag, int tagsize)
 {
+   return a_Html_image_new2(html, tag, tagsize, "src");
+}
+
+DilloImage *a_Html_image_new2(DilloHtml *html, const char *tag, int tagsize,
+                              const char *attr)
+{
    bool load_now;
    char *alt_ptr;
    const char *attrbuf;
    DilloUrl *url;
    DilloImage *image;
 
-   if (!(attrbuf = a_Html_get_attr(html, tag, tagsize, "src")) ||
+   if (!(attrbuf = a_Html_get_attr(html, tag, tagsize, attr)) ||
        !(url = a_Html_url_new(html, attrbuf, NULL, 0)))
       return NULL;
 
@@ -2502,23 +2509,41 @@ static void Html_tag_open_object(DilloHtml *html, const char *tag, int tagsize)
    DilloUrl *url, *base_url = NULL;
    const char *attrbuf;
 
+   S_TOP(html)->object_is_image = false;
+
    if ((attrbuf = a_Html_get_attr(html, tag, tagsize, "codebase"))) {
       base_url = a_Html_url_new(html, attrbuf, NULL, 0);
    }
 
+   /* NB: a_Html_get_attr() returns a pointer into a shared buffer, so
+    * "type" must be queried before "data" (which is used below). */
+   const char *type = a_Html_get_attr(html, tag, tagsize, "type");
+   bool typeIsImage = type && strncasecmp(type, "image/", 6) == 0;
+
    if ((attrbuf = a_Html_get_attr(html, tag, tagsize, "data"))) {
-      url = a_Html_url_new(html, attrbuf,
-                           URL_STR(base_url), (base_url != NULL));
-      dReturn_if_fail ( url != NULL );
+      /* An <object> is rendered as an image when its type is an image
+       * type (or the data: URL says so); otherwise its nested content is
+       * the fallback and gets rendered normally. */
+      bool isImage = typeIsImage ||
+                     strncasecmp(attrbuf, "data:image/", 11) == 0;
 
-      if (a_Capi_get_flags_with_redirection(url) & CAPI_IsCached) {
-         html->styleEngine->setPseudoVisited ();
+      if (isImage) {
+         S_TOP(html)->object_is_image = true;
+         a_Html_common_image_attrs(html, tag, tagsize);
       } else {
-         html->styleEngine->setPseudoLink ();
-      }
+         url = a_Html_url_new(html, attrbuf,
+                              URL_STR(base_url), (base_url != NULL));
+         dReturn_if_fail ( url != NULL );
 
-      html->styleEngine->setNonCssHint(PROPERTY_X_LINK, CSS_TYPE_INTEGER,
-                                       Html_set_new_link(html, &url));
+         if (a_Capi_get_flags_with_redirection(url) & CAPI_IsCached) {
+            html->styleEngine->setPseudoVisited ();
+         } else {
+            html->styleEngine->setPseudoLink ();
+         }
+
+         html->styleEngine->setNonCssHint(PROPERTY_X_LINK, CSS_TYPE_INTEGER,
+                                          Html_set_new_link(html, &url));
+      }
    }
    a_Url_free(base_url);
 }
@@ -2526,8 +2551,27 @@ static void Html_tag_open_object(DilloHtml *html, const char *tag, int tagsize)
 static void Html_tag_content_object(DilloHtml *html, const char *tag,
                                     int tagsize)
 {
-   if (a_Html_get_attr(html, tag, tagsize, "data"))
+   if (S_TOP(html)->object_is_image) {
+      DilloImage *Image;
+
+      /* This avoids loading images (e.g. for suspicious HTML email). */
+      if (URL_FLAGS(html->base_url) & URL_SpamSafe)
+         return;
+
+      Image = a_Html_image_new2(html, tag, tagsize, "data");
+      if (!Image)
+         return;
+
+      dw::Image *dwi = (dw::Image*)(dw::core::ImgRenderer*)Image->img_rndr;
+      HT2TB(html)->addWidget(dwi, html->style());
+      HT2TB(html)->addBreakOption (html->style (), false);
+
+      /* The image is the object's content; skip the nested fallback
+       * content (nested <object>/text), as in real fallback handling. */
+      S_TOP(html)->display_none = true;
+   } else if (a_Html_get_attr(html, tag, tagsize, "data")) {
       HT2TB(html)->addText("[OBJECT]", html->wordStyle ());
+   }
 }
 
 /*
