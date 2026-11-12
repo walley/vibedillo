@@ -378,13 +378,13 @@ void OOFPosAbsLikeMgr::calcHPosAndSizeChildOfChild (Child *child, int refWidth,
          *xPtr = generatorPosX (child) + child->x;
       else {
          if (!leftDefined && rightDefined)
-            *xPtr = refWidth - width - right - containerBoxRestWidth ();
+            *xPtr = refWidth - width - right;
          else if (leftDefined && !rightDefined)
-            *xPtr = left + containerBoxOffsetX ();
+            *xPtr = left;
          else {
             *xPtr = left;
             if (!widthDefined) {
-               width = refWidth - (left + right + containerBoxDiffWidth ());
+               width = refWidth - left - right;
                DBG_OBJ_MSGF ("resize.oofm", 0, "=> width (corrected) = %d",
                              width);
             }
@@ -445,15 +445,13 @@ void OOFPosAbsLikeMgr::calcVPosAndSizeChildOfChild (Child *child, int refHeight,
          *yPtr = generatorPosY (child) + child->y;
       else {
          if (!topDefined && bottomDefined)
-            *yPtr = refHeight - (ascent + descent) - bottom
-               - containerBoxDiffHeight ();
+            *yPtr = refHeight - (ascent + descent) - bottom;
          else if (topDefined && !bottomDefined)
-            *yPtr = top + containerBoxOffsetY ();
+            *yPtr = top;
          else {
             *yPtr = top;
             if (!heightDefined) {
-               int height =
-                  refHeight - (top + bottom + containerBoxDiffHeight ());
+               int height = refHeight - top - bottom;
                splitHeightPreserveAscent (height, &ascent, &descent);
                DBG_OBJ_MSGF ("resize.oofm", 0,
                              "=> ascent + descent (corrected) = %d + %d",
