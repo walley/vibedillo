@@ -1334,6 +1334,26 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                case CssShorthandInfo::CSS_SHORTHAND_FONT:
                   /* \todo Implement details. */
                case CssShorthandInfo::CSS_SHORTHAND_MULTIPLE:
+                  /* Per CSS, a shorthand resets all its sub-properties to
+                   * their initial values before the given values are
+                   * applied. Only implemented for "background" (the others
+                   * would need currentColor etc. as initial values). */
+                  if (Css_shorthand_info[sh_index].properties ==
+                      Css_background_properties) {
+                     CssPropertyValue iv;
+                     iv.intVal = 1; /* enum index 0 -> 1<<0: "transparent" */
+                     props->set(CSS_PROPERTY_BACKGROUND_COLOR,
+                                CSS_TYPE_ENUM, iv);
+                     iv.strVal = NULL; /* "none" */
+                     props->set(CSS_PROPERTY_BACKGROUND_IMAGE,
+                                CSS_TYPE_URI, iv);
+                     iv.intVal = 1; /* "repeat" */
+                     props->set(CSS_PROPERTY_BACKGROUND_REPEAT,
+                                CSS_TYPE_ENUM, iv);
+                     iv.intVal = 1; /* "scroll" */
+                     props->set(CSS_PROPERTY_BACKGROUND_ATTACHMENT,
+                                CSS_TYPE_ENUM, iv);
+                  }
                   do {
                      for (found = false, i = 0;
                           !found &&

@@ -3361,6 +3361,54 @@ static void Html_css_load_callback(int Op, CacheClient_t *Client)
 }
 
 /**
+ * Decode a data: URL (RFC 2397) into its content. Returns a newly
+ * allocated string, or NULL when the URL is not a valid data: URL.
+ */
+static char *Html_data_url_content(const DilloUrl *url, int *len)
+{
+   const char *str = URL_STR(url);
+   const char *comma, *p;
+   bool base64 = false;
+   char *raw, *decoded = NULL;
+
+   if (dStrAsciiCasecmp(URL_SCHEME(url), "data"))
+      return NULL;
+   p = str + 5; /* skip "data:" */
+   comma = strchr(p, ',');
+   if (!comma)
+      return NULL;
+   if (dStriAsciiStr(p, ";base64") && dStriAsciiStr(p, ";base64") < comma)
+      base64 = true;
+   raw = dStrndup(comma + 1, strlen(comma + 1));
+
+   if (base64) {
+      /* decode base64 */
+      static const signed char b64tab[256] = { -1 };
+      (void)b64tab;
+      int vals[256];
+      for (int i = 0; i < 256; i++) vals[i] = -1;
+      const char *hex = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+      for (int i = 0; hex[i]; i++) vals[(unsigned char)hex[i]] = i;
+      int olen = 0, acc = 0, nbits = 0;
+      decoded = dNew(char, strlen(raw) + 1);
+      for (char *q = raw; *q; q++) {
+         if (*q == '=') break;
+         int v = vals[(unsigned char)*q];
+         if (v < 0) continue;
+         acc = (acc << 6) | v; nbits += 6;
+         if (nbits >= 8) { nbits -= 8; decoded[olen++] = (acc >> nbits) & 0xff; }
+      }
+      decoded[olen] = 0;
+      *len = olen;
+   } else {
+      decoded = a_Url_decode_hex_str(raw);
+      *len = strlen(decoded);
+   }
+   dFree(raw);
+   return decoded;
+}
+
+/**
  * Tell cache to retrieve a stylesheet
  */
 void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url)
@@ -3369,6 +3417,15 @@ void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url)
    int len;
 
    dReturn_if (url == NULL || ! prefs.load_stylesheets);
+
+   /* data: URLs are decoded inline, without going through the cache */
+   if (!dStrAsciiCasecmp(URL_SCHEME(url), "data")) {
+      if ((data = Html_data_url_content(url, &len))) {
+         html->styleEngine->parse(html, url, data, len, CSS_ORIGIN_AUTHOR);
+         dFree(data);
+      }
+      return;
+   }
 
    _MSG("Html_load_stylesheet: ");
    if ((a_Capi_get_flags_with_redirection(url) & CAPI_Completed) &&
@@ -3442,7 +3499,7 @@ static void Html_tag_open_link(DilloHtml *html, const char *tag, int tagsize)
    dReturn_if_fail (prefs.load_stylesheets);
    /* CSS stylesheet link */
    if (!(attrbuf = a_Html_get_attr(html, tag, tagsize, "rel")) ||
-       dStrAsciiCasecmp(attrbuf, "stylesheet"))
+       !dStriAsciiStr(attrbuf, "stylesheet")) /* rel is a token list */
       return;
 
    /* IMPLIED attributes? */
