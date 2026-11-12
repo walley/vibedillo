@@ -399,10 +399,17 @@ protected:
        *    borderAscent) must be passed separately.
        */
       inline int totalHeight (int marginNextLine)
-      { return borderAscent + borderDescent
-            // Collapsing of the margins of adjacent lines is done here:
-            + lout::misc::max (marginDescent - borderDescent, marginNextLine,
-                               breakSpace); }
+      { /* Collapsing of the margins of adjacent lines (CSS 8.3.1): the
+         * collapsed margin is the maximum of the positive margins plus
+         * the minimum of the negative margins. */
+         int a = marginDescent - borderDescent;
+         int collapsed = lout::misc::max (a, marginNextLine, 0) +
+                         lout::misc::min (a, marginNextLine, 0);
+         /* breakSpace only acts as a minimum when positive; a negative
+          * collapsed margin must be able to shrink the line height. */
+         int m = breakSpace > 0 ? lout::misc::max (collapsed, breakSpace)
+                                : collapsed;
+         return borderAscent + borderDescent + m; }
 
       /* Maximum of all line widths, including this line. Does not
        * include the last space, but the last hyphen width. Please

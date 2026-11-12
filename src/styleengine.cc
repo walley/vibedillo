@@ -639,8 +639,6 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
             break;
          case CSS_PROPERTY_MARGIN_BOTTOM:
             computeValue (&attrs->margin.bottom, p->value.lenVal, attrs->font);
-            if (attrs->margin.bottom < 0) // \todo fix negative margins in dw/*
-               attrs->margin.bottom = 0;
             break;
          case CSS_PROPERTY_MARGIN_LEFT:
             if (CSS_LENGTH_TYPE (p->value.lenVal) == CSS_LENGTH_TYPE_AUTO) {
@@ -648,8 +646,6 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                attrs->marginLeftAuto = true;
             } else {
                computeValue (&attrs->margin.left, p->value.lenVal, attrs->font);
-               if (attrs->margin.left < 0) // \todo fix negative margins in dw/*
-                  attrs->margin.left = 0;
             }
             break;
          case CSS_PROPERTY_MARGIN_RIGHT:
@@ -658,14 +654,10 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                attrs->marginRightAuto = true;
             } else {
                computeValue (&attrs->margin.right, p->value.lenVal, attrs->font);
-               if (attrs->margin.right < 0) // \todo fix negative margins in dw/*
-                  attrs->margin.right = 0;
             }
             break;
          case CSS_PROPERTY_MARGIN_TOP:
             computeValue (&attrs->margin.top, p->value.lenVal, attrs->font);
-            if (attrs->margin.top < 0) // \todo fix negative margins in dw/*
-               attrs->margin.top = 0;
             break;
          case CSS_PROPERTY_OVERFLOW:
             attrs->overflow = (Overflow) p->value.intVal;
