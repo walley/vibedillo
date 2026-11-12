@@ -609,6 +609,10 @@ public:
    inline bool hasBackground ()
    { return backgroundColor != NULL || backgroundImage != NULL; }
 
+   inline bool hasBorder ()
+   { return borderWidth.top > 0 || borderWidth.right > 0 ||
+            borderWidth.bottom > 0 || borderWidth.left > 0; }
+
    bool equals (lout::object::Object *other);
    int hashValue ();
 };

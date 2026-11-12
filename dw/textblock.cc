@@ -1287,11 +1287,14 @@ void Textblock::drawWord (Line *line, int wordIndex1, int wordIndex2,
    bool drawHyphen = wordIndex2 == line->lastWord
       && (words->getRef(wordIndex2)->flags & Word::DIV_CHAR_AT_EOL);
 
-   if (style->hasBackground ()) {
+   if (style->hasBackground () || style->hasBorder ()) {
       int w = 0;
       for (int i = wordIndex1; i <= wordIndex2; i++)
          w += words->getRef(i)->size.width;
       w += words->getRef(wordIndex2)->hyphenWidth;
+      /* Draws border and background of inline elements. Per CSS, the
+       * border of an inline box does not affect the line height; it may
+       * overlap adjacent lines. */
       drawBox (view, style, area, xWidget, yWidgetBase - line->borderAscent,
                w, line->borderAscent + line->borderDescent, false);
    }

@@ -892,6 +892,9 @@ void StyleEngine::computeBorderWidth (int *dest, CssProperty *p,
       }
    } else {
       computeValue (dest, p->value.lenVal, font);
+      /* Negative border widths are not permitted (CSS 2.1 8.5.1). */
+      if (*dest < 0)
+         *dest = 0;
    }
 }
 
@@ -957,19 +960,26 @@ Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
 }
 
 Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
-   StyleAttrs attrs = *style (bw);
+   Style *s = style (bw);
+   StyleAttrs attrs = *s;
    attrs.resetValues ();
 
    if (stack->getRef (stack->size() - 1)->inheritBackgroundColor) {
-      attrs.backgroundColor = style (bw)->backgroundColor;
-      attrs.backgroundImage = style (bw)->backgroundImage;
-      attrs.backgroundRepeat = style (bw)->backgroundRepeat;
-      attrs.backgroundAttachment = style (bw)->backgroundAttachment;
-      attrs.backgroundPositionX = style (bw)->backgroundPositionX;
-      attrs.backgroundPositionY = style (bw)->backgroundPositionY;
+      attrs.backgroundColor = s->backgroundColor;
+      attrs.backgroundImage = s->backgroundImage;
+      attrs.backgroundRepeat = s->backgroundRepeat;
+      attrs.backgroundAttachment = s->backgroundAttachment;
+      attrs.backgroundPositionX = s->backgroundPositionX;
+      attrs.backgroundPositionY = s->backgroundPositionY;
    }
 
-   attrs.valign = style (bw)->valign;
+   attrs.valign = s->valign;
+
+   /* Borders of inline elements apply to their words, but (per CSS)
+    * do not affect the line height. */
+   attrs.borderWidth = s->borderWidth;
+   attrs.borderStyle = s->borderStyle;
+   attrs.borderColor = s->borderColor;
 
    stack->getRef(stack->size() - 1)->wordStyle = Style::create(&attrs);
    return stack->getRef (stack->size () - 1)->wordStyle;
