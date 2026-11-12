@@ -643,14 +643,24 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                attrs->margin.bottom = 0;
             break;
          case CSS_PROPERTY_MARGIN_LEFT:
-            computeValue (&attrs->margin.left, p->value.lenVal, attrs->font);
-            if (attrs->margin.left < 0) // \todo fix negative margins in dw/*
+            if (CSS_LENGTH_TYPE (p->value.lenVal) == CSS_LENGTH_TYPE_AUTO) {
                attrs->margin.left = 0;
+               attrs->marginLeftAuto = true;
+            } else {
+               computeValue (&attrs->margin.left, p->value.lenVal, attrs->font);
+               if (attrs->margin.left < 0) // \todo fix negative margins in dw/*
+                  attrs->margin.left = 0;
+            }
             break;
          case CSS_PROPERTY_MARGIN_RIGHT:
-            computeValue (&attrs->margin.right, p->value.lenVal, attrs->font);
-            if (attrs->margin.right < 0) // \todo fix negative margins in dw/*
+            if (CSS_LENGTH_TYPE (p->value.lenVal) == CSS_LENGTH_TYPE_AUTO) {
                attrs->margin.right = 0;
+               attrs->marginRightAuto = true;
+            } else {
+               computeValue (&attrs->margin.right, p->value.lenVal, attrs->font);
+               if (attrs->margin.right < 0) // \todo fix negative margins in dw/*
+                  attrs->margin.right = 0;
+            }
             break;
          case CSS_PROPERTY_MARGIN_TOP:
             computeValue (&attrs->margin.top, p->value.lenVal, attrs->font);
@@ -896,6 +906,43 @@ void StyleEngine::computeBorderWidth (int *dest, CssProperty *p,
       if (*dest < 0)
          *dest = 0;
    }
+}
+
+/**
+ * \brief Compute the style of the current (top) element as if it had the
+ *        given pseudo class, e.g. "before" or "after", for generated content.
+ *        Sets *hasContent when a "content" property other than none/normal
+ *        matches. Does not touch the cached styles of the element itself.
+ */
+Style * StyleEngine::pseudoStyle (BrowserWindow *bw, const char *pseudo,
+                                  bool *hasContent)
+{
+   int i = stack->size () - 1;
+   CssPropertyList props;
+   StyleAttrs attrs = *stack->getRef (i - 1)->style;
+
+   attrs.resetValues ();
+   preprocessAttrs (&attrs);
+
+   DoctreeNode *dn = stack->getRef (i)->doctreeNode;
+   const char *savedPseudo = dn->pseudo;
+   dn->pseudo = pseudo;
+   cssContext->apply (&props, doctree, dn, NULL, NULL, NULL);
+   dn->pseudo = savedPseudo;
+
+   *hasContent = false;
+   for (int j = 0; j < props.size (); j++) {
+      CssProperty *p = props.getRef (j);
+      if (p->name == CSS_PROPERTY_CONTENT && p->value.strVal &&
+          dStrAsciiCasecmp (p->value.strVal, "none") != 0 &&
+          dStrAsciiCasecmp (p->value.strVal, "normal") != 0)
+         *hasContent = true;
+   }
+
+   apply (i, &attrs, &props, bw);
+   postprocessAttrs (&attrs);
+
+   return Style::create (&attrs);
 }
 
 /**

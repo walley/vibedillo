@@ -189,6 +189,23 @@ bool CssSelector::checksPseudoClass () {
 }
 
 /**
+ * \brief Return whether the selector contains a pseudo class that may
+ *        reveal browsing history (:link, :visited). Generated-content
+ *        pseudo elements (:before, :after) are not history sensitive.
+ */
+bool CssSelector::checksHistoryPseudoClass () {
+   for (int i = 0; i < selectorList.size (); i++) {
+      const char *pseudo =
+         selectorList.getRef (i)->selector->getPseudoClass ();
+      if (pseudo &&
+          (dStrAsciiCasecmp (pseudo, "link") == 0 ||
+           dStrAsciiCasecmp (pseudo, "visited") == 0))
+         return true;
+   }
+   return false;
+}
+
+/**
  * \brief Return the specificity of the selector.
  *
  * The specificity of a CSS selector is defined in

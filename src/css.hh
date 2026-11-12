@@ -458,6 +458,7 @@ class CssSelector {
       }
       int specificity ();
       bool checksPseudoClass ();
+      bool checksHistoryPseudoClass ();
       void print ();
       inline void ref () { refCount++; }
       inline void unref () { if (--refCount == 0) delete this; }
@@ -482,7 +483,7 @@ class CssRule {
       void apply (CssPropertyList *props, Doctree *docTree,
                   const DoctreeNode *node, MatchCache *matchCache) const;
       inline bool isSafe () {
-         return !selector->checksPseudoClass () || props->isSafe ();
+         return !selector->checksHistoryPseudoClass () || props->isSafe ();
       };
       inline int specificity () { return spec; };
       inline int position () { return pos; };

@@ -246,6 +246,8 @@ int StyleAttrs::hashValue () {
       lineHeight +
       textIndent +
       margin.hashValue () +
+      (marginLeftAuto ? 1 : 0) +
+      (marginRightAuto ? 2 : 0) +
       borderWidth.hashValue () +
       padding.hashValue () +
       borderCollapse +
@@ -374,6 +376,8 @@ void Style::copyAttrs (StyleAttrs *attrs)
    minHeight = attrs->minHeight;
    maxHeight = attrs->maxHeight;
    margin = attrs->margin;
+   marginLeftAuto = attrs->marginLeftAuto;
+   marginRightAuto = attrs->marginRightAuto;
    borderWidth = attrs->borderWidth;
    padding = attrs->padding;
    borderCollapse = attrs->borderCollapse;
@@ -794,9 +798,15 @@ static void drawBorderTop(View *view, Style *style,
          points[0].x = x1;
          points[1].x = x2 + 1;
          points[0].y = points[1].y = y1;
-         points[2].x = points[1].x - style->borderWidth.right;
-         points[3].x = x1 + style->borderWidth.left;
+         points[2].x = points[1].x -
+            (style->borderWidth.right > 0 ? style->borderWidth.right :
+             style->borderWidth.top);
+         points[3].x = x1 +
+            (style->borderWidth.left > 0 ? style->borderWidth.left :
+             style->borderWidth.top);
          points[2].y = points[3].y = points[0].y + style->borderWidth.top;
+         if (points[3].x > points[2].x) /* keep polygon convex */
+            points[3].x = points[2].x;
          view->drawPolygon (style->borderColor.top, shading, filled, convex,
                             points, 4);
       }
@@ -894,9 +904,15 @@ static void drawBorderBottom(View *view, Style *style,
          points[0].x = x1 - 1;
          points[1].x = x2 + 2;
          points[0].y = points[1].y = y1 + 1;
-         points[2].x = points[1].x - style->borderWidth.right;
-         points[3].x = points[0].x + style->borderWidth.left;
+         points[2].x = points[1].x -
+            (style->borderWidth.right > 0 ? style->borderWidth.right :
+             style->borderWidth.bottom);
+         points[3].x = points[0].x +
+            (style->borderWidth.left > 0 ? style->borderWidth.left :
+             style->borderWidth.bottom);
          points[2].y = points[3].y = points[0].y-style->borderWidth.bottom;
+         if (points[3].x > points[2].x) /* keep polygon convex */
+            points[3].x = points[2].x;
          view->drawPolygon (style->borderColor.bottom, shading, filled, convex,
                             points, 4);
       }
@@ -996,8 +1012,14 @@ static void drawBorderLeft(View *view, Style *style,
          points[0].y = y1 - 1;
          points[1].y = y2 + 1;
          points[2].x = points[3].x = points[0].x + style->borderWidth.left;
-         points[2].y = points[1].y - style->borderWidth.bottom;
-         points[3].y = points[0].y + style->borderWidth.top;
+         points[2].y = points[1].y -
+            (style->borderWidth.bottom > 0 ? style->borderWidth.bottom :
+             style->borderWidth.left);
+         points[3].y = points[0].y +
+            (style->borderWidth.top > 0 ? style->borderWidth.top :
+             style->borderWidth.left);
+         if (points[3].y > points[2].y) /* keep polygon convex */
+            points[3].y = points[2].y;
          view->drawPolygon (style->borderColor.left, shading, filled, convex,
                             points, 4);
       }
@@ -1096,8 +1118,14 @@ static void drawBorderRight(View *view, Style *style,
          points[0].y = y1 - 1;
          points[1].y = y2 + 1;
          points[2].x = points[3].x = points[0].x-style->borderWidth.right;
-         points[2].y = points[1].y - style->borderWidth.bottom;
-         points[3].y = points[0].y + style->borderWidth.top;
+         points[2].y = points[1].y -
+            (style->borderWidth.bottom > 0 ? style->borderWidth.bottom :
+             style->borderWidth.right);
+         points[3].y = points[0].y +
+            (style->borderWidth.top > 0 ? style->borderWidth.top :
+             style->borderWidth.right);
+         if (points[3].y > points[2].y) /* keep polygon convex */
+            points[3].y = points[2].y;
          view->drawPolygon (style->borderColor.right, shading, filled, convex,
                             points,4);
       }

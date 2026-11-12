@@ -431,6 +431,41 @@ static void Html_add_textblock(DilloHtml *html, bool addBreaks, int breakSpace,
    style->unref ();
 }
 
+/**
+ * Insert generated content (:before/:after) for the current element, if a
+ * matching CSS rule with a "content" property exists. Only block-level
+ * originating elements are handled; the generated box becomes a block-level
+ * child widget of the element's own text block.
+ */
+static void Html_add_generated_content(DilloHtml *html, const char *pseudo)
+{
+   if (S_TOP(html)->display_none)
+      return;
+   if (html->style ()->display != DISPLAY_BLOCK)
+      return;
+
+   bool hasContent = false;
+   Style *pstyle = html->styleEngine->pseudoStyle (html->bw, pseudo,
+                                                   &hasContent);
+   if (!hasContent) {
+      pstyle->unref ();
+      return;
+   }
+
+   Textblock *textblock = new Textblock (prefs.limit_text_width);
+   StyleAttrs attrs = *pstyle;
+   attrs.display = DISPLAY_BLOCK;
+   /* Emulate "width: auto" semantics (border box fills the containing
+    * block): dillo computes the content width as the available width, so
+    * set the content width to 0 explicitly to end up with a border box
+    * of just the border widths. */
+   attrs.width = createAbsLength (0);
+   Style *style = Style::create (&attrs);
+   HT2TB(html)->addWidget (textblock, style);
+   style->unref ();
+   pstyle->unref ();
+}
+
 static bool Html_must_add_breaks(DilloHtml *html)
 {
    return HT2TB(html)->mustAddBreaks (html->style ());
@@ -1399,6 +1434,7 @@ static void Html_real_pop_tag(DilloHtml *html)
 {
    bool hand_over_break;
 
+   Html_add_generated_content (html, "after");
    html->styleEngine->endElement (S_TOP(html)->tag_idx);
    hand_over_break = S_TOP(html)->hand_over_break;
    html->stack->setSize (html->stack->size() - 1);
@@ -4259,6 +4295,9 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
             default:
                break;
          }
+
+         if (! S_TOP(html)->display_none)
+            Html_add_generated_content (html, "before");
 
          if (Tags[ni].content && ! S_TOP(html)->display_none) {
             Tags[ni].content (html, tag, tagsize);

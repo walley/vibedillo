@@ -116,6 +116,13 @@ class StyleEngine {
       }
       void inheritNonCssHints ();
       void clearNonCssHints ();
+      /* Compute the style of the current element as if it had the given
+       * pseudo class ("before"/"after"), for generated content. Sets
+       * *hasContent to true when a "content" property other than
+       * none/normal matches. The returned style must be unref()ed. */
+      dw::core::style::Style *pseudoStyle (BrowserWindow *bw,
+                                           const char *pseudo,
+                                           bool *hasContent);
       void restyle (BrowserWindow *bw);
       void inheritBackgroundColor (); /* \todo get rid of this somehow */
       dw::core::style::Style *backgroundStyle (BrowserWindow *bw);

@@ -630,7 +630,26 @@ void Textblock::sizeAllocateImpl (core::Allocation *allocation)
             // TODO For word->flags & Word::TOPLEFT_OF_LINE, make
             // allocation consistent with calcSizeOfWidgetInFlow():
 
-            childAllocation.x = xCursor + allocation->x;
+            core::style::Style *wstyle = word->content.widget->getStyle ();
+            if ((wstyle->display == core::style::DISPLAY_BLOCK ||
+                 wstyle->display == core::style::DISPLAY_LIST_ITEM ||
+                 wstyle->display == core::style::DISPLAY_TABLE) &&
+                (wstyle->marginLeftAuto || wstyle->marginRightAuto)) {
+               /* Keep the allocation consistent with
+                * calcSizeOfWidgetInFlow() for "margin: auto". */
+               int totalWidth = misc::min (allocation->width, lineBreakWidth);
+               int avail = totalWidth - line->rightOffset - line->leftOffset;
+               int x = line->leftOffset;
+               if (wstyle->marginLeftAuto && wstyle->marginRightAuto)
+                  x = line->leftOffset + (avail - word->size.width) / 2;
+               else if (wstyle->marginLeftAuto)
+                  x = line->leftOffset + avail - word->size.width;
+               if (x < line->leftOffset)
+                  x = line->leftOffset;
+               childAllocation.x = x + allocation->x;
+            } else {
+               childAllocation.x = xCursor + allocation->x;
+            }
             
             /** \todo Justification within the line is done here. */
             /* align=top:
@@ -2415,7 +2434,22 @@ bool Textblock::calcSizeOfWidgetInFlow (int wordIndex, Widget *widget,
          
          int xRel;
 
-         switch(widget->getStyle()->textAlign) {
+         core::style::Style *wstyle = widget->getStyle ();
+         if ((wstyle->display == core::style::DISPLAY_BLOCK ||
+              wstyle->display == core::style::DISPLAY_LIST_ITEM ||
+              wstyle->display == core::style::DISPLAY_TABLE) &&
+             (wstyle->marginLeftAuto || wstyle->marginRightAuto)) {
+            /* "margin: auto" on a block-level box: split the remaining
+             * space between the auto margins (centers the box when both
+             * sides are auto). */
+            int avail = lineBreakWidth - rightBorder - leftBorder;
+            if (wstyle->marginLeftAuto && wstyle->marginRightAuto)
+               xRel = leftBorder + (avail - size->width) / 2;
+            else if (wstyle->marginLeftAuto)
+               xRel = leftBorder + avail - size->width;
+            else
+               xRel = leftBorder;
+         } else switch(widget->getStyle()->textAlign) {
          case core::style::TEXT_ALIGN_LEFT:
          case core::style::TEXT_ALIGN_STRING: // see comment in alignLine()
          case core::style::TEXT_ALIGN_JUSTIFY: // equivalent for only one word
