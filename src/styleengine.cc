@@ -976,10 +976,14 @@ Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
    attrs.valign = s->valign;
 
    /* Borders of inline elements apply to their words, but (per CSS)
-    * do not affect the line height. */
-   attrs.borderWidth = s->borderWidth;
-   attrs.borderStyle = s->borderStyle;
-   attrs.borderColor = s->borderColor;
+    * do not affect the line height. Block-level elements draw their
+    * border as part of the widget box, so it must not be repeated for
+    * every word (which would draw a border above each line of text). */
+   if (s->display == DISPLAY_INLINE) {
+      attrs.borderWidth = s->borderWidth;
+      attrs.borderStyle = s->borderStyle;
+      attrs.borderColor = s->borderColor;
+   }
 
    stack->getRef(stack->size() - 1)->wordStyle = Style::create(&attrs);
    return stack->getRef (stack->size () - 1)->wordStyle;
