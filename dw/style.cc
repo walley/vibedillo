@@ -798,12 +798,8 @@ static void drawBorderTop(View *view, Style *style,
          points[0].x = x1;
          points[1].x = x2 + 1;
          points[0].y = points[1].y = y1;
-         points[2].x = points[1].x -
-            (style->borderWidth.right > 0 ? style->borderWidth.right :
-             style->borderWidth.top);
-         points[3].x = x1 +
-            (style->borderWidth.left > 0 ? style->borderWidth.left :
-             style->borderWidth.top);
+         points[2].x = points[1].x - style->borderWidth.right;
+         points[3].x = x1 + style->borderWidth.left;
          points[2].y = points[3].y = points[0].y + style->borderWidth.top;
          if (points[3].x > points[2].x) /* keep polygon convex */
             points[3].x = points[2].x;
@@ -904,12 +900,8 @@ static void drawBorderBottom(View *view, Style *style,
          points[0].x = x1 - 1;
          points[1].x = x2 + 2;
          points[0].y = points[1].y = y1 + 1;
-         points[2].x = points[1].x -
-            (style->borderWidth.right > 0 ? style->borderWidth.right :
-             style->borderWidth.bottom);
-         points[3].x = points[0].x +
-            (style->borderWidth.left > 0 ? style->borderWidth.left :
-             style->borderWidth.bottom);
+         points[2].x = points[1].x - style->borderWidth.right;
+         points[3].x = points[0].x + style->borderWidth.left;
          points[2].y = points[3].y = points[0].y-style->borderWidth.bottom;
          if (points[3].x > points[2].x) /* keep polygon convex */
             points[3].x = points[2].x;
@@ -1012,12 +1004,8 @@ static void drawBorderLeft(View *view, Style *style,
          points[0].y = y1 - 1;
          points[1].y = y2 + 1;
          points[2].x = points[3].x = points[0].x + style->borderWidth.left;
-         points[2].y = points[1].y -
-            (style->borderWidth.bottom > 0 ? style->borderWidth.bottom :
-             style->borderWidth.left);
-         points[3].y = points[0].y +
-            (style->borderWidth.top > 0 ? style->borderWidth.top :
-             style->borderWidth.left);
+         points[2].y = points[1].y - style->borderWidth.bottom;
+         points[3].y = points[0].y + style->borderWidth.top;
          if (points[3].y > points[2].y) /* keep polygon convex */
             points[3].y = points[2].y;
          view->drawPolygon (style->borderColor.left, shading, filled, convex,
@@ -1118,12 +1106,8 @@ static void drawBorderRight(View *view, Style *style,
          points[0].y = y1 - 1;
          points[1].y = y2 + 1;
          points[2].x = points[3].x = points[0].x-style->borderWidth.right;
-         points[2].y = points[1].y -
-            (style->borderWidth.bottom > 0 ? style->borderWidth.bottom :
-             style->borderWidth.right);
-         points[3].y = points[0].y +
-            (style->borderWidth.top > 0 ? style->borderWidth.top :
-             style->borderWidth.right);
+         points[2].y = points[1].y - style->borderWidth.bottom;
+         points[3].y = points[0].y + style->borderWidth.top;
          if (points[3].y > points[2].y) /* keep polygon convex */
             points[3].y = points[2].y;
          view->drawPolygon (style->borderColor.right, shading, filled, convex,

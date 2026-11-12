@@ -455,11 +455,10 @@ static void Html_add_generated_content(DilloHtml *html, const char *pseudo)
    Textblock *textblock = new Textblock (prefs.limit_text_width);
    StyleAttrs attrs = *pstyle;
    attrs.display = DISPLAY_BLOCK;
-   /* Emulate "width: auto" semantics (border box fills the containing
-    * block): dillo computes the content width as the available width, so
-    * set the content width to 0 explicitly to end up with a border box
-    * of just the border widths. */
-   attrs.width = createAbsLength (0);
+   /* Keep "width: auto": a block-level generated box fills the
+    * containing block, so its border box spans the parent's content
+    * width (plus its own borders/margins). */
+   attrs.width = LENGTH_AUTO;
    Style *style = Style::create (&attrs);
    HT2TB(html)->addWidget (textblock, style);
    style->unref ();

@@ -2629,6 +2629,11 @@ void Textblock::addWidget (core::Widget *widget, core::style::Style *style)
          addWord (size.width, size.ascent, size.descent, flags, style);
       word->content.type = core::Content::WIDGET_IN_FLOW;
       word->content.widget = widget;
+      /* A block-level in-flow widget always starts on a new line. */
+      if (style->display == core::style::DISPLAY_BLOCK ||
+          style->display == core::style::DISPLAY_LIST_ITEM ||
+          style->display == core::style::DISPLAY_TABLE)
+         word->badnessAndPenalty.setPenalty (PENALTY_FORCE_BREAK);
    }
 
    DBG_SET_WORD (words->size () - 1);
