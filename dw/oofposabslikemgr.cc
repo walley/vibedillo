@@ -68,9 +68,20 @@ void OOFPosAbsLikeMgr::sizeAllocateChildren ()
       calcPosAndSizeChildOfChild (child, refWidth, refHeight, &x, &y, &width,
                                   &ascent, &descent);
 
+      /* x/y are relative to the container's padding box when left/right/
+       * top/bottom are given, but relative to the container's allocation
+       * when the static (generator) position is used; only the former
+       * need the box offset added here. */
+      int dummyL, dummyR, dummyT, dummyB;
+      bool xAbs = getPosLeft (child->widget, refWidth, &dummyL) ||
+                 getPosRight (child->widget, refWidth, &dummyR);
+      bool yAbs = getPosTop (child->widget, refHeight, &dummyT) ||
+                 getPosBottom (child->widget, refHeight, &dummyB);
       Allocation childAllocation;
-      childAllocation.x = containerAllocation.x + x + containerBoxOffsetX ();
-      childAllocation.y = containerAllocation.y + y + containerBoxOffsetY ();
+      childAllocation.x = containerAllocation.x + x +
+         (xAbs ? containerBoxOffsetX () : 0);
+      childAllocation.y = containerAllocation.y + y +
+         (yAbs ? containerBoxOffsetY () : 0);
       childAllocation.width = width;
       childAllocation.ascent = ascent;
       childAllocation.descent = descent;
