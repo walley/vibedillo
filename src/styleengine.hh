@@ -72,17 +72,17 @@ class StyleEngine {
       void apply (int i, dw::core::style::StyleAttrs *attrs,
                   CssPropertyList *props, BrowserWindow *bw,
                   dw::core::style::Font *referenceFont = NULL);
+      void computeBorderWidth (int *dest, CssProperty *p,
+                               dw::core::style::Font *font);
+
+   public:
+      static void init ();
       bool computeValue (int *dest, CssLength value,
                          dw::core::style::Font *font);
       bool computeValue (int *dest, CssLength value,
                          dw::core::style::Font *font, int percentageBase);
       bool computeLength (dw::core::style::Length *dest, CssLength value,
                           dw::core::style::Font *font);
-      void computeBorderWidth (int *dest, CssProperty *p,
-                               dw::core::style::Font *font);
-
-   public:
-      static void init ();
 
       StyleEngine (dw::core::Layout *layout,
                    const DilloUrl *pageUrl, const DilloUrl *baseUrl, float zoom);

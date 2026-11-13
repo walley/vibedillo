@@ -95,6 +95,9 @@ void StyleAttrs::initValues ()
    whiteSpace = WHITE_SPACE_NORMAL;
    cursor = CURSOR_DEFAULT;
    zIndex = Z_INDEX_AUTO;
+   gridTemplateColumns = gridTemplateRows = NULL;
+   gridColumn = gridRow = NULL;
+   gridColumnGap = gridRowGap = LENGTH_AUTO;
 }
 
 /**
@@ -132,6 +135,11 @@ void StyleAttrs::resetValues ()
    vBorderSpacing = 0;
 
    display = DISPLAY_INLINE;
+
+   /* grid properties are not inherited */
+   gridTemplateColumns = gridTemplateRows = NULL;
+   gridColumn = gridRow = NULL;
+   gridColumnGap = gridRowGap = LENGTH_AUTO;
 }
 
 /**
@@ -206,6 +214,20 @@ bool StyleAttrs::equals (object::Object *other) {
        listStyleType == otherAttrs->listStyleType &&
        cursor == otherAttrs->cursor &&
        zIndex == otherAttrs->zIndex &&
+       (gridTemplateColumns == otherAttrs->gridTemplateColumns ||
+        (gridTemplateColumns && otherAttrs->gridTemplateColumns &&
+         strcmp (gridTemplateColumns, otherAttrs->gridTemplateColumns) == 0)) &&
+       (gridTemplateRows == otherAttrs->gridTemplateRows ||
+        (gridTemplateRows && otherAttrs->gridTemplateRows &&
+         strcmp (gridTemplateRows, otherAttrs->gridTemplateRows) == 0)) &&
+       (gridColumn == otherAttrs->gridColumn ||
+        (gridColumn && otherAttrs->gridColumn &&
+         strcmp (gridColumn, otherAttrs->gridColumn) == 0)) &&
+       (gridRow == otherAttrs->gridRow ||
+        (gridRow && otherAttrs->gridRow &&
+         strcmp (gridRow, otherAttrs->gridRow) == 0)) &&
+       gridColumnGap == otherAttrs->gridColumnGap &&
+       gridRowGap == otherAttrs->gridRowGap &&
        x_link == otherAttrs->x_link &&
        x_lang[0] == otherAttrs->x_lang[0] &&
        x_lang[1] == otherAttrs->x_lang[1] &&
@@ -266,6 +288,12 @@ int StyleAttrs::hashValue () {
       listStyleType +
       cursor +
       zIndex +
+      (gridTemplateColumns ? object::String::hashValue (gridTemplateColumns) : 0) +
+      (gridTemplateRows ? object::String::hashValue (gridTemplateRows) : 0) +
+      (gridColumn ? object::String::hashValue (gridColumn) : 0) +
+      (gridRow ? object::String::hashValue (gridRow) : 0) +
+      gridColumnGap +
+      gridRowGap +
       x_link +
       x_lang[0] + x_lang[1] +
       x_img +
@@ -390,6 +418,14 @@ void Style::copyAttrs (StyleAttrs *attrs)
    listStyleType = attrs->listStyleType;
    cursor = attrs->cursor;
    zIndex = attrs->zIndex;
+   gridTemplateColumns = attrs->gridTemplateColumns ?
+      dStrdup (attrs->gridTemplateColumns) : NULL;
+   gridTemplateRows = attrs->gridTemplateRows ?
+      dStrdup (attrs->gridTemplateRows) : NULL;
+   gridColumn = attrs->gridColumn ? dStrdup (attrs->gridColumn) : NULL;
+   gridRow = attrs->gridRow ? dStrdup (attrs->gridRow) : NULL;
+   gridColumnGap = attrs->gridColumnGap;
+   gridRowGap = attrs->gridRowGap;
    x_link = attrs->x_link;
    x_lang[0] = attrs->x_lang[0];
    x_lang[1] = attrs->x_lang[1];

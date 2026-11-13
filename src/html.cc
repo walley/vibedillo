@@ -46,6 +46,8 @@
 #include "dw/listitem.hh"
 #include "dw/image.hh"
 #include "dw/ruler.hh"
+#include "dw/table.hh"
+#include "dw/simpletablecell.hh"
 
 /*-----------------------------------------------------------------------------
  * Defines
@@ -96,6 +98,10 @@ typedef enum {
 extern "C" {
 void *a_Html_text(const char *type, void *P, CA_Callback_t *Call,void **Data);
 }
+
+/* Forward declaration: used by Html_process_word() (defined above the
+ * grid helpers) for anonymous grid items. */
+static void Html_grid_ensure_anon_cell(DilloHtml *html);
 
 /*-----------------------------------------------------------------------------
  * Forward declarations
@@ -544,6 +550,7 @@ DilloHtml::DilloHtml(BrowserWindow *p_bw, const DilloUrl *url,
    stack->getRef(0)->ref_list_item = NULL;
    stack->getRef(0)->hand_over_break = false;
    stack->getRef(0)->flex_container = false;
+   stack->getRef(0)->grid_container = false;
 
    InFlags = IN_NONE;
 
@@ -1213,6 +1220,10 @@ static void Html_process_space(DilloHtml *html, const char *space,
 
    if (S_TOP(html)->display_none) {
       /* do nothing */
+   } else if (S_TOP(html)->grid_container &&
+              S_TOP(html)->textblock ==
+                 html->stack->getRef(html->stack->size()-2)->textblock) {
+      /* whitespace directly between grid items: ignore */
    } else if (parse_mode == DILLO_HTML_PARSE_MODE_STASH) {
       html->StashSpace = (html->Stash->len > 0);
 
@@ -1298,6 +1309,10 @@ static void Html_process_word(DilloHtml *html, const char *word, int size)
 
    if (S_TOP(html)->display_none)
       return;
+   /* Text directly inside a grid container goes into an anonymous grid
+    * item (a table cell at the next auto position). */
+   if (S_TOP(html)->grid_container)
+      Html_grid_ensure_anon_cell(html);
    if ((i = html->PrevWasHtmlClose ? 1 : html->PrevWasBodyClose ? 2 : 0)) {
       BUG_MSG("Content after </%s> tag.", i == 1 ? "html" : "body");
       html->PrevWasHtmlClose = html->PrevWasBodyClose = false;
@@ -1434,6 +1449,7 @@ static void Html_push_tag(DilloHtml *html, int tag_idx)
    *html->stack->getRef(n_items) = *html->stack->getRef(n_items - 1);
    html->stack->getRef(n_items)->tag_idx = tag_idx;
     html->stack->getRef(n_items)->flex_container = false;
+    html->stack->getRef(n_items)->grid_container = false;
    html->dw = S_TOP(html)->textblock;
 }
 
@@ -4187,6 +4203,514 @@ static void Html_display_inline_block(DilloHtml *html)
    Html_add_textblock(html, false, 0, true);
 }
 
+/*-----------------------------------------------------------------------------
+ * CSS grid support (display: grid)
+ *
+ * A grid container becomes a dw::Table whose columns are the grid tracks
+ * (grid-template-columns); grid items are placed into cells with
+ * addCellAt() according to grid-column / grid-row (or auto-placement).
+ *---------------------------------------------------------------------------*/
+
+/* Resolve a dw Length to pixels in the current context. */
+static int Html_grid_len_px(DilloHtml *html, Length l)
+{
+   if (l == LENGTH_AUTO)
+      return 0;
+   if (isAbsLength(l))
+      return absLengthVal(l);
+   if (isPerLength(l))
+      return multiplyWithPerLength(HT2LT(html)->getWidthViewport(), l);
+   return multiplyWithRelLength(html->style()->font->size, l);
+}
+
+/* Read a "word" (up to a separator) from *p into buf; returns advanced p. */
+static const char *Html_grid_word(const char *p, char *buf, int bufsize)
+{
+   int i = 0;
+   while (*p && *p != ' ' && *p != ',' && *p != '(' && *p != ')' &&
+          *p != '[' && *p != ']')
+      if (i < bufsize - 1)
+         buf[i++] = *p++;
+      else
+         p++;
+   buf[i] = '\0';
+   return p;
+}
+
+/* Parse a single track size (length, %, Nfr, auto, min/max-content). */
+static void Html_grid_parse_size(DilloHtml *html, const char **pp,
+                                 GridTrack *t)
+{
+   char word[64];
+   const char *p = *pp;
+
+   t->minLen = t->maxLen = LENGTH_AUTO;
+   t->fr = 0;
+   t->minContent = t->maxContent = t->isAuto = false;
+
+   while (*p == ' ' || *p == ',')
+      p++;
+   p = Html_grid_word(p, word, sizeof(word));
+   *pp = p;
+   if (!word[0])
+      return;
+
+   if (dStrAsciiCasecmp(word, "auto") == 0)
+      t->isAuto = true;
+   else if (dStrAsciiCasecmp(word, "min-content") == 0)
+      t->minContent = true;
+   else if (dStrAsciiCasecmp(word, "max-content") == 0)
+      t->maxContent = true;
+   else {
+      char *end;
+      double v = strtod(word, &end);
+      if (end == word)
+         return; /* unknown token */
+      CssLength cl;
+      bool ok = true;
+      if (*end == '\0')
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_PX); /* unitless (0) */
+      else if (strcmp(end, "px") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_PX);
+      else if (strcmp(end, "mm") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_MM);
+      else if (strcmp(end, "cm") == 0)
+         cl = CSS_CREATE_LENGTH(v * 10, CSS_LENGTH_TYPE_MM);
+      else if (strcmp(end, "in") == 0)
+         cl = CSS_CREATE_LENGTH(v * 25.4, CSS_LENGTH_TYPE_MM);
+      else if (strcmp(end, "pt") == 0)
+         cl = CSS_CREATE_LENGTH(v * (25.4 / 72), CSS_LENGTH_TYPE_MM);
+      else if (strcmp(end, "pc") == 0)
+         cl = CSS_CREATE_LENGTH(v * (25.4 / 6), CSS_LENGTH_TYPE_MM);
+      else if (strcmp(end, "em") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_EM);
+      else if (strcmp(end, "ex") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_EX);
+      else if (strcmp(end, "ch") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_CH);
+      else if (strcmp(end, "rem") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_REM);
+      else if (strcmp(end, "vw") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_VW);
+      else if (strcmp(end, "vh") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_VH);
+      else if (strcmp(end, "vmin") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_VMIN);
+      else if (strcmp(end, "vmax") == 0)
+         cl = CSS_CREATE_LENGTH(v, CSS_LENGTH_TYPE_VMAX);
+      else if (strcmp(end, "%") == 0)
+         cl = CSS_CREATE_LENGTH(v / 100, CSS_LENGTH_TYPE_PERCENTAGE);
+      else if (strcmp(end, "fr") == 0) {
+         t->fr = v;
+         return;
+      } else
+         ok = false;
+
+      if (ok) {
+         Length l;
+         if (html->styleEngine->computeLength(&l, cl, html->style()->font)) {
+            t->minLen = t->maxLen = l;
+         }
+      }
+   }
+}
+
+/* Parse one item of a track list (line name, repeat(), minmax(), size). */
+static void Html_grid_parse_track(DilloHtml *html, const char **pp,
+                                  lout::misc::SimpleVector<GridTrack> *tracks,
+                                  lout::misc::SimpleVector<GridLineName> *names);
+
+static void Html_grid_parse_tracks(DilloHtml *html, const char *str,
+   lout::misc::SimpleVector<GridTrack> *tracks,
+   lout::misc::SimpleVector<GridLineName> *names)
+{
+   const char *p = str;
+   if (!p)
+      return;
+   while (*p) {
+      while (*p == ' ' || *p == ',')
+         p++;
+      if (!*p)
+         break;
+      const char *before = p;
+      Html_grid_parse_track(html, &p, tracks, names);
+      if (p == before && *p)   /* guarantee progress */
+         p++;
+   }
+}
+
+static void Html_grid_parse_track(DilloHtml *html, const char **pp,
+   lout::misc::SimpleVector<GridTrack> *tracks,
+   lout::misc::SimpleVector<GridLineName> *names)
+{
+   const char *p = *pp;
+   char word[64];
+
+   if (*p == '[') {
+      /* named line: refers to the line before the next track */
+      char name[64];
+      int i = 0;
+      p++;
+      while (*p && *p != ']')
+         if (i < 63) name[i++] = *p++; else p++;
+      name[i] = '\0';
+      if (*p == ']')
+         p++;
+      GridLineName ln;
+      ln.name = dStrdup(name);
+      ln.line = tracks->size() + 1;
+      names->increase();
+      names->setLast(ln);
+      *pp = p;
+      return;
+   }
+
+   p = Html_grid_word(p, word, sizeof(word));
+   *pp = p;
+
+   if (dStrAsciiCasecmp(word, "repeat") == 0) {
+      while (*p == ' ')
+         p++;
+      if (*p == '(') {
+         char num[16];
+         p = Html_grid_word(p + 1, num, sizeof(num));
+         int n = atoi(num);
+         if (n < 1) n = 1;
+         if (n > 1000) n = 1000;
+         while (*p == ' ' || *p == ',')
+            p++;
+         lout::misc::SimpleVector<GridTrack> inner(4);
+         while (*p && *p != ')') {
+            while (*p == ' ' || *p == ',')
+               p++;
+            if (!*p || *p == ')')
+               break;
+            int before = tracks->size();
+            Html_grid_parse_track(html, &p, tracks, names);
+            if (tracks->size() > before) {
+               inner.increase();
+               inner.setLast(tracks->get(tracks->size() - 1));
+               tracks->setSize(tracks->size() - 1, tracks->get(tracks->size()-1));
+            }
+         }
+         if (*p == ')')
+            p++;
+         for (int k = 0; k < n; k++)
+            for (int j = 0; j < inner.size(); j++) {
+               tracks->increase();
+               tracks->setLast(inner.get(j));
+            }
+         *pp = p;
+      }
+      return;
+   }
+
+   if (dStrAsciiCasecmp(word, "minmax") == 0) {
+      GridTrack a, b, t;
+      while (*p == ' ')
+         p++;
+      if (*p == '(') {
+         p++;
+         Html_grid_parse_size(html, &p, &a);
+         Html_grid_parse_size(html, &p, &b); /* skips the ',' */
+         if (*p == ')')
+            p++;
+         t.minLen = a.minLen;
+         t.minContent = a.minContent;
+         t.isAuto = a.isAuto;
+         t.fr = b.fr;
+         t.maxLen = b.maxLen;
+         t.maxContent = b.maxContent;
+         tracks->increase();
+         tracks->setLast(t);
+         *pp = p;
+      }
+      return;
+   }
+
+   /* plain track size; re-parse from the word */
+   {
+      GridTrack t;
+      const char *wp = word;
+      Html_grid_parse_size(html, &wp, &t);
+      tracks->increase();
+      tracks->setLast(t);
+   }
+}
+
+/* Parse a grid-column / grid-row value into a 1-based start line (-1 =
+ * auto) and a span. */
+static void Html_grid_parse_placement(const char *str, int numLines,
+   lout::misc::SimpleVector<GridLineName> *names, int *start, int *span)
+{
+   *start = -1;
+   *span = 1;
+   if (!str)
+      return;
+
+   char buf[128];
+   strncpy(buf, str, sizeof(buf) - 1);
+   buf[sizeof(buf) - 1] = '\0';
+
+   char *slash = strchr(buf, '/');
+   if (slash)
+      *slash = '\0';
+
+   /* start part */
+   char *s = buf;
+   while (*s == ' ') s++;
+   if (dStrAsciiCasecmp(s, "auto") == 0 || !*s) {
+      *start = -1;
+   } else if (strncmp(s, "span", 4) == 0) {
+      *start = -1;
+      *span = MAX(1, atoi(s + 4));
+   } else if (isdigit(s[0]) || s[0] == '-') {
+      int v = atoi(s);
+      if (v < 0)
+         v = numLines + 1 + v;
+      *start = v;
+   } else {
+      /* named line */
+      for (int i = 0; i < names->size(); i++)
+         if (dStrAsciiCasecmp(s, names->get(i).name) == 0) {
+            *start = names->get(i).line;
+            break;
+         }
+      if (*start == -1)
+         MSG_WARN("grid: unknown line name \"%s\"\n", s);
+   }
+
+   /* end part */
+   if (slash) {
+      char *e = slash + 1;
+      while (*e == ' ') e++;
+      if (dStrAsciiCasecmp(e, "auto") == 0 || !*e) {
+         /* span stays 1 */
+      } else if (strncmp(e, "span", 4) == 0) {
+         *span = MAX(1, atoi(e + 4));
+      } else {
+         int v;
+         if (isdigit(e[0]) || e[0] == '-') {
+            v = atoi(e);
+            if (v < 0)
+               v = numLines + 1 + v;
+         } else {
+            v = -1;
+            for (int i = 0; i < names->size(); i++)
+               if (dStrAsciiCasecmp(e, names->get(i).name) == 0) {
+                  v = names->get(i).line;
+                  break;
+               }
+         }
+         if (v > 0 && *start > 0) {
+            *span = v - *start;
+            if (*span < 1)
+               *span = 1;
+         }
+      }
+   }
+}
+
+/* Grow the occupancy map of a grid container. */
+static void Html_grid_ensure(DilloHtmlState *st, int cols, int rows)
+{
+   if (cols <= st->grid_num_cols && rows <= st->grid_num_rows)
+      return;
+   int nc = MAX(cols, st->grid_num_cols);
+   int nr = MAX(rows, st->grid_num_rows);
+   lout::misc::SimpleVector<char> *occ =
+      new lout::misc::SimpleVector<char>(16);
+   occ->setSize(nc * nr, 0);
+   for (int r = 0; r < st->grid_num_rows; r++)
+      for (int c = 0; c < st->grid_num_cols; c++)
+         occ->set(r * nc + c, st->grid_occupied->get(r * st->grid_num_cols + c));
+   delete st->grid_occupied;
+   st->grid_occupied = occ;
+   st->grid_num_cols = nc;
+   st->grid_num_rows = nr;
+}
+
+static bool Html_grid_area_free(DilloHtmlState *st, int col, int row,
+                                int cs, int rs)
+{
+   Html_grid_ensure(st, col + cs, row + rs);
+   for (int r = row; r < row + rs; r++)
+      for (int c = col; c < col + cs; c++)
+         if (st->grid_occupied->get(r * st->grid_num_cols + c))
+            return false;
+   return true;
+}
+
+static void Html_grid_mark(DilloHtmlState *st, int col, int row,
+                           int cs, int rs)
+{
+   Html_grid_ensure(st, col + cs, row + rs);
+   for (int r = row; r < row + rs; r++)
+      for (int c = col; c < col + cs; c++)
+         st->grid_occupied->set(r * st->grid_num_cols + c, 1);
+}
+
+/* Determine the grid area (0-based col/row + spans) for a grid item with
+ * the given style, inside container state st. */
+static void Html_grid_item_area(DilloHtml *html, DilloHtmlState *st,
+                                Style *style, int *col, int *cs,
+                                int *row, int *rs)
+{
+   int numColLines = st->grid_col_tracks->size() + 1;
+   int numRowLines = st->grid_row_tracks->size() + 1;
+   int c0, cspan, r0, rspan;
+
+   Html_grid_parse_placement(style->gridColumn, numColLines,
+                             st->grid_col_names, &c0, &cspan);
+   Html_grid_parse_placement(style->gridRow, numRowLines,
+                             st->grid_row_names, &r0, &rspan);
+
+   int ncols = MAX(st->grid_num_cols, 1);
+   int c = c0 > 0 ? c0 - 1 : -1;
+   int r = r0 > 0 ? r0 - 1 : -1;
+
+   if (c < 0 && r < 0) {
+      /* fully auto: place at the cursor, scanning forward */
+      r = st->grid_auto_row;
+      c = st->grid_auto_col;
+      while (!Html_grid_area_free(st, c, r, cspan, rspan)) {
+         c++;
+         if (c + cspan > ncols) {
+            c = 0;
+            r++;
+         }
+      }
+      st->grid_auto_row = r;
+      st->grid_auto_col = c + cspan;
+      if (st->grid_auto_col >= MAX(st->grid_num_cols, 1)) {
+         st->grid_auto_row++;
+         st->grid_auto_col = 0;
+      }
+   } else if (c < 0) {
+      /* row given, column auto */
+      c = 0;
+      while (!Html_grid_area_free(st, c, r, cspan, rspan))
+         c++;
+   } else if (r < 0) {
+      /* column given, row auto */
+      r = st->grid_auto_row;
+      while (!Html_grid_area_free(st, c, r, cspan, rspan))
+         r++;
+      st->grid_auto_row = r + rspan;
+      st->grid_auto_col = 0;
+   } else {
+      /* both given; if occupied, scan forward */
+      while (!Html_grid_area_free(st, c, r, cspan, rspan)) {
+         c++;
+         if (c + cspan > ncols) {
+            c = 0;
+            r++;
+         }
+      }
+   }
+
+   Html_grid_mark(st, c, r, cspan, rspan);
+   *col = c;
+   *cs = cspan;
+   *row = r;
+   *rs = rspan;
+}
+
+/* Create the grid container: a dw::Table with the track columns. */
+static void Html_display_grid_container(DilloHtml *html)
+{
+   HT2TB(html)->addParbreak(0, html->wordStyle());
+   dw::Table *table = new dw::Table(prefs.limit_text_width);
+
+   StyleAttrs tattrs = *(html->style());
+   tattrs.display = DISPLAY_BLOCK;
+   tattrs.hBorderSpacing =
+      Html_grid_len_px(html, html->style()->gridColumnGap);
+   tattrs.vBorderSpacing =
+      Html_grid_len_px(html, html->style()->gridRowGap);
+   Style *tstyle = Style::create(&tattrs);
+   HT2TB(html)->addWidget(table, tstyle);
+   HT2TB(html)->addParbreak(0, html->wordStyle());
+   tstyle->unref();
+
+   DilloHtmlState *st = S_TOP(html);
+   st->grid_container = true;
+   st->table = (Widget*) table;
+   st->grid_col_tracks = new lout::misc::SimpleVector<GridTrack>(4);
+   st->grid_row_tracks = new lout::misc::SimpleVector<GridTrack>(4);
+   st->grid_col_names = new lout::misc::SimpleVector<GridLineName>(4);
+   st->grid_row_names = new lout::misc::SimpleVector<GridLineName>(4);
+   st->grid_occupied = new lout::misc::SimpleVector<char>(16);
+   st->grid_num_cols = st->grid_num_rows = 0;
+   st->grid_auto_row = st->grid_auto_col = 0;
+
+   Html_grid_parse_tracks(html, html->style()->gridTemplateColumns,
+                          st->grid_col_tracks, st->grid_col_names);
+   Html_grid_parse_tracks(html, html->style()->gridTemplateRows,
+                          st->grid_row_tracks, st->grid_row_names);
+   st->grid_num_cols = st->grid_col_tracks->size();
+   st->grid_num_rows = st->grid_row_tracks->size();
+   st->grid_occupied->setSize(st->grid_num_cols * st->grid_num_rows, 0);
+
+   table->setGridColTracks(st->grid_col_tracks);
+
+   /* pre-create the explicit rows, so that grid-row placements (including
+    * negative line numbers) have a defined grid */
+   for (int i = 0; i < st->grid_num_rows; i++)
+      table->addRow(NULL);
+}
+
+/* Render a block-level child of a grid container as a grid item: a table
+ * cell at the item's grid area. */
+static void Html_display_grid_item(DilloHtml *html)
+{
+   /* Only one cell per element (see Html_add_textblock). */
+   if (S_TOP(html)->textblock !=
+       html->stack->getRef(html->stack->size() - 2)->textblock)
+      return;
+
+   DilloHtmlState *cont = html->stack->getRef(html->stack->size() - 2);
+   dw::Table *table = (dw::Table*) cont->table;
+   int col, cs, row, rs;
+   Html_grid_item_area(html, cont, html->style(), &col, &cs, &row, &rs);
+
+   SimpleTableCell *cell = new SimpleTableCell(prefs.limit_text_width);
+   StyleAttrs cattrs = *(html->style());
+   cattrs.display = DISPLAY_BLOCK;
+   cattrs.margin.setVal(0); /* like table cells: no margins */
+   Style *cstyle = Style::create(&cattrs);
+   cell->setStyle(cstyle);
+   cstyle->unref();
+
+   table->addCellAt(cell, col, row, cs, rs);
+   S_TOP(html)->textblock = html->dw = cell;
+}
+
+/* If text appears directly inside a grid container, put it into an
+ * anonymous grid item (cell) at the next auto position. */
+static void Html_grid_ensure_anon_cell(DilloHtml *html)
+{
+   DilloHtmlState *st = S_TOP(html);
+   if (st->textblock !=
+       html->stack->getRef(html->stack->size() - 2)->textblock)
+      return; /* already has a cell */
+
+   dw::Table *table = (dw::Table*) st->table;
+   int col, cs, row, rs;
+   Html_grid_item_area(html, st, html->style(), &col, &cs, &row, &rs);
+
+   SimpleTableCell *cell = new SimpleTableCell(prefs.limit_text_width);
+   StyleAttrs cattrs = *(html->style());
+   cattrs.display = DISPLAY_BLOCK;
+   cattrs.margin.setVal(0);
+   Style *cstyle = Style::create(&cattrs);
+   cell->setStyle(cstyle);
+   cstyle->unref();
+
+   table->addCellAt(cell, col, row, cs, rs);
+   st->textblock = html->dw = cell;
+}
+
 /**
  * Render an element as a flex item: like inline-block, so that it is
  * laid out side by side with its siblings inside a flex container.
@@ -4371,6 +4895,20 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       if (! S_TOP(html)->display_none) {
          bool flex_parent =
             html->stack->getRef(html->stack->size()-2)->flex_container;
+         bool grid_parent =
+            html->stack->getRef(html->stack->size()-2)->grid_container;
+         DisplayType disp = html->style ()->display;
+         /* Block-level children of a grid container become grid items */
+         bool grid_item = grid_parent &&
+            (disp == DISPLAY_BLOCK || disp == DISPLAY_LIST_ITEM ||
+             disp == DISPLAY_TABLE || disp == DISPLAY_TABLE_ROW_GROUP ||
+             disp == DISPLAY_TABLE_HEADER_GROUP ||
+             disp == DISPLAY_TABLE_FOOTER_GROUP ||
+             disp == DISPLAY_FLEX || disp == DISPLAY_INLINE_FLEX ||
+             disp == DISPLAY_GRID || disp == DISPLAY_INLINE_GRID);
+         if (grid_item)
+            Html_display_grid_item(html);
+         else
          switch (html->style ()->display) {
             case DISPLAY_BLOCK:
                /* Inside a flex container, block children become flex
@@ -4400,10 +4938,15 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
                Html_display_block(html);
                S_TOP(html)->flex_container = true;
                break;
+            case DISPLAY_GRID:
             case DISPLAY_INLINE_GRID:
+               /* CSS grid: the container becomes a dw::Table whose columns
+                * are the grid tracks; children are placed as cells */
+               Html_display_grid_container(html);
+               break;
             case DISPLAY_INLINE_TABLE:
             case DISPLAY_RUN_IN:
-               /* No true grid/table layout engine, render as block */
+               /* No true inline-table layout engine, render as block */
                Html_display_block(html);
                break;
             case DISPLAY_CONTENTS:

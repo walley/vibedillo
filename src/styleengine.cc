@@ -637,6 +637,24 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
          case CSS_PROPERTY_FLOAT:
             attrs->vloat = (FloatType) p->value.intVal;
             break;
+         case CSS_PROPERTY_GRID_COLUMN:
+            attrs->gridColumn = dStrdup (p->value.strVal);
+            break;
+         case CSS_PROPERTY_GRID_COLUMN_GAP:
+            computeLength (&attrs->gridColumnGap, p->value.lenVal, attrs->font);
+            break;
+         case CSS_PROPERTY_GRID_ROW:
+            attrs->gridRow = dStrdup (p->value.strVal);
+            break;
+         case CSS_PROPERTY_GRID_ROW_GAP:
+            computeLength (&attrs->gridRowGap, p->value.lenVal, attrs->font);
+            break;
+         case CSS_PROPERTY_GRID_TEMPLATE_COLUMNS:
+            attrs->gridTemplateColumns = dStrdup (p->value.strVal);
+            break;
+         case CSS_PROPERTY_GRID_TEMPLATE_ROWS:
+            attrs->gridTemplateRows = dStrdup (p->value.strVal);
+            break;
          case CSS_PROPERTY_LEFT:
             computeLength (&attrs->left, p->value.lenVal, attrs->font);
             break;

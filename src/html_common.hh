@@ -131,6 +131,21 @@ typedef struct {
    /** True if current element is a flex container (e.g. <menu> with display:flex) */
    bool flex_container;
 
+   /** True if current element is a CSS grid container (display: grid) */
+   bool grid_container;
+   /** Column tracks of the grid container (parsed grid-template-columns) */
+   lout::misc::SimpleVector<dw::core::style::GridTrack> *grid_col_tracks;
+   /** Row tracks of the grid container (parsed grid-template-rows) */
+   lout::misc::SimpleVector<dw::core::style::GridTrack> *grid_row_tracks;
+   /** Named grid lines per axis: columns, then rows */
+   lout::misc::SimpleVector<dw::core::style::GridLineName> *grid_col_names;
+   lout::misc::SimpleVector<dw::core::style::GridLineName> *grid_row_names;
+   /** Occupancy map of the grid (row * grid_num_cols + col), for placement */
+   lout::misc::SimpleVector<char> *grid_occupied;
+   int grid_num_cols, grid_num_rows;
+   /** Auto-placement cursor */
+   int grid_auto_row, grid_auto_col;
+
    /** TagInfo index for the tag that's being processed */
    int tag_idx;
 

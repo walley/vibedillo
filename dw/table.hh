@@ -370,6 +370,13 @@ private:
    int numRows, numCols, curRow, curCol;
    lout::misc::SimpleVector<Child*> *children;
 
+   /**
+    * \brief Column tracks of a CSS grid container (NULL for normal tables).
+    * When set, column widths are calculated from these tracks instead of
+    * the cell extremes (see calcGridColumnWidths()).
+    */
+   lout::misc::SimpleVector<core::style::GridTrack> *gridColTracks;
+
    int redrawX, redrawY;
 
    /**
@@ -441,6 +448,8 @@ private:
    void calcCellSizes (bool calcHeights);
    void forceCalcCellSizes (bool calcHeights);
    void actuallyCalcCellSizes (bool calcHeights);
+   void calcGridColumnWidths (int totalWidth);
+   int resolveGridTrackLen (core::style::Length l, int totalWidth);
    void apportionRowSpan ();
 
    void forceCalcColumnExtremes ();
@@ -509,8 +518,14 @@ public:
    core::Iterator *iterator (core::Content::Type mask, bool atEnd);
 
    void addCell (Widget *widget, int colspan, int rowspan);
+   /** \brief Add a cell at an explicit grid position (CSS grid layout). */
+   void addCellAt (Widget *widget, int col, int row, int colspan,
+                   int rowspan);
    void addRow (core::style::Style *style);
    AlignedTableCell *getCellRef ();
+   /** \brief Set the column tracks for CSS grid layout (copied). */
+   void setGridColTracks (lout::misc::SimpleVector<core::style::GridTrack>
+                          *tracks);
 };
 
 } // namespace dw

@@ -50,6 +50,7 @@ Table::Table(bool limitTextWidth)
    DBG_OBJ_SET_NUM ("numRows", numCols);
 
    children = new misc::SimpleVector <Child*> (16);
+   gridColTracks = NULL;
    colExtremes = new misc::SimpleVector<core::Extremes> (8);
    colWidthSpecified = new misc::SimpleVector<bool> (8);
    colWidthPercentage = new misc::SimpleVector<bool> (8);
@@ -91,6 +92,8 @@ Table::~Table()
          rowStyle->get(i)->unref ();
 
    delete children;
+   if (gridColTracks)
+      delete gridColTracks;
    delete colExtremes;
    delete colWidthSpecified;
    delete colWidthPercentage;
@@ -581,6 +584,144 @@ void Table::addCell (Widget *widget, int colspan, int rowspan)
    DBG_OBJ_LEAVE ();
 }
 
+void Table::addCellAt (Widget *widget, int col, int row, int colspan,
+                       int rowspan)
+{
+   DBG_OBJ_ENTER ("resize", 0, "addCellAt", "%p, %d, %d, %d, %d",
+                  widget, col, row, colspan, rowspan);
+
+   if (colspan < 1)
+      colspan = 1;
+   if (rowspan < 1)
+      rowspan = 1;
+
+   /* Make sure the children array is large enough for the requested
+    * position, then place the cell exactly there (addCell() advances past
+    * occupied positions, which also resolves overlaps gracefully). */
+   if (numRows == 0)
+      addRow (NULL); /* sets curRow = 0 */
+
+   int wantCols = misc::max (numCols, col + colspan);
+   int wantRows = misc::max (numRows, row + rowspan);
+   if (wantCols != numCols || wantRows != numRows)
+      reallocChildren (wantCols, wantRows);
+
+   curCol = col;
+   curRow = row;
+   rowClosed = false;
+
+   /* If the exact position is already occupied by a cell (overlap), move
+    * to the next free column; addCell() itself only skips span spaces. */
+   while (curCol < numCols) {
+      Child *ch = children->get (curRow * numCols + curCol);
+      if (!ch || ch->type == Child::SPAN_SPACE)
+         break;
+      curCol++;
+   }
+
+   addCell (widget, colspan, rowspan);
+
+   DBG_OBJ_LEAVE ();
+}
+
+void Table::setGridColTracks (misc::SimpleVector<core::style::GridTrack>
+                              *tracks)
+{
+   if (gridColTracks)
+      delete gridColTracks;
+   gridColTracks = new misc::SimpleVector<core::style::GridTrack> (8);
+   if (tracks) {
+      gridColTracks->setSize (tracks->size ());
+      for (int i = 0; i < tracks->size (); i++)
+         gridColTracks->set (i, tracks->get (i));
+   }
+   colWidthsUpToDateWidthColExtremes = false;
+   queueResize (0, true);
+}
+
+int Table::resolveGridTrackLen (core::style::Length l, int totalWidth)
+{
+   using namespace core::style;
+   if (l == LENGTH_AUTO)
+      return 0;
+   if (isAbsLength (l))
+      return absLengthVal (l);
+   if (isPerLength (l))
+      return multiplyWithPerLength (totalWidth, l);
+   return multiplyWithRelLength (getStyle()->font->size, l);
+}
+
+/**
+ * \brief Calculate column widths from the grid tracks (CSS grid layout).
+ *
+ * Non-flexible tracks are resolved first (clamped to their min/max);
+ * the remaining width is distributed among the flexible (fr) tracks
+ * proportionally to their flex factor.
+ */
+void Table::calcGridColumnWidths (int totalWidth)
+{
+   using namespace core::style;
+
+   int n = numCols;
+   double totalFr = 0;
+   int fixed = 0;
+
+   for (int col = 0; col < n; col++) {
+      GridTrack def = { LENGTH_AUTO, LENGTH_AUTO, 0, false, true, false };
+      GridTrack *t = col < (gridColTracks ? gridColTracks->size () : 0) ?
+                     gridColTracks->getRef (col) : &def;
+
+      if (t->fr > 0) {
+         colWidths->set (col, -1); /* pending */
+         totalFr += t->fr;
+         continue;
+      }
+
+      int w;
+      if (t->minContent)
+         w = colExtremes->getRef (col)->minWidthIntrinsic;
+      else if (t->maxContent || t->isAuto ||
+               (t->minLen == LENGTH_AUTO && t->maxLen == LENGTH_AUTO))
+         w = colExtremes->getRef (col)->maxWidth;
+      else if (t->maxLen != LENGTH_AUTO)
+         w = resolveGridTrackLen (t->maxLen, totalWidth);
+      else
+         w = resolveGridTrackLen (t->minLen, totalWidth);
+
+      if (t->minLen != LENGTH_AUTO && !t->minContent)
+         w = misc::max (w, resolveGridTrackLen (t->minLen, totalWidth));
+      if (t->maxLen != LENGTH_AUTO && !t->maxContent && !t->isAuto)
+         w = misc::min (w, resolveGridTrackLen (t->maxLen, totalWidth));
+      if (w < 0)
+         w = 0;
+
+      colWidths->set (col, w);
+      fixed += w;
+   }
+
+   int remaining = totalWidth - fixed;
+   if (totalFr > 0) {
+      if (remaining < 0)
+         remaining = 0;
+      for (int col = 0; col < n; col++) {
+         if (colWidths->get (col) != -1)
+            continue;
+         GridTrack *t = gridColTracks->getRef (col);
+         int w = (int) (remaining * t->fr / totalFr);
+         if (t->minLen != LENGTH_AUTO && !t->minContent)
+            w = misc::max (w, resolveGridTrackLen (t->minLen, totalWidth));
+         if (w < 0)
+            w = 0;
+         colWidths->set (col, w);
+      }
+   } else {
+      /* No flexible track: distribute any leftover space equally. */
+      for (int col = 0; col < n; col++)
+         if (colWidths->get (col) == -1)
+            colWidths->set (col, misc::max (0, remaining / misc::max (n, 1)));
+   }
+}
+
 void Table::addRow (core::style::Style *style)
 {
    curRow++;
@@ -933,6 +1074,13 @@ void Table::actuallyCalcCellSizes (bool calcHeights)
    colWidths = new misc::SimpleVector <int> (8);
    colWidths->setSize (numCols);
 
+   if (gridColTracks != NULL) {
+      /* CSS grid: column widths come from the grid tracks. */
+      calcGridColumnWidths (totalWidth);
+      colWidthsUpToDateWidthColExtremes = true;
+      DBG_OBJ_SET_BOOL ("colWidthsUpToDateWidthColExtremes",
+                        colWidthsUpToDateWidthColExtremes);
+   } else {
    int minWidth = 0, minWidthIntrinsic = 0, maxWidth = 0;
    for (int col = 0; col < colExtremes->size(); col++) {
       minWidth += colExtremes->getRef(col)->minWidth;
@@ -1168,6 +1316,7 @@ void Table::actuallyCalcCellSizes (bool calcHeights)
    colWidthsUpToDateWidthColExtremes = true;
    DBG_OBJ_SET_BOOL ("colWidthsUpToDateWidthColExtremes",
                      colWidthsUpToDateWidthColExtremes);
+   } /* end of non-grid column width calculation */
 
    for (int col = 0; col < numCols; col++) {
       if (col >= oldColWidths->size () || col >= colWidths->size () ||

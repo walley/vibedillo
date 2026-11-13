@@ -87,7 +87,7 @@ static const char *const Css_cursor_enum_vals[] = {
 static const char *const Css_display_enum_vals[] = {
    "block", "inline", "inline-block", "list-item", "none", "table",
    "table-row-group", "table-header-group", "table-footer-group", "table-row",
-   "table-cell", "flex", "contents", "inline-flex", "inline-grid",
+   "table-cell", "flex", "contents", "inline-flex", "grid", "inline-grid",
    "inline-table", "run-in", NULL
 };
 
@@ -225,6 +225,14 @@ const CssPropertyInfo Css_property_info[CSS_PROPERTY_LAST] = {
     Css_font_variant_enum_vals},
    {"font-weight", {CSS_TYPE_ENUM, CSS_TYPE_FONT_WEIGHT, CSS_TYPE_UNUSED},
     Css_font_weight_enum_vals},
+   {"grid-column", {CSS_TYPE_GRID_VALUE, CSS_TYPE_UNUSED}, NULL},
+   {"grid-column-gap",
+    {CSS_TYPE_LENGTH_PERCENTAGE, CSS_TYPE_AUTO, CSS_TYPE_UNUSED}, NULL},
+   {"grid-row", {CSS_TYPE_GRID_VALUE, CSS_TYPE_UNUSED}, NULL},
+   {"grid-row-gap",
+    {CSS_TYPE_LENGTH_PERCENTAGE, CSS_TYPE_AUTO, CSS_TYPE_UNUSED}, NULL},
+   {"grid-template-columns", {CSS_TYPE_GRID_VALUE, CSS_TYPE_UNUSED}, NULL},
+   {"grid-template-rows", {CSS_TYPE_GRID_VALUE, CSS_TYPE_UNUSED}, NULL},
    {"height", {CSS_TYPE_LENGTH_PERCENTAGE, CSS_TYPE_AUTO, CSS_TYPE_UNUSED}, NULL},
    {"left", {CSS_TYPE_SIGNED_LENGTH, CSS_TYPE_UNUSED}, NULL},
    {"letter-spacing", {CSS_TYPE_ENUM, CSS_TYPE_SIGNED_LENGTH, CSS_TYPE_UNUSED},
@@ -411,6 +419,15 @@ const CssPropertyName Css_border_properties[] = {
    CSS_PROPERTY_BORDER_RIGHT_COLOR
 };
 
+/* "grid-gap": <row-gap> <column-gap>; one value sets both (this matches
+ * the CSS_SHORTHAND_DIRECTIONS mapping with dir_set {0,0,1,1}). */
+const CssPropertyName Css_grid_gap_properties[] = {
+   CSS_PROPERTY_GRID_ROW_GAP,
+   CSS_PROPERTY_GRID_ROW_GAP,
+   CSS_PROPERTY_GRID_COLUMN_GAP,
+   CSS_PROPERTY_GRID_COLUMN_GAP
+};
+
 const CssPropertyName Css_font_properties[] = {
    CSS_PROPERTY_FONT_SIZE,
    CSS_PROPERTY_FONT_STYLE,
@@ -441,6 +458,8 @@ static const CssShorthandInfo Css_shorthand_info[] = {
     Css_border_width_properties},
    {"font", CssShorthandInfo::CSS_SHORTHAND_FONT,
     Css_font_properties},
+   {"grid-gap", CssShorthandInfo::CSS_SHORTHAND_DIRECTIONS,
+    Css_grid_gap_properties},
    {"list-style", CssShorthandInfo::CSS_SHORTHAND_MULTIPLE,
     Css_list_style_properties},
    {"margin", CssShorthandInfo::CSS_SHORTHAND_DIRECTIONS,
@@ -775,6 +794,13 @@ bool CssParser::tokenMatchesProperty(CssPropertyName prop, CssValueType *type)
          if (ttype == CSS_TK_DECINT || ttype == CSS_TK_FLOAT)
             return true;
          break;
+
+      case CSS_TYPE_GRID_VALUE:
+         /* Accept any token; the value ends at ';' or '}'. */
+         if (ttype == CSS_TK_END ||
+             (ttype == CSS_TK_CHAR && (tval[0] == ';' || tval[0] == '}')))
+            return false;
+         return true;
       case CSS_TYPE_LENGTH_PERCENTAGE:
       case CSS_TYPE_LENGTH_PERCENTAGE_NUMBER:
       case CSS_TYPE_LENGTH:
@@ -1233,6 +1259,25 @@ bool CssParser::parseValue(CssPropertyName prop,
          ret = true;
          nextToken();
       }
+      break;
+
+   case CSS_TYPE_GRID_VALUE:
+      /* Raw capture of everything up to the end of the declaration (used
+       * for grid track lists and placements, which contain brackets,
+       * parentheses and commas). The terminating ';' or '}' is not
+       * consumed. */
+      dstr = dStr_new("");
+      while (ttype != CSS_TK_END &&
+             !(ttype == CSS_TK_CHAR &&
+               (tval[0] == ';' || tval[0] == '}'))) {
+         if (dstr->len > 0 && spaceSeparated)
+            dStr_append_c(dstr, ' ');
+         dStr_append(dstr, tval);
+         nextToken();
+      }
+      val->strVal = dStrstrip(dstr->str);
+      dStr_free(dstr, 0);
+      ret = true;
       break;
 
    case CSS_TYPE_UNUSED:

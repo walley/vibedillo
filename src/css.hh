@@ -62,6 +62,9 @@ typedef enum {
                                    'font-family'. */
    CSS_TYPE_URI,                /**< <uri> */
    CSS_TYPE_BACKGROUND_POSITION,
+   CSS_TYPE_GRID_VALUE,         /**< Raw value up to ';' or '}' (used for
+                                   grid track lists / placements, which contain
+                                   brackets and parentheses), as string. */
    CSS_TYPE_UNUSED              /**< Not yet used. Will itself get unused some
                                    day. */
 } CssValueType;
@@ -201,6 +204,12 @@ typedef enum {
    CSS_PROPERTY_FONT_STYLE,
    CSS_PROPERTY_FONT_VARIANT,
    CSS_PROPERTY_FONT_WEIGHT,
+   CSS_PROPERTY_GRID_COLUMN,
+   CSS_PROPERTY_GRID_COLUMN_GAP,
+   CSS_PROPERTY_GRID_ROW,
+   CSS_PROPERTY_GRID_ROW_GAP,
+   CSS_PROPERTY_GRID_TEMPLATE_COLUMNS,
+   CSS_PROPERTY_GRID_TEMPLATE_ROWS,
    CSS_PROPERTY_HEIGHT,
    CSS_PROPERTY_LEFT,
    CSS_PROPERTY_LETTER_SPACING,
@@ -314,6 +323,7 @@ class CssProperty {
             case CSS_TYPE_STRING:
             case CSS_TYPE_SYMBOL:
             case CSS_TYPE_URI:
+            case CSS_TYPE_GRID_VALUE:
                dFree (value.strVal);
                break;
             case CSS_TYPE_BACKGROUND_POSITION:

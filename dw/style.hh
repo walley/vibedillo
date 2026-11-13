@@ -290,6 +290,7 @@ enum DisplayType {
    DISPLAY_FLEX,
    DISPLAY_CONTENTS,
    DISPLAY_INLINE_FLEX,
+   DISPLAY_GRID,
    DISPLAY_INLINE_GRID,
    DISPLAY_INLINE_TABLE,
    DISPLAY_RUN_IN
@@ -502,6 +503,28 @@ enum {
 };
 
 /**
+ * \brief One track of a CSS grid track list (grid-template-columns/rows).
+ *
+ * A track is defined by a minimum (minLen) and a maximum (maxLen, or
+ * LENGTH_AUTO for "infinite"), a flex factor (fr, 0 = not flexible) and
+ * content-based sizing flags (min-content / max-content / auto).
+ */
+struct GridTrack {
+   Length minLen;   /**< LENGTH_AUTO when not specified. */
+   Length maxLen;   /**< LENGTH_AUTO means "infinite" (e.g. fr or auto). */
+   double fr;       /**< Flex factor; 0 means not flexible. */
+   bool minContent; /**< Track is sized to its minimal content. */
+   bool maxContent; /**< Track is sized to its maximal content. */
+   bool isAuto;     /**< "auto" track. */
+};
+
+/** \brief A named grid line, e.g. "[main]" before a track. */
+struct GridLineName {
+   char *name;      /**< Line name (owned, never freed). */
+   int line;        /**< 1-based line number the name refers to. */
+};
+
+/**
  * \brief Represents a dimension box according to the CSS box model.
  *
  * Used for dw::core::style::Style::margin,
@@ -578,6 +601,13 @@ public:
    ListStyleType listStyleType;
    Cursor cursor;
    int zIndex;
+
+   /* CSS grid properties. The strings are raw (unparsed) values; they are
+    * owned by the StyleAttrs object that allocated them (see
+    * StyleEngine::apply() and Style::copyAttrs()). */
+   char *gridTemplateColumns, *gridTemplateRows;
+   char *gridColumn, *gridRow;
+   Length gridColumnGap, gridRowGap;
 
    int x_link;
    int x_img;
