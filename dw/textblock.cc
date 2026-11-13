@@ -255,6 +255,8 @@ Textblock::Textblock (bool limitTextWidth, bool treatAsInline)
    DBG_OBJ_SET_NUM ("lineBreakWidth", lineBreakWidth);
 
    firstLineStyle = NULL;
+   firstLetterStyle = NULL;
+   firstLetterDone = false;
 
    this->limitTextWidth = limitTextWidth;
    this->treatAsInline = treatAsInline;
@@ -298,7 +300,9 @@ Textblock::~Textblock ()
 
    if (firstLineStyle)
       firstLineStyle->unref ();
- 
+   if (firstLetterStyle)
+      firstLetterStyle->unref ();
+
    /* Make sure we don't own widgets anymore. Necessary before call of
       parent class destructor. (???) */
    words = NULL;
@@ -341,7 +345,7 @@ void Textblock::sizeRequestImpl (core::Requisition *requisition, int numPos,
       DBG_OBJ_SET_NUM ("lineBreakWidth", lineBreakWidth);
       DBG_OBJ_SET_NUM ("wrapRefLines", wrapRefLines);
 
-      if (firstLineStyle)
+      if (firstLineStyle || firstLetterStyle)
          resetFirstLineStyle ();
 
       if (!fcDefined) {
@@ -355,9 +359,10 @@ void Textblock::sizeRequestImpl (core::Requisition *requisition, int numPos,
    rewrap ();
    showMissingLines ();
 
-   /* Apply the ":first-line" pseudo-element. Changing the font of the first
-    * line may change where the line is broken, so iterate until stable. */
-   for (int i = 0; firstLineStyle && i < 8; i++) {
+   /* Apply the ":first-line" and ":first-letter" pseudo-elements. Changing
+    * the font of the first line/letter may change where the line is broken,
+    * so iterate until stable. */
+   for (int i = 0; (firstLineStyle || firstLetterStyle) && i < 8; i++) {
       if (!updateFirstLineStyle ())
          break;
       wrapRefLines = 0;
@@ -1894,6 +1899,7 @@ void Textblock::initWord (int wordNo)
    word->baseStyle = NULL;
    word->baseSpaceStyle = NULL;
    word->firstLineExcluded = false;
+   word->firstLetter = false;
    word->wordImgRenderer = NULL;
    word->spaceImgRenderer = NULL;
 }
@@ -2007,34 +2013,45 @@ void Textblock::setFirstLineStyle (core::style::Style *style)
       firstLineStyle->ref ();
 }
 
+void Textblock::setFirstLetterStyle (core::style::Style *style)
+{
+   if (firstLetterStyle)
+      firstLetterStyle->unref ();
+
+   firstLetterStyle = style;
+   if (firstLetterStyle)
+      firstLetterStyle->ref ();
+}
+
 /**
- * Create a style from base with the properties that \":first-line\" may
- * influence (CSS 2.1, section 5.12.1) taken from firstLine.
+ * Create a style from base with the properties that the pseudo-elements
+ * ":first-line" and ":first-letter" may influence (CSS 2.1, sections
+ * 5.12.1/5.12.2) taken from the given pseudo-element style.
  */
-static core::style::Style *createFirstLineStyle (core::style::Style *base,
-                                                 core::style::Style *firstLine)
+static core::style::Style *createPseudoStyle (core::style::Style *base,
+                                              core::style::Style *pseudo)
 {
    core::style::StyleAttrs attrs = *base;
-   attrs.font = firstLine->font;
-   attrs.color = firstLine->color;
-   attrs.backgroundColor = firstLine->backgroundColor;
-   attrs.backgroundImage = firstLine->backgroundImage;
-   attrs.backgroundRepeat = firstLine->backgroundRepeat;
-   attrs.backgroundAttachment = firstLine->backgroundAttachment;
-   attrs.backgroundPositionX = firstLine->backgroundPositionX;
-   attrs.backgroundPositionY = firstLine->backgroundPositionY;
-   attrs.wordSpacing = firstLine->wordSpacing;
-   attrs.textDecoration = firstLine->textDecoration;
-   attrs.textTransform = firstLine->textTransform;
-   attrs.lineHeight = firstLine->lineHeight;
+   attrs.font = pseudo->font;
+   attrs.color = pseudo->color;
+   attrs.backgroundColor = pseudo->backgroundColor;
+   attrs.backgroundImage = pseudo->backgroundImage;
+   attrs.backgroundRepeat = pseudo->backgroundRepeat;
+   attrs.backgroundAttachment = pseudo->backgroundAttachment;
+   attrs.backgroundPositionX = pseudo->backgroundPositionX;
+   attrs.backgroundPositionY = pseudo->backgroundPositionY;
+   attrs.wordSpacing = pseudo->wordSpacing;
+   attrs.textDecoration = pseudo->textDecoration;
+   attrs.textTransform = pseudo->textTransform;
+   attrs.lineHeight = pseudo->lineHeight;
    return core::style::Style::create (&attrs);
 }
 
 /**
  * Set the effective style of a word, either the base style or a style
- * derived from it with the properties of the ":first-line" pseudo-element
- * (CSS 2.1, section 5.12.1) applied. Returns true when the resulting style
- * changed.
+ * derived from it with the properties of the ":first-line" and (for the
+ * first-letter word) ":first-letter" pseudo-elements applied. Returns true
+ * when the resulting style changed.
  */
 bool Textblock::setWordStyle (int wordIndex, bool firstLine)
 {
@@ -2044,16 +2061,36 @@ bool Textblock::setWordStyle (int wordIndex, bool firstLine)
    core::style::Style *newStyle, *newSpaceStyle;
    bool newStyleIsRef = false, newSpaceStyleIsRef = false;
 
-   if (firstLine && firstLineStyle) {
-      newStyle = createFirstLineStyle (word->baseStyle, firstLineStyle);
-      newStyleIsRef = true;
-      if (word->baseSpaceStyle == word->baseStyle)
-         newSpaceStyle = newStyle;
-      else {
-         newSpaceStyle = createFirstLineStyle (word->baseSpaceStyle,
-                                               firstLineStyle);
-         newSpaceStyleIsRef = true;
+   bool useFirstLine = firstLine && firstLineStyle;
+   bool useFirstLetter = word->firstLetter && firstLetterStyle;
+
+   if (useFirstLine || useFirstLetter) {
+      core::style::Style *cur = word->baseStyle;
+      if (useFirstLine) {
+         cur = createPseudoStyle (cur, firstLineStyle);
+         newStyleIsRef = true;
       }
+      if (useFirstLetter) {
+         /* The ":first-letter" declarations win over the ":first-line"
+          * ones for the same property. */
+         core::style::Style *next = createPseudoStyle (cur, firstLetterStyle);
+         if (newStyleIsRef)
+            cur->unref ();
+         cur = next;
+         newStyleIsRef = true;
+      }
+      newStyle = cur;
+
+      if (useFirstLine) {
+         if (word->baseSpaceStyle == word->baseStyle)
+            newSpaceStyle = newStyle;
+         else {
+            newSpaceStyle = createPseudoStyle (word->baseSpaceStyle,
+                                               firstLineStyle);
+            newSpaceStyleIsRef = true;
+         }
+      } else
+         newSpaceStyle = word->baseSpaceStyle;
    } else {
       newStyle = word->baseStyle;
       newSpaceStyle = word->baseSpaceStyle;
@@ -2111,7 +2148,7 @@ void Textblock::resetFirstLineStyle ()
 
 bool Textblock::updateFirstLineStyle ()
 {
-   if (!firstLineStyle || lines->size () == 0)
+   if ((!firstLineStyle && !firstLetterStyle) || lines->size () == 0)
       return false;
 
    Line *line = lines->getRef (0);
@@ -2697,6 +2734,46 @@ bool Textblock::findSizeRequestReference (Widget *reference, int *xRef,
 }
    
 /**
+ * Length in bytes of the ":first-letter" unit (CSS 2.1, 5.12.2): the first
+ * letter of the text, plus punctuation preceding or following it. Returns 0
+ * when there is no letter.
+ */
+size_t Textblock::firstLetterLength (const char *text, size_t len)
+{
+   const char *end = text + len;
+   const char *afterFirstLetter = NULL;
+
+   // Skip leading punctuation (and include it in the unit).
+   for (const char *s = text; s < end; s = nextUtf8Char (s, end - s)) {
+      if (!s)
+         break;
+      unsigned char c = (unsigned char)*s;
+      if (dIsspace (c))
+         break;
+      bool isLetter = c >= 0x80 || dIsalnum (c);
+      if (isLetter) {
+         afterFirstLetter = nextUtf8Char (s, end - s);
+         break;
+      }
+   }
+   if (!afterFirstLetter)
+      return 0;
+
+   // Include punctuation following the first letter.
+   const char *p = afterFirstLetter;
+   while (p < end) {
+      const char *next = nextUtf8Char (p, end - p);
+      if (!next)
+         break;
+      unsigned char c = (unsigned char)*p;
+      if (c >= 0x80 || dIsalnum (c) || dIsspace (c))
+         break;
+      p = next;
+   }
+   return p - text;
+}
+
+/**
  * Add a word (without hyphens) to the page structure.
  */
 void Textblock::addText0 (const char *text, size_t len, short flags,
@@ -2721,6 +2798,35 @@ void Textblock::addText0 (const char *text, size_t len, short flags,
    //printf("', ");
    //printWordFlags (flags);
    //printf (", ...)\n");
+
+   /* Split off the ":first-letter" unit of the very first word, so that it
+    * can be styled separately. Only done for a plain word (no division
+    * characters, no draw-as-one-text). */
+   if (firstLetterStyle && !firstLetterDone &&
+       !(flags & (Word::DRAW_AS_ONE_TEXT | Word::DIV_CHAR_AT_EOL |
+                  Word::PERM_DIV_CHAR | Word::UNBREAKABLE_FOR_MIN_WIDTH))) {
+      size_t flLen = firstLetterLength (text, len);
+      if (flLen > 0) {
+         firstLetterDone = true;
+         if (flLen < len) {
+            core::Requisition flSize;
+            calcTextSize (text, flLen, style, &flSize, true, true);
+            addText0 (text, flLen, flags & ~Word::WORD_END, style, &flSize);
+            words->getLastRef ()->firstLetter = true;
+
+            core::Requisition restSize;
+            calcTextSize (text + flLen, len - flLen, style, &restSize,
+                          true, true);
+            addText0 (text + flLen, len - flLen, flags & ~Word::WORD_START,
+                      style, &restSize);
+         } else {
+            addText0 (text, len, flags, style, size);
+            words->getLastRef ()->firstLetter = true;
+         }
+         DBG_OBJ_LEAVE ();
+         return;
+      }
+   }
 
    Word *word = addWord (size->width, size->ascent, size->descent,
                          flags, style);

@@ -423,6 +423,14 @@ static void Html_add_textblock(DilloHtml *html, bool addBreaks, int breakSpace,
       }
    }
 
+   {
+      Style *firstLetter = html->styleEngine->firstLetterStyle (html->bw);
+      if (firstLetter) {
+         textblock->setFirstLetterStyle (firstLetter);
+         firstLetter->unref ();
+      }
+   }
+
    if (addBreaks)
       HT2TB(html)->addParbreak (breakSpace, html->wordStyle ());
 
@@ -4194,6 +4202,14 @@ static void Html_display_flex_item(DilloHtml *html)
       }
    }
 
+   {
+      Style *firstLetter = html->styleEngine->firstLetterStyle (html->bw);
+      if (firstLetter) {
+         textblock->setFirstLetterStyle (firstLetter);
+         firstLetter->unref ();
+      }
+   }
+
    HT2TB(html)->addWidget (textblock, style);
    HT2TB(html)->addBreakOption (html->style (), false);
    S_TOP(html)->textblock = html->dw = textblock;
@@ -4235,6 +4251,19 @@ static void Html_display_listitem(DilloHtml *html)
       if (firstLine) {
          list_item->setFirstLineStyle (firstLine);
          firstLine->unref ();
+      }
+   }
+
+   {
+      Style *firstLetter = NULL;
+      /* Likewise for the first letter (CSS 2.1, 5.12.2). */
+      if (*ref_list_item == NULL)
+         firstLetter = html->styleEngine->parentFirstLetterStyle (html->bw);
+      if (!firstLetter)
+         firstLetter = html->styleEngine->firstLetterStyle (html->bw);
+      if (firstLetter) {
+         list_item->setFirstLetterStyle (firstLetter);
+         firstLetter->unref ();
       }
    }
    if (!flex_parent && Html_must_add_breaks(html))

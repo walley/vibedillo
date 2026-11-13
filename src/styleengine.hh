@@ -57,7 +57,8 @@ class StyleEngine {
       void buildUserStyle ();
       dw::core::style::Style *style0 (int i, BrowserWindow *bw);
       dw::core::style::Style *wordStyle0 (BrowserWindow *bw);
-      dw::core::style::Style *firstLineStyle0 (int i, BrowserWindow *bw);
+      dw::core::style::Style *pseudoElementStyle0 (int i, BrowserWindow *bw,
+                                                   const char *pseudo);
       inline void setNonCssHint(CssPropertyName name, CssValueType type,
                                 CssPropertyValue value) {
          Node *n = stack->getRef (stack->size () - 1);
@@ -131,6 +132,8 @@ class StyleEngine {
        * unref()ed. */
       dw::core::style::Style *firstLineStyle (BrowserWindow *bw);
       dw::core::style::Style *parentFirstLineStyle (BrowserWindow *bw);
+      dw::core::style::Style *firstLetterStyle (BrowserWindow *bw);
+      dw::core::style::Style *parentFirstLetterStyle (BrowserWindow *bw);
       void restyle (BrowserWindow *bw);
       void inheritBackgroundColor (); /* \todo get rid of this somehow */
       dw::core::style::Style *backgroundStyle (BrowserWindow *bw);

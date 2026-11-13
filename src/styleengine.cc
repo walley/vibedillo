@@ -940,10 +940,12 @@ Style * StyleEngine::pseudoStyle (BrowserWindow *bw, const char *pseudo,
 
 /**
  * \brief Compute the style of the element at stack index i as if it had the
- *        ":first-line" pseudo-element, based on the element's normal style.
- *        Returns NULL when no ":first-line" rules apply.
+ *        given pseudo-element (e.g. ":first-line" or ":first-letter"),
+ *        based on the element's normal style.
+ *        Returns NULL when no rules for the pseudo-element apply.
  */
-Style * StyleEngine::firstLineStyle0 (int i, BrowserWindow *bw)
+Style * StyleEngine::pseudoElementStyle0 (int i, BrowserWindow *bw,
+                                          const char *pseudo)
 {
    if (i < 1 || i >= stack->size ())
       return NULL;
@@ -957,8 +959,8 @@ Style * StyleEngine::firstLineStyle0 (int i, BrowserWindow *bw)
 
    DoctreeNode *dn = stack->getRef (i)->doctreeNode;
    const char *savedPseudo = dn->pseudo;
-   dn->pseudo = "first-line";
-   cssContext->applyPseudoElement (&props, doctree, dn, "first-line");
+   dn->pseudo = pseudo;
+   cssContext->applyPseudoElement (&props, doctree, dn, pseudo);
    dn->pseudo = savedPseudo;
 
    if (props.size () == 0)
@@ -966,10 +968,10 @@ Style * StyleEngine::firstLineStyle0 (int i, BrowserWindow *bw)
 
    /* The pseudo-element inherits from its originating element, so start
     * from the element's computed style. Background properties are not
-    * inherited, though: unless the ":first-line" rule sets them, the
-    * first line must not repeat the background of its element. Relative
-    * font sizes refer to the element's font, not to the font of the
-    * element's parent. */
+    * inherited, though: unless the rule sets them, the first line/letter
+    * must not repeat the background of its element. Relative font sizes
+    * refer to the element's font, not to the font of the element's
+    * parent. */
    StyleAttrs attrs = *normalStyle;
    attrs.backgroundColor = NULL;
    attrs.backgroundImage = NULL;
@@ -979,23 +981,33 @@ Style * StyleEngine::firstLineStyle0 (int i, BrowserWindow *bw)
    apply (i, &attrs, &props, bw, normalStyle->font);
    postprocessAttrs (&attrs);
 
-   Style *firstLine = Style::create (&attrs);
-   if (firstLine == normalStyle) {
-      firstLine->unref ();
+   Style *pseudoStyle = Style::create (&attrs);
+   if (pseudoStyle == normalStyle) {
+      pseudoStyle->unref ();
       return NULL;
    }
 
-   return firstLine;
+   return pseudoStyle;
 }
 
 Style * StyleEngine::firstLineStyle (BrowserWindow *bw)
 {
-   return firstLineStyle0 (stack->size () - 1, bw);
+   return pseudoElementStyle0 (stack->size () - 1, bw, "first-line");
 }
 
 Style * StyleEngine::parentFirstLineStyle (BrowserWindow *bw)
 {
-   return firstLineStyle0 (stack->size () - 2, bw);
+   return pseudoElementStyle0 (stack->size () - 2, bw, "first-line");
+}
+
+Style * StyleEngine::firstLetterStyle (BrowserWindow *bw)
+{
+   return pseudoElementStyle0 (stack->size () - 1, bw, "first-letter");
+}
+
+Style * StyleEngine::parentFirstLetterStyle (BrowserWindow *bw)
+{
+   return pseudoElementStyle0 (stack->size () - 2, bw, "first-letter");
 }
 
 /**

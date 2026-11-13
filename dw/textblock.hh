@@ -512,6 +512,11 @@ protected:
        * oscillating between the two styles. */
       bool firstLineExcluded;
 
+      /** Set on the word that carries the ":first-letter" unit (the
+       * first letter of the first formatted line, including preceding
+       * punctuation). */
+      bool firstLetter;
+
       // These two are used rarely, so there is perhaps a way to store
       // them which is consuming less memory.
       WordImgRenderer *wordImgRenderer;
@@ -601,6 +606,13 @@ protected:
 
    /** Style of the ":first-line" pseudo-element, or NULL. */
    core::style::Style *firstLineStyle;
+
+   /** Style of the ":first-letter" pseudo-element, or NULL. */
+   core::style::Style *firstLetterStyle;
+
+   /** Whether the first word has already been split for ":first-letter"
+    * (or handled as a whole). */
+   bool firstLetterDone;
 
    int wrapRefLines, wrapRefParagraphs;  /* 0-based. Important: Both
                                             are the line numbers, not
@@ -798,12 +810,17 @@ protected:
 
    void processWord (int wordIndex);
 
-   /** Apply (or remove) the first-line style on the words of the first
-    * line. Returns true when a word style (and potentially its metrics)
-    * changed, so that the textblock has to be rewrapped. */
+   /** Apply (or remove) the ":first-line" and ":first-letter" styles on
+    * the words of the first line. Returns true when a word style (and
+    * potentially its metrics) changed, so that the textblock has to be
+    * rewrapped. */
    bool updateFirstLineStyle ();
    bool setWordStyle (int wordIndex, bool firstLine);
    void resetFirstLineStyle ();
+
+   /** Length in bytes of the ":first-letter" unit (first letter plus
+    * preceding/following punctuation) at the start of text. */
+   static size_t firstLetterLength (const char *text, size_t len);
 
    virtual int wordWrap (int wordIndex, bool wrapAll);
 
@@ -920,6 +937,10 @@ public:
    /** Define the style of the first formatted line (":first-line"). The
     * style is ref()ed; pass NULL to clear. */
    void setFirstLineStyle (core::style::Style *style);
+
+   /** Define the style of the first letter (":first-letter"). The style
+    * is ref()ed; pass NULL to clear. */
+   void setFirstLetterStyle (core::style::Style *style);
 
    void addText (const char *text, size_t len, core::style::Style *style);
    inline void addText (const char *text, core::style::Style *style)
