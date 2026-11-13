@@ -2080,7 +2080,8 @@ void Widget::correctReqWidthOfChild (Widget *child, Requisition *requisition,
                   child, requisition->width, requisition->ascent,
                   requisition->descent, misc::boolToStr (allowDecreaseWidth));
 
-   assert (this == child->quasiParent || this == child->container);
+   assert (this == child->quasiParent || this == child->container ||
+           this == child->parent);
 
    int limitMinWidth = child->getMinWidth (NULL, true);
    if (!allowDecreaseWidth && limitMinWidth < requisition->width)
@@ -2099,7 +2100,8 @@ void Widget::correctReqHeightOfChild (Widget *child, Requisition *requisition,
 {
    // TODO Correct height by extremes? (Height extremes?)
 
-   assert (this == child->quasiParent || this == child->container);
+   assert (this == child->quasiParent || this == child->container ||
+           this == child->parent);
 
    DBG_OBJ_ENTER ("resize", 0, "correctReqHeightOfChild",
                   "%p, %d * (%d + %d), ..., %s", child, requisition->width,
