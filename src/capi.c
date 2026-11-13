@@ -25,6 +25,7 @@
 #include "capi.h"
 #include "IO/IO.h"    /* for IORead &friends */
 #include "IO/Url.h"
+#include "url.h"
 #include "chain.h"
 #include "history.h"
 #include "nav.h"
@@ -391,6 +392,69 @@ static bool_t Capi_request_permitted(DilloWeb *web)
  * @return A primary key for identifying the client,
  *         0 if the client is aborted in the process.
  */
+/**
+ * Decode a data: URL (RFC 2397) and inject its content into the cache,
+ * so that a_Capi_open_url can serve it like any other URL.
+ */
+static void Capi_inject_data_url(DilloUrl *url)
+{
+   const char *str = URL_STR(url);
+   const char *comma, *p, *semi, *end;
+   char *ctype, *decoded = NULL;
+   int len = 0, base64 = 0;
+
+   p = str + 5; /* skip "data:" */
+   comma = strchr(p, ',');
+   if (!comma)
+      return;
+   semi = strchr(p, ';');
+   end = (semi && semi < comma) ? semi : comma;
+   ctype = end > p ? dStrndup(p, (uint_t)(end - p)) : dStrdup("text/plain");
+   if (semi && semi < comma && dStriAsciiStr(p, ";base64"))
+      base64 = 1;
+
+   {
+      /* the payload may be percent-encoded (as in HTML attributes) */
+      char *raw = a_Url_decode_hex_str(comma + 1);
+      if (base64) {
+         static int vals[256];
+         static int vals_ready = 0;
+         const char *hex = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                           "abcdefghijklmnopqrstuvwxyz0123456789+/";
+         int olen = 0, acc = 0, nbits = 0;
+         const char *q;
+         if (!vals_ready) {
+            int i;
+            for (i = 0; i < 256; i++) vals[i] = -1;
+            for (i = 0; hex[i]; i++) vals[(unsigned char)hex[i]] = i;
+            vals_ready = 1;
+         }
+         decoded = dNew(char, strlen(raw) + 1);
+         for (q = raw; *q; q++) {
+            int v;
+            if (*q == '=') break;
+            v = vals[(unsigned char)*q];
+            if (v < 0) continue;
+            acc = (acc << 6) | v; nbits += 6;
+            if (nbits >= 8) { nbits -= 8; decoded[olen++] = (acc >> nbits) & 0xff; }
+         }
+         decoded[olen] = 0;
+         len = olen;
+      } else {
+         decoded = raw;
+         raw = NULL;
+         len = (int)strlen(decoded);
+      }
+      dFree(raw);
+   }
+
+   a_Cache_entry_inject(url, decoded, len,
+                        CA_GotHeader | CA_GotLength | CA_InternalUrl);
+   a_Cache_set_content_type(url, ctype, "h");
+   dFree(decoded);
+   dFree(ctype);
+}
+
 int a_Capi_open_url(DilloWeb *web, CA_Callback_t Call, void *CbData)
 {
    int reload;
@@ -481,6 +545,13 @@ int a_Capi_open_url(DilloWeb *web, CA_Callback_t Call, void *CbData)
       } else if (!dStrAsciiCasecmp(scheme, "about")) {
          /* internal request */
          use_cache = 1;
+
+      } else if (!dStrAsciiCasecmp(scheme, "data")) {
+         /* data: URL (RFC 2397): decode inline into the cache */
+         if (!(a_Capi_get_flags(web->url) & CAPI_IsCached))
+            Capi_inject_data_url(web->url);
+         if (a_Capi_get_flags(web->url) & CAPI_IsCached)
+            use_cache = 1;
       }
    }
 

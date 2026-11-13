@@ -81,6 +81,7 @@ void StyleAttrs::initValues ()
    top = bottom = left = right = LENGTH_AUTO;
    textIndent = 0;
    margin.setVal (0);
+   marginLeftAuto = marginRightAuto = false;
    borderWidth.setVal (0);
    padding.setVal (0);
    borderCollapse = BORDER_MODEL_SEPARATE;

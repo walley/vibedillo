@@ -1341,16 +1341,16 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                   if (Css_shorthand_info[sh_index].properties ==
                       Css_background_properties) {
                      CssPropertyValue iv;
-                     iv.intVal = 1; /* enum index 0 -> 1<<0: "transparent" */
+                     iv.intVal = 0; /* enum index 0: "transparent" */
                      props->set(CSS_PROPERTY_BACKGROUND_COLOR,
                                 CSS_TYPE_ENUM, iv);
                      iv.strVal = NULL; /* "none" */
                      props->set(CSS_PROPERTY_BACKGROUND_IMAGE,
                                 CSS_TYPE_URI, iv);
-                     iv.intVal = 1; /* "repeat" */
+                     iv.intVal = 0; /* "repeat" */
                      props->set(CSS_PROPERTY_BACKGROUND_REPEAT,
                                 CSS_TYPE_ENUM, iv);
-                     iv.intVal = 1; /* "scroll" */
+                     iv.intVal = 0; /* "scroll" */
                      props->set(CSS_PROPERTY_BACKGROUND_ATTACHMENT,
                                 CSS_TYPE_ENUM, iv);
                   }
