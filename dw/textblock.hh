@@ -500,6 +500,18 @@ protected:
       core::style::Style *spaceStyle; /* initially the same as of the word,
                                          later set by a_Dw_page_add_space */
 
+      /** Style with which the word was originally added (before
+       * ":first-line" styling). */
+      core::style::Style *baseStyle;
+
+      /** Likewise for the space following the word. */
+      core::style::Style *baseSpaceStyle;
+
+      /** Set when the word was moved away from the first line because
+       * applying the ":first-line" style made it too wide. Prevents
+       * oscillating between the two styles. */
+      bool firstLineExcluded;
+
       // These two are used rarely, so there is perhaps a way to store
       // them which is consuming less memory.
       WordImgRenderer *wordImgRenderer;
@@ -586,6 +598,9 @@ protected:
    
    /* Stores the value of getAvailWidth(). */
    int lineBreakWidth;
+
+   /** Style of the ":first-line" pseudo-element, or NULL. */
+   core::style::Style *firstLineStyle;
 
    int wrapRefLines, wrapRefParagraphs;  /* 0-based. Important: Both
                                             are the line numbers, not
@@ -782,7 +797,14 @@ protected:
                             core::MousePositionEvent *event);
 
    void processWord (int wordIndex);
-   
+
+   /** Apply (or remove) the first-line style on the words of the first
+    * line. Returns true when a word style (and potentially its metrics)
+    * changed, so that the textblock has to be rewrapped. */
+   bool updateFirstLineStyle ();
+   bool setWordStyle (int wordIndex, bool firstLine);
+   void resetFirstLineStyle ();
+
    virtual int wordWrap (int wordIndex, bool wrapAll);
 
    int wrapWordInFlow (int wordIndex, bool wrapAll);
@@ -894,6 +916,10 @@ public:
    core::Iterator *iterator (core::Content::Type mask, bool atEnd);
 
    void flush ();
+
+   /** Define the style of the first formatted line (":first-line"). The
+    * style is ref()ed; pass NULL to clear. */
+   void setFirstLineStyle (core::style::Style *style);
 
    void addText (const char *text, size_t len, core::style::Style *style);
    inline void addText (const char *text, core::style::Style *style)

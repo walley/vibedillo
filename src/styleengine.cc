@@ -362,9 +362,10 @@ void StyleEngine::postprocessAttrs (dw::core::style::StyleAttrs *attrs) {
  * \brief Make changes to StyleAttrs attrs according to CssPropertyList props.
  */
 void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
-                         BrowserWindow *bw) {
+                         BrowserWindow *bw, Font *referenceFont) {
    FontAttrs fontAttrs = *attrs->font;
-   Font *parentFont = stack->get (i - 1).style->font;
+   Font *parentFont = referenceFont ? referenceFont
+                                    : stack->get (i - 1).style->font;
    char *c, *fontName;
    int lineHeight;
    DilloUrl *imgUrl = NULL;
@@ -935,6 +936,66 @@ Style * StyleEngine::pseudoStyle (BrowserWindow *bw, const char *pseudo,
    postprocessAttrs (&attrs);
 
    return Style::create (&attrs);
+}
+
+/**
+ * \brief Compute the style of the element at stack index i as if it had the
+ *        ":first-line" pseudo-element, based on the element's normal style.
+ *        Returns NULL when no ":first-line" rules apply.
+ */
+Style * StyleEngine::firstLineStyle0 (int i, BrowserWindow *bw)
+{
+   if (i < 1 || i >= stack->size ())
+      return NULL;
+
+   style (bw); // ensure that the style of the current node is computed
+   Style *normalStyle = stack->getRef (i)->style;
+   if (!normalStyle)
+      return NULL;
+
+   CssPropertyList props;
+
+   DoctreeNode *dn = stack->getRef (i)->doctreeNode;
+   const char *savedPseudo = dn->pseudo;
+   dn->pseudo = "first-line";
+   cssContext->applyPseudoElement (&props, doctree, dn, "first-line");
+   dn->pseudo = savedPseudo;
+
+   if (props.size () == 0)
+      return NULL;
+
+   /* The pseudo-element inherits from its originating element, so start
+    * from the element's computed style. Background properties are not
+    * inherited, though: unless the ":first-line" rule sets them, the
+    * first line must not repeat the background of its element. Relative
+    * font sizes refer to the element's font, not to the font of the
+    * element's parent. */
+   StyleAttrs attrs = *normalStyle;
+   attrs.backgroundColor = NULL;
+   attrs.backgroundImage = NULL;
+   attrs.backgroundRepeat = BACKGROUND_REPEAT;
+   attrs.backgroundAttachment = BACKGROUND_ATTACHMENT_SCROLL;
+   attrs.backgroundPositionX = attrs.backgroundPositionY = createPerLength (0);
+   apply (i, &attrs, &props, bw, normalStyle->font);
+   postprocessAttrs (&attrs);
+
+   Style *firstLine = Style::create (&attrs);
+   if (firstLine == normalStyle) {
+      firstLine->unref ();
+      return NULL;
+   }
+
+   return firstLine;
+}
+
+Style * StyleEngine::firstLineStyle (BrowserWindow *bw)
+{
+   return firstLineStyle0 (stack->size () - 1, bw);
+}
+
+Style * StyleEngine::parentFirstLineStyle (BrowserWindow *bw)
+{
+   return firstLineStyle0 (stack->size () - 2, bw);
 }
 
 /**

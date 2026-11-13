@@ -415,6 +415,14 @@ static void Html_add_textblock(DilloHtml *html, bool addBreaks, int breakSpace,
       style->ref ();
    }
 
+   {
+      Style *firstLine = html->styleEngine->firstLineStyle (html->bw);
+      if (firstLine) {
+         textblock->setFirstLineStyle (firstLine);
+         firstLine->unref ();
+      }
+   }
+
    if (addBreaks)
       HT2TB(html)->addParbreak (breakSpace, html->wordStyle ());
 
@@ -4178,6 +4186,14 @@ static void Html_display_flex_item(DilloHtml *html)
    attrs.display = DISPLAY_INLINE_BLOCK;
    Style *style = Style::create (&attrs);
 
+   {
+      Style *firstLine = html->styleEngine->firstLineStyle (html->bw);
+      if (firstLine) {
+         textblock->setFirstLineStyle (firstLine);
+         firstLine->unref ();
+      }
+   }
+
    HT2TB(html)->addWidget (textblock, style);
    HT2TB(html)->addBreakOption (html->style (), false);
    S_TOP(html)->textblock = html->dw = textblock;
@@ -4207,6 +4223,20 @@ static void Html_display_listitem(DilloHtml *html)
 
    list_item = new ListItem ((ListItem*)*ref_list_item,prefs.limit_text_width);
    HT2TB(html)->addWidget (list_item, style);
+
+   {
+      Style *firstLine = NULL;
+      /* The first formatted line of a list may live in its first list item
+       * (CSS 2.1, 5.12.1). */
+      if (*ref_list_item == NULL)
+         firstLine = html->styleEngine->parentFirstLineStyle (html->bw);
+      if (!firstLine)
+         firstLine = html->styleEngine->firstLineStyle (html->bw);
+      if (firstLine) {
+         list_item->setFirstLineStyle (firstLine);
+         firstLine->unref ();
+      }
+   }
    if (!flex_parent && Html_must_add_breaks(html))
       HT2TB(html)->addParbreak (0, wordStyle);
    *ref_list_item = list_item;

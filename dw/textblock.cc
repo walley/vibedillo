@@ -254,6 +254,8 @@ Textblock::Textblock (bool limitTextWidth, bool treatAsInline)
    lineBreakWidth = -1;
    DBG_OBJ_SET_NUM ("lineBreakWidth", lineBreakWidth);
 
+   firstLineStyle = NULL;
+
    this->limitTextWidth = limitTextWidth;
    this->treatAsInline = treatAsInline;
 
@@ -293,6 +295,9 @@ Textblock::~Textblock ()
    delete lines;
    delete words;
    delete anchors;
+
+   if (firstLineStyle)
+      firstLineStyle->unref ();
  
    /* Make sure we don't own widgets anymore. Necessary before call of
       parent class destructor. (???) */
@@ -336,6 +341,9 @@ void Textblock::sizeRequestImpl (core::Requisition *requisition, int numPos,
       DBG_OBJ_SET_NUM ("lineBreakWidth", lineBreakWidth);
       DBG_OBJ_SET_NUM ("wrapRefLines", wrapRefLines);
 
+      if (firstLineStyle)
+         resetFirstLineStyle ();
+
       if (!fcDefined) {
          wrapRefLinesFCX = newFCX;
          wrapRefLinesFCY = newFCY;
@@ -346,6 +354,16 @@ void Textblock::sizeRequestImpl (core::Requisition *requisition, int numPos,
 
    rewrap ();
    showMissingLines ();
+
+   /* Apply the ":first-line" pseudo-element. Changing the font of the first
+    * line may change where the line is broken, so iterate until stable. */
+   for (int i = 0; firstLineStyle && i < 8; i++) {
+      if (!updateFirstLineStyle ())
+         break;
+      wrapRefLines = 0;
+      rewrap ();
+      showMissingLines ();
+   }
 
    if (lines->size () > 0) {
       Line *firstLine = lines->getRef(0), *lastLine = lines->getLastRef ();
@@ -1873,6 +1891,9 @@ void Textblock::initWord (int wordNo)
    Word *word = words->getRef (wordNo);
 
    word->style = word->spaceStyle = NULL;
+   word->baseStyle = NULL;
+   word->baseSpaceStyle = NULL;
+   word->firstLineExcluded = false;
    word->wordImgRenderer = NULL;
    word->spaceImgRenderer = NULL;
 }
@@ -1892,6 +1913,8 @@ void Textblock::cleanupWord (int wordNo)
 
    word->style->unref ();
    word->spaceStyle->unref ();
+   word->baseStyle->unref ();
+   word->baseSpaceStyle->unref ();
 }
 
 void Textblock::removeWordImgRenderer (int wordNo)
@@ -1962,12 +1985,163 @@ void Textblock::fillWord (int wordNo, int width, int ascent, int descent,
 
    word->style = style;
    word->spaceStyle = style;
+   word->baseStyle = style;
+   word->baseSpaceStyle = style;
 
    setWordImgRenderer (wordNo);
    setSpaceImgRenderer (wordNo);
 
    style->ref ();
    style->ref ();
+   style->ref ();
+   style->ref ();
+}
+
+void Textblock::setFirstLineStyle (core::style::Style *style)
+{
+   if (firstLineStyle)
+      firstLineStyle->unref ();
+
+   firstLineStyle = style;
+   if (firstLineStyle)
+      firstLineStyle->ref ();
+}
+
+/**
+ * Create a style from base with the properties that \":first-line\" may
+ * influence (CSS 2.1, section 5.12.1) taken from firstLine.
+ */
+static core::style::Style *createFirstLineStyle (core::style::Style *base,
+                                                 core::style::Style *firstLine)
+{
+   core::style::StyleAttrs attrs = *base;
+   attrs.font = firstLine->font;
+   attrs.color = firstLine->color;
+   attrs.backgroundColor = firstLine->backgroundColor;
+   attrs.backgroundImage = firstLine->backgroundImage;
+   attrs.backgroundRepeat = firstLine->backgroundRepeat;
+   attrs.backgroundAttachment = firstLine->backgroundAttachment;
+   attrs.backgroundPositionX = firstLine->backgroundPositionX;
+   attrs.backgroundPositionY = firstLine->backgroundPositionY;
+   attrs.wordSpacing = firstLine->wordSpacing;
+   attrs.textDecoration = firstLine->textDecoration;
+   attrs.textTransform = firstLine->textTransform;
+   attrs.lineHeight = firstLine->lineHeight;
+   return core::style::Style::create (&attrs);
+}
+
+/**
+ * Set the effective style of a word, either the base style or a style
+ * derived from it with the properties of the ":first-line" pseudo-element
+ * (CSS 2.1, section 5.12.1) applied. Returns true when the resulting style
+ * changed.
+ */
+bool Textblock::setWordStyle (int wordIndex, bool firstLine)
+{
+   Word *word = words->getRef (wordIndex);
+   core::style::Style *oldStyle = word->style;
+   core::style::Style *oldSpaceStyle = word->spaceStyle;
+   core::style::Style *newStyle, *newSpaceStyle;
+   bool newStyleIsRef = false, newSpaceStyleIsRef = false;
+
+   if (firstLine && firstLineStyle) {
+      newStyle = createFirstLineStyle (word->baseStyle, firstLineStyle);
+      newStyleIsRef = true;
+      if (word->baseSpaceStyle == word->baseStyle)
+         newSpaceStyle = newStyle;
+      else {
+         newSpaceStyle = createFirstLineStyle (word->baseSpaceStyle,
+                                               firstLineStyle);
+         newSpaceStyleIsRef = true;
+      }
+   } else {
+      newStyle = word->baseStyle;
+      newSpaceStyle = word->baseSpaceStyle;
+   }
+
+   if (newStyle == oldStyle && newSpaceStyle == oldSpaceStyle) {
+      if (newStyleIsRef)
+         newStyle->unref ();
+      if (newSpaceStyleIsRef)
+         newSpaceStyle->unref ();
+      return false;
+   }
+
+   removeWordImgRenderer (wordIndex);
+   removeSpaceImgRenderer (wordIndex);
+
+   word->style = newStyle;
+   newStyle->ref (); // for word->style
+   if (newStyleIsRef)
+      newStyle->unref (); // drop the temporary reference
+
+   word->spaceStyle = newSpaceStyle;
+   newSpaceStyle->ref (); // for word->spaceStyle
+   if (newSpaceStyleIsRef)
+      newSpaceStyle->unref (); // drop the temporary reference
+
+   oldStyle->unref ();
+   oldSpaceStyle->unref ();
+
+   if (word->content.type == core::Content::TEXT) {
+      core::Requisition size;
+      calcTextSize (word->content.text, strlen (word->content.text),
+                    newStyle, &size, true, true);
+      word->size = size;
+   }
+
+   if (word->content.space)
+      word->origSpace = word->effSpace =
+         newSpaceStyle->font->spaceWidth + newSpaceStyle->wordSpacing;
+
+   setWordImgRenderer (wordIndex);
+   setSpaceImgRenderer (wordIndex);
+
+   return true;
+}
+
+void Textblock::resetFirstLineStyle ()
+{
+   for (int i = 0; i < words->size (); i++) {
+      Word *word = words->getRef (i);
+      word->firstLineExcluded = false;
+      setWordStyle (i, false);
+   }
+}
+
+bool Textblock::updateFirstLineStyle ()
+{
+   if (!firstLineStyle || lines->size () == 0)
+      return false;
+
+   Line *line = lines->getRef (0);
+   bool changed = false;
+
+   for (int i = 0; i < words->size (); i++) {
+      Word *word = words->getRef (i);
+      if (word->content.type != core::Content::TEXT)
+         continue;
+
+      bool inFirstLine = i >= line->firstWord && i <= line->lastWord;
+
+      if (inFirstLine && !word->firstLineExcluded) {
+         if (setWordStyle (i, true))
+            changed = true;
+      } else {
+         if (word->style != word->baseStyle ||
+             word->spaceStyle != word->baseSpaceStyle) {
+            /* Applying the first-line style moved this word to a following
+             * line. Do not try again, otherwise the larger first-line font
+             * and the normal style would make it oscillate. */
+            if (!inFirstLine)
+               word->firstLineExcluded = true;
+            if (setWordStyle (i, false))
+               changed = true;
+         }
+      }
+   }
+
+   return changed;
 }
 
 /*
@@ -2785,6 +2959,10 @@ void Textblock::fillSpace (int wordNo, core::style::Style *style)
       word->spaceStyle = style;
       style->ref ();
 
+      word->baseSpaceStyle->unref ();
+      word->baseSpaceStyle = style;
+      style->ref ();
+
       setSpaceImgRenderer (wordNo);
    }
 
@@ -3115,6 +3293,18 @@ void Textblock::changeLinkColor (int link, int newColor)
                styleAttrs.color = core::style::Color::create (layout,
                                                               newColor);
                word->spaceStyle = core::style::Style::create(&styleAttrs);
+               old_style->unref();
+               old_style = word->baseStyle;
+               styleAttrs = *old_style;
+               styleAttrs.color = core::style::Color::create (layout,
+                                                              newColor);
+               word->baseStyle = core::style::Style::create(&styleAttrs);
+               old_style->unref();
+               old_style = word->baseSpaceStyle;
+               styleAttrs = *old_style;
+               styleAttrs.color = core::style::Color::create (layout,
+                                                              newColor);
+               word->baseSpaceStyle = core::style::Style::create(&styleAttrs);
                old_style->unref();
                break;
             }

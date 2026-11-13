@@ -1504,6 +1504,8 @@ int Textblock::hyphenateWord (int wordIndex, int *addIndex1)
       //delete origword->content.text; TODO: Via textZone?
       origWord.style->unref ();
       origWord.spaceStyle->unref ();
+      origWord.baseStyle->unref ();
+      origWord.baseSpaceStyle->unref ();
 
       free (breakPos);
       delete[] wordSize;

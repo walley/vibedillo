@@ -534,13 +534,23 @@ void CssStyleSheet::addRule (CssRule *rule) {
 }
 
 /**
+ * \brief Return whether the rule belongs to the given pseudo-element.
+ */
+static bool rule_matches_pseudo_element (CssRule *rule, const char *pseudo)
+{
+   const char *rulePseudo = rule->selector->top ()->getPseudoClass ();
+   return rulePseudo && dStrAsciiCasecmp (rulePseudo, pseudo) == 0;
+}
+
+/**
  * \brief Apply a stylesheet to a property list.
  *
  * The properties are set as defined by the rules in the stylesheet that
  * match at the given node in the document tree.
  */
 void CssStyleSheet::apply (CssPropertyList *props, Doctree *docTree,
-                        const DoctreeNode *node, MatchCache *matchCache) const {
+                        const DoctreeNode *node, MatchCache *matchCache,
+                        const char *pseudoElement) const {
    static const int maxLists = 32;
    const RuleList *ruleList[maxLists];
    int numLists = 0, index[maxLists] = {0};
@@ -587,6 +597,16 @@ void CssStyleSheet::apply (CssPropertyList *props, Doctree *docTree,
 
       for (int i = 0; i < numLists; i++) {
          const RuleList *rl = ruleList[i];
+
+         /* When looking for a pseudo-element, skip all rules that do not
+          * belong to it (they would match as well, since selectors without
+          * a pseudo-element match any node). */
+         if (rl && pseudoElement) {
+            while (index[i] < rl->size () &&
+                   !rule_matches_pseudo_element (rl->get (index[i]),
+                                                 pseudoElement))
+               index[i]++;
+         }
 
          if (rl && rl->size () > index[i] &&
             (rl->get(index[i])->specificity () < minSpec ||
@@ -649,6 +669,20 @@ void CssContext::apply (CssPropertyList *props, Doctree *docTree,
         tagStyleImportant->apply (props);
 
    sheet[CSS_PRIMARY_USER_IMPORTANT].apply (props, docTree, node, &matchCache);
+}
+
+void CssContext::applyPseudoElement (CssPropertyList *props,
+         Doctree *docTree, DoctreeNode *node, const char *pseudoElement) {
+
+   userAgentSheet.apply (props, docTree, node, &matchCache, pseudoElement);
+   sheet[CSS_PRIMARY_USER].apply (props, docTree, node, &matchCache,
+                                  pseudoElement);
+   sheet[CSS_PRIMARY_AUTHOR].apply (props, docTree, node, &matchCache,
+                                    pseudoElement);
+   sheet[CSS_PRIMARY_AUTHOR_IMPORTANT].apply (props, docTree, node,
+                                              &matchCache, pseudoElement);
+   sheet[CSS_PRIMARY_USER_IMPORTANT].apply (props, docTree, node, &matchCache,
+                                            pseudoElement);
 }
 
 void CssContext::addRule (CssSelector *sel, CssPropertyList *props,

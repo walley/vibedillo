@@ -57,6 +57,7 @@ class StyleEngine {
       void buildUserStyle ();
       dw::core::style::Style *style0 (int i, BrowserWindow *bw);
       dw::core::style::Style *wordStyle0 (BrowserWindow *bw);
+      dw::core::style::Style *firstLineStyle0 (int i, BrowserWindow *bw);
       inline void setNonCssHint(CssPropertyName name, CssValueType type,
                                 CssPropertyValue value) {
          Node *n = stack->getRef (stack->size () - 1);
@@ -68,7 +69,8 @@ class StyleEngine {
       void preprocessAttrs (dw::core::style::StyleAttrs *attrs);
       void postprocessAttrs (dw::core::style::StyleAttrs *attrs);
       void apply (int i, dw::core::style::StyleAttrs *attrs,
-                  CssPropertyList *props, BrowserWindow *bw);
+                  CssPropertyList *props, BrowserWindow *bw,
+                  dw::core::style::Font *referenceFont = NULL);
       bool computeValue (int *dest, CssLength value,
                          dw::core::style::Font *font);
       bool computeValue (int *dest, CssLength value,
@@ -123,6 +125,12 @@ class StyleEngine {
       dw::core::style::Style *pseudoStyle (BrowserWindow *bw,
                                            const char *pseudo,
                                            bool *hasContent);
+      /* Compute the style of the current element (or of its parent) as if
+       * it had the ":first-line" pseudo-element. Returns NULL when no
+       * ":first-line" rule changes the style. The returned style must be
+       * unref()ed. */
+      dw::core::style::Style *firstLineStyle (BrowserWindow *bw);
+      dw::core::style::Style *parentFirstLineStyle (BrowserWindow *bw);
       void restyle (BrowserWindow *bw);
       void inheritBackgroundColor (); /* \todo get rid of this somehow */
       dw::core::style::Style *backgroundStyle (BrowserWindow *bw);

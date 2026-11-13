@@ -530,7 +530,8 @@ class CssStyleSheet {
       CssStyleSheet () { requiredMatchCache = 0; }
       void addRule (CssRule *rule);
       void apply (CssPropertyList *props, Doctree *docTree,
-                  const DoctreeNode *node, MatchCache *matchCache) const;
+                  const DoctreeNode *node, MatchCache *matchCache,
+                  const char *pseudoElement = NULL) const;
       int getRequiredMatchCache () { return requiredMatchCache; }
 };
 
@@ -553,6 +554,12 @@ class CssContext {
          Doctree *docTree, DoctreeNode *node,
          CssPropertyList *tagStyle, CssPropertyList *tagStyleImportant,
          CssPropertyList *nonCssHints);
+      /** Apply only the rules that match the given pseudo-element (e.g.
+       * "first-line"), in cascade order. Unlike apply(), this only uses
+       * declarations of the pseudo-element itself, not the ones of the
+       * originating element. */
+      void applyPseudoElement (CssPropertyList *props,
+         Doctree *docTree, DoctreeNode *node, const char *pseudoElement);
 };
 
 #endif
