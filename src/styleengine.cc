@@ -385,7 +385,10 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                   *c = '\0';
                dStrstrip(p->value.strVal);
 
-               if (dStrAsciiCasecmp (p->value.strVal, "serif") == 0)
+               if (dStrAsciiCasecmp (p->value.strVal, "inherit") == 0) {
+                  // 'inherit': keep the font inherited from the parent
+                  break;
+               } else if (dStrAsciiCasecmp (p->value.strVal, "serif") == 0)
                   fontName = prefs.font_serif;
                else if (dStrAsciiCasecmp (p->value.strVal, "sans-serif") == 0)
                   fontName = prefs.font_sans_serif;
@@ -399,11 +402,29 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                   fontName = p->value.strVal;
 
                if (fontName) {   // font found
+                  if (!Font::exists(layout, fontName))
+                     // the FLTK font layer will substitute a default font
+                     MSG_WARN("font-family \"%s\" is not installed; "
+                              "FLTK will substitute another font\n",
+                              fontName);
+                  else if ((fontName == prefs.font_cursive ||
+                            fontName == prefs.font_fantasy) &&
+                           strcmp(fontName, prefs.font_sans_serif) == 0)
+                     // no distinct cursive/fantasy font configured
+                     MSG_WARN("no distinct %s font configured "
+                              "(using \"%s\")\n",
+                              fontName == prefs.font_cursive ?
+                                 "cursive" : "fantasy", fontName);
                   fontAttrs.name = fontName;
                   break;
                } else if (c) {   // try next from list
+                  MSG_WARN("font-family \"%s\" is not installed; "
+                           "trying next font in the list\n",
+                           p->value.strVal);
                   memmove(p->value.strVal, c + 1, strlen(c + 1) + 1);
                } else {          // no font found
+                  MSG_WARN("no usable font in font-family list; "
+                           "keeping the inherited font\n");
                   break;
                }
             }
