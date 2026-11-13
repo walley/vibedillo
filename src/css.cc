@@ -480,7 +480,10 @@ void CssStyleSheet::RuleList::insert (CssRule *rule) {
    increase ();
    int i = size () - 1;
 
-   while (i > 0 && rule->specificity () < get (i - 1)->specificity ()) {
+   while (i > 0 &&
+          (rule->specificity () < get (i - 1)->specificity () ||
+           (rule->specificity () == get (i - 1)->specificity () &&
+            rule->position () < get (i - 1)->position ()))) {
       *getRef (i) = get (i - 1);
       i--;
    }
@@ -686,10 +689,10 @@ void CssContext::applyPseudoElement (CssPropertyList *props,
 }
 
 void CssContext::addRule (CssSelector *sel, CssPropertyList *props,
-                          CssPrimaryOrder order) {
+                          CssPrimaryOrder order, int pos) {
 
    if (props->size () > 0) {
-      CssRule *rule = new CssRule (sel, props, pos++);
+      CssRule *rule = new CssRule (sel, props, pos);
 
       if ((order == CSS_PRIMARY_AUTHOR ||
            order == CSS_PRIMARY_AUTHOR_IMPORTANT) &&

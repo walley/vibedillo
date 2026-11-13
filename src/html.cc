@@ -525,6 +525,8 @@ DilloHtml::DilloHtml(BrowserWindow *p_bw, const DilloUrl *url,
    styleEngine = new StyleEngine (HT2LT (this), page_url, base_url, bw->zoom);
 
    cssUrls = new misc::SimpleVector <DilloUrl*> (1);
+   cssUrlOrders = new misc::SimpleVector <int> (1);
+   cssSheetCounter = 0;
 
    stack = new misc::SimpleVector <DilloHtmlState> (16);
    stack->increase();
@@ -609,6 +611,7 @@ DilloHtml::~DilloHtml()
    for (int i = 0; i < cssUrls->size(); i++)
       a_Url_free(cssUrls->get(i));
    delete (cssUrls);
+   delete (cssUrlOrders);
 
    for (int i = 0; i < forms->size(); i++)
       a_Html_form_delete (forms->get(i));
@@ -792,11 +795,13 @@ void DilloHtml::loadImages (const DilloUrl *pattern)
 /**
  * Save URL in a vector (may be loaded later).
  */
-void DilloHtml::addCssUrl(const DilloUrl *url)
+void DilloHtml::addCssUrl(const DilloUrl *url, int order)
 {
    int nu = cssUrls->size();
    cssUrls->increase();
    cssUrls->set(nu, a_Url_dup(url));
+   cssUrlOrders->increase();
+   cssUrlOrders->set(nu, order);
 }
 
 bool DilloHtml::HtmlLinkReceiver::enter (Widget *widget, int link, int img,
@@ -1745,7 +1750,8 @@ static void Html_tag_close_head(DilloHtml *html)
 
          /* charset is already set, load remote stylesheets now */
          for (int i = 0; i < html->cssUrls->size(); i++) {
-            a_Html_load_stylesheet(html, html->cssUrls->get(i));
+            a_Html_load_stylesheet(html, html->cssUrls->get(i),
+                                   html->cssUrlOrders->get(i));
          }
       } else if (html->Num_HEAD > 1) {
          --html->Num_HEAD;
@@ -1848,7 +1854,8 @@ static void Html_tag_close_style(DilloHtml *html)
 {
    if (prefs.parse_embedded_css && html->loadCssFromStash)
       html->styleEngine->parse(html, html->base_url, html->Stash->str,
-                               html->Stash->len, CSS_ORIGIN_AUTHOR);
+                               html->Stash->len, CSS_ORIGIN_AUTHOR,
+                               html->cssSheetCounter++);
 }
 
 /*
@@ -3426,7 +3433,7 @@ static char *Html_data_url_content(const DilloUrl *url, int *len)
 /**
  * Tell cache to retrieve a stylesheet
  */
-void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url)
+void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url, int sheetOrder)
 {
    char *data;
    int len;
@@ -3436,7 +3443,8 @@ void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url)
    /* data: URLs are decoded inline, without going through the cache */
    if (!dStrAsciiCasecmp(URL_SCHEME(url), "data")) {
       if ((data = Html_data_url_content(url, &len))) {
-         html->styleEngine->parse(html, url, data, len, CSS_ORIGIN_AUTHOR);
+         html->styleEngine->parse(html, url, data, len, CSS_ORIGIN_AUTHOR,
+                                  sheetOrder);
          dFree(data);
       }
       return;
@@ -3462,7 +3470,8 @@ void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url)
             a_Capi_get_buf(url, &data, &len);
          }
       }
-      html->styleEngine->parse(html, url, data, len, CSS_ORIGIN_AUTHOR);
+      html->styleEngine->parse(html, url, data, len, CSS_ORIGIN_AUTHOR,
+                               sheetOrder);
       a_Capi_unref_buf(url);
    } else {
       /* Fill a Web structure for the cache query */
@@ -3530,7 +3539,7 @@ static void Html_tag_open_link(DilloHtml *html, const char *tag, int tagsize)
 
    _MSG("  Html_tag_open_link(): addCssUrl %s\n", URL_STR(url));
 
-   html->addCssUrl(url);
+   html->addCssUrl(url, html->cssSheetCounter++);
    a_Url_free(url);
 }
 

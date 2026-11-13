@@ -26,7 +26,11 @@ class CssParser {
       bool spaceSeparated; /* used when parsing CSS selectors */
 
       CssParser(CssContext *context, CssOrigin origin, const DilloUrl *baseUrl,
-                const char *buf, int buflen);
+                const char *buf, int buflen, int sheetBase);
+
+      /** Base position in the cascade for the current style sheet; each
+       * rule gets sheetBase + ruleIndex. */
+      int sheetBase, ruleIndex;
       int getChar();
       void ungetChar();
       void nextToken();
@@ -43,7 +47,12 @@ class CssParser {
       bool parseAttributeSelector(CssSimpleSelector *selector);
       char *parseUrl();
       void parseImport(DilloHtml *html);
-      void parseMedia();
+      void parseMedia(DilloHtml *html);
+      bool parseMediaList(DilloHtml *html, bool *selected);
+      bool parseMediaQuery(DilloHtml *html, bool *selected);
+      bool parseMediaExpression(DilloHtml *html, bool *result);
+      bool mediaLengthPx(DilloHtml *html, float value, CssLengthType type,
+                         float *px);
       CssSelector *parseSelector();
       void parseRuleset();
       void ignoreBlock();
@@ -55,7 +64,8 @@ class CssParser {
                                         CssPropertyList *props,
                                         CssPropertyList *propsImortant);
       static void parse(DilloHtml *html, const DilloUrl *baseUrl, CssContext *context,
-                        const char *buf, int buflen, CssOrigin origin);
+                        const char *buf, int buflen, CssOrigin origin,
+                        int sheetOrder = 0);
       static const char *propertyNameString(CssPropertyName name);
 };
 

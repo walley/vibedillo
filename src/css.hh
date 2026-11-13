@@ -549,7 +549,7 @@ class CssContext {
       CssContext ();
 
       void addRule (CssSelector *sel, CssPropertyList *props,
-                    CssPrimaryOrder order);
+                    CssPrimaryOrder order, int pos);
       void apply (CssPropertyList *props,
          Doctree *docTree, DoctreeNode *node,
          CssPropertyList *tagStyle, CssPropertyList *tagStyleImportant,

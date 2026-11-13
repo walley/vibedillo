@@ -21,6 +21,7 @@
 
 #include "msg.h"
 #include "colors.h"
+#include "prefs.h"
 #include "html_common.hh"
 #include "css.hh"
 #include "cssparser.hh"
@@ -459,7 +460,7 @@ static const CssShorthandInfo Css_shorthand_info[] = {
 
 CssParser::CssParser(CssContext *context, CssOrigin origin,
                      const DilloUrl *baseUrl,
-                     const char *buf, int buflen)
+                     const char *buf, int buflen, int sheetBase)
 {
    this->context = context;
    this->origin = origin;
@@ -469,6 +470,8 @@ CssParser::CssParser(CssContext *context, CssOrigin origin,
    this->spaceSeparated = false;
    this->withinBlock = false;
    this->baseUrl = baseUrl;
+   this->sheetBase = sheetBase;
+   this->ruleIndex = 0;
 
    nextToken ();
 }
@@ -1712,13 +1715,17 @@ void CssParser::parseRuleset()
       CssSelector *s = list->get(i);
 
       if (origin == CSS_ORIGIN_USER_AGENT) {
-         context->addRule(s, props, CSS_PRIMARY_USER_AGENT);
+         context->addRule(s, props, CSS_PRIMARY_USER_AGENT,
+                          sheetBase + ruleIndex++);
       } else if (origin == CSS_ORIGIN_USER) {
-         context->addRule(s, props, CSS_PRIMARY_USER);
-         context->addRule(s, importantProps, CSS_PRIMARY_USER_IMPORTANT);
+         context->addRule(s, props, CSS_PRIMARY_USER, sheetBase + ruleIndex++);
+         context->addRule(s, importantProps, CSS_PRIMARY_USER_IMPORTANT,
+                          sheetBase + ruleIndex++);
       } else if (origin == CSS_ORIGIN_AUTHOR) {
-         context->addRule(s, props, CSS_PRIMARY_AUTHOR);
-         context->addRule(s, importantProps, CSS_PRIMARY_AUTHOR_IMPORTANT);
+         context->addRule(s, props, CSS_PRIMARY_AUTHOR,
+                          sheetBase + ruleIndex++);
+         context->addRule(s, importantProps, CSS_PRIMARY_AUTHOR_IMPORTANT,
+                          sheetBase + ruleIndex++);
       }
 
       s->unref();
@@ -1776,6 +1783,260 @@ char * CssParser::parseUrl()
    }
 }
 
+/**
+ * Convert a length used in a media query to pixels, based on the viewport
+ * size of html (or on default values when html is NULL, e.g. for the user
+ * style sheet). Returns false when the unit cannot be resolved (e.g.
+ * percentages).
+ */
+bool CssParser::mediaLengthPx (DilloHtml *html, float value,
+                               CssLengthType type, float *px)
+{
+   int vw, vh;
+   float dpmm;
+
+   if (html && html->bw) {
+      dw::core::Layout *layout = (dw::core::Layout*)html->bw->render_layout;
+      vw = layout->getWidthViewport ();
+      vh = layout->getHeightViewport ();
+      dpmm = layout->dpiX () / 25.4;
+   } else {
+      vw = 800;
+      vh = 600;
+      dpmm = 96.0 / 25.4;
+   }
+
+   switch (type) {
+      case CSS_LENGTH_TYPE_NONE:
+      case CSS_LENGTH_TYPE_PX:
+         *px = value;
+         return true;
+      case CSS_LENGTH_TYPE_MM:
+         *px = value * dpmm;
+         return true;
+      case CSS_LENGTH_TYPE_EM:
+      case CSS_LENGTH_TYPE_REM:
+         /* In media queries, em refers to the initial font size. */
+         *px = value * 14 * prefs.font_factor;
+         return true;
+      case CSS_LENGTH_TYPE_EX:
+      case CSS_LENGTH_TYPE_CH:
+         *px = value * 7 * prefs.font_factor;
+         return true;
+      case CSS_LENGTH_TYPE_VW:
+         *px = value * vw / 100;
+         return true;
+      case CSS_LENGTH_TYPE_VH:
+         *px = value * vh / 100;
+         return true;
+      case CSS_LENGTH_TYPE_VMIN:
+         *px = value * (vw < vh ? vw : vh) / 100;
+         return true;
+      case CSS_LENGTH_TYPE_VMAX:
+         *px = value * (vw > vh ? vw : vh) / 100;
+         return true;
+      default:
+         return false;
+   }
+}
+
+/**
+ * Parse a media query expression "( feature [ : value ] )" (Media Queries
+ * Level 3) and evaluate it against the viewport of html. Returns false on
+ * syntax errors.
+ */
+bool CssParser::parseMediaExpression (DilloHtml *html, bool *result)
+{
+   char feature[maxStrLen], valSym[maxStrLen];
+   float val = 0.0;
+   CssLengthType lentype = CSS_LENGTH_TYPE_NONE;
+   bool hasValue = false;
+   bool r = false;
+
+   if (ttype != CSS_TK_CHAR || tval[0] != '(')
+      return false;
+   nextToken();
+
+   if (ttype != CSS_TK_SYMBOL)
+      return false;
+   strncpy (feature, tval, maxStrLen - 1);
+   feature[maxStrLen - 1] = 0;
+   nextToken();
+
+   valSym[0] = 0;
+   if (ttype == CSS_TK_CHAR && tval[0] == ':') {
+      nextToken();
+      hasValue = true;
+      if (ttype == CSS_TK_DECINT || ttype == CSS_TK_FLOAT) {
+         val = atof (tval);
+         lentype = CSS_LENGTH_TYPE_NONE;
+         nextToken();
+         if (!spaceSeparated && ttype == CSS_TK_SYMBOL) {
+            if (dStrAsciiCasecmp(tval, "px") == 0)
+               lentype = CSS_LENGTH_TYPE_PX;
+            else if (dStrAsciiCasecmp(tval, "mm") == 0)
+               lentype = CSS_LENGTH_TYPE_MM;
+            else if (dStrAsciiCasecmp(tval, "cm") == 0) {
+               lentype = CSS_LENGTH_TYPE_MM;
+               val *= 10;
+            } else if (dStrAsciiCasecmp(tval, "in") == 0) {
+               lentype = CSS_LENGTH_TYPE_MM;
+               val *= 25.4;
+            } else if (dStrAsciiCasecmp(tval, "pt") == 0) {
+               lentype = CSS_LENGTH_TYPE_MM;
+               val *= (25.4 / 72);
+            } else if (dStrAsciiCasecmp(tval, "pc") == 0) {
+               lentype = CSS_LENGTH_TYPE_MM;
+               val *= (25.4 / 6);
+            } else if (dStrAsciiCasecmp(tval, "em") == 0)
+               lentype = CSS_LENGTH_TYPE_EM;
+            else if (dStrAsciiCasecmp(tval, "ex") == 0)
+               lentype = CSS_LENGTH_TYPE_EX;
+            else if (dStrAsciiCasecmp(tval, "ch") == 0)
+               lentype = CSS_LENGTH_TYPE_CH;
+            else if (dStrAsciiCasecmp(tval, "rem") == 0)
+               lentype = CSS_LENGTH_TYPE_REM;
+            else if (dStrAsciiCasecmp(tval, "vw") == 0)
+               lentype = CSS_LENGTH_TYPE_VW;
+            else if (dStrAsciiCasecmp(tval, "vh") == 0)
+               lentype = CSS_LENGTH_TYPE_VH;
+            else if (dStrAsciiCasecmp(tval, "vmin") == 0)
+               lentype = CSS_LENGTH_TYPE_VMIN;
+            else if (dStrAsciiCasecmp(tval, "vmax") == 0)
+               lentype = CSS_LENGTH_TYPE_VMAX;
+            else
+               return false;
+            nextToken();
+         }
+      } else if (ttype == CSS_TK_SYMBOL) {
+         strncpy (valSym, tval, maxStrLen - 1);
+         valSym[maxStrLen - 1] = 0;
+         nextToken();
+      } else
+         return false;
+   }
+
+   if (ttype != CSS_TK_CHAR || tval[0] != ')')
+      return false;
+   nextToken();
+
+   int vw = 800, vh = 600;
+   if (html && html->bw) {
+      dw::core::Layout *layout = (dw::core::Layout*)html->bw->render_layout;
+      vw = layout->getWidthViewport ();
+      vh = layout->getHeightViewport ();
+   }
+
+   if (dStrAsciiCasecmp(feature, "width") == 0 ||
+       dStrAsciiCasecmp(feature, "min-width") == 0 ||
+       dStrAsciiCasecmp(feature, "max-width") == 0) {
+      float px;
+      if (hasValue && mediaLengthPx (html, val, lentype, &px)) {
+         if (dStrAsciiCasecmp(feature, "width") == 0)
+            r = vw == (int)px;
+         else if (dStrAsciiCasecmp(feature, "min-width") == 0)
+            r = vw >= px;
+         else
+            r = vw <= px;
+      }
+   } else if (dStrAsciiCasecmp(feature, "height") == 0 ||
+              dStrAsciiCasecmp(feature, "min-height") == 0 ||
+              dStrAsciiCasecmp(feature, "max-height") == 0) {
+      float px;
+      if (hasValue && mediaLengthPx (html, val, lentype, &px)) {
+         if (dStrAsciiCasecmp(feature, "height") == 0)
+            r = vh == (int)px;
+         else if (dStrAsciiCasecmp(feature, "min-height") == 0)
+            r = vh >= px;
+         else
+            r = vh <= px;
+      }
+   } else if (dStrAsciiCasecmp(feature, "orientation") == 0) {
+      if (hasValue && dStrAsciiCasecmp(valSym, "landscape") == 0)
+         r = vw >= vh;
+      else if (hasValue && dStrAsciiCasecmp(valSym, "portrait") == 0)
+         r = vw < vh;
+   } else if (dStrAsciiCasecmp(feature, "prefers-color-scheme") == 0) {
+      /* Dillo renders the light scheme. */
+      r = hasValue && dStrAsciiCasecmp(valSym, "light") == 0;
+   }
+   /* Unknown features evaluate to false. */
+
+   *result = r;
+   return true;
+}
+
+/**
+ * Parse a single media query: [only|not] media-type [and (expr)]* or
+ * (expr) [and (expr)]*. Returns false on syntax errors.
+ */
+bool CssParser::parseMediaQuery (DilloHtml *html, bool *selected)
+{
+   bool negate = false;
+   bool result = false;
+
+   if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "only") == 0)
+      nextToken();
+   if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "not") == 0) {
+      negate = true;
+      nextToken();
+   }
+
+   if (ttype == CSS_TK_SYMBOL) {
+      /* A media type; dillo renders to a screen medium. */
+      result = dStrAsciiCasecmp(tval, "all") == 0 ||
+               dStrAsciiCasecmp(tval, "screen") == 0;
+      nextToken();
+      while (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "and") == 0) {
+         bool expr;
+         nextToken();
+         if (!parseMediaExpression (html, &expr))
+            return false;
+         result = result && expr;
+      }
+   } else if (ttype == CSS_TK_CHAR && tval[0] == '(') {
+      bool expr;
+      if (!parseMediaExpression (html, &expr))
+         return false;
+      result = expr;
+      while (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "and") == 0) {
+         nextToken();
+         if (!parseMediaExpression (html, &expr))
+            return false;
+         result = result && expr;
+      }
+   } else
+      return false;
+
+   *selected = negate ? !result : result;
+   return true;
+}
+
+/**
+ * Parse a comma-separated list of media queries. Returns false on syntax
+ * errors; otherwise *selected tells whether any query matched.
+ */
+bool CssParser::parseMediaList (DilloHtml *html, bool *selected)
+{
+   bool syntaxOK = false;
+
+   *selected = false;
+   while (true) {
+      bool querySelected;
+      if (!parseMediaQuery (html, &querySelected))
+         return false;
+      syntaxOK = true;
+      if (querySelected)
+         *selected = true;
+      if (ttype == CSS_TK_CHAR && tval[0] == ',') {
+         nextToken();
+         continue;
+      }
+      break;
+   }
+   return syntaxOK;
+}
+
 void CssParser::parseImport(DilloHtml *html)
 {
    char *urlStr = NULL;
@@ -1794,20 +2055,13 @@ void CssParser::parseImport(DilloHtml *html)
    nextToken();
 
    /* parse a comma-separated list of media */
-   if (ttype == CSS_TK_SYMBOL) {
-      mediaSyntaxIsOK = false;
-      mediaIsSelected = false;
-      while (ttype == CSS_TK_SYMBOL) {
-         if (dStrAsciiCasecmp(tval, "all") == 0 ||
-             dStrAsciiCasecmp(tval, "screen") == 0)
-            mediaIsSelected = true;
-         nextToken();
-         if (ttype == CSS_TK_CHAR && tval[0] == ',') {
-            nextToken();
-         } else {
-            mediaSyntaxIsOK = true;
-            break;
-         }
+   if (ttype == CSS_TK_SYMBOL ||
+       (ttype == CSS_TK_CHAR && tval[0] == '(')) {
+      if (!parseMediaList (html, &mediaIsSelected)) {
+         mediaSyntaxIsOK = false;
+         mediaIsSelected = false;
+      } else {
+         mediaSyntaxIsOK = true;
       }
    }
 
@@ -1824,37 +2078,27 @@ void CssParser::parseImport(DilloHtml *html)
          MSG("CssParser::parseImport(): @import %s\n", urlStr);
          DilloUrl *url = a_Html_url_new (html, urlStr, a_Url_str(this->baseUrl),
                                          this->baseUrl ? 1 : 0);
-         a_Html_load_stylesheet(html, url);
+         a_Html_load_stylesheet(html, url, sheetBase >> 16);
          a_Url_free(url);
       }
       dFree (urlStr);
    }
 }
 
-void CssParser::parseMedia()
+void CssParser::parseMedia(DilloHtml *html)
 {
-   bool mediaSyntaxIsOK = false;
-   bool mediaIsSelected = false;
+   bool mediaIsSelected;
 
    nextToken();
 
-   /* parse a comma-separated list of media */
-   while (ttype == CSS_TK_SYMBOL) {
-      if (dStrAsciiCasecmp(tval, "all") == 0 ||
-          dStrAsciiCasecmp(tval, "screen") == 0)
-         mediaIsSelected = true;
-      nextToken();
-      if (ttype == CSS_TK_CHAR && tval[0] == ',') {
-         nextToken();
-      } else {
-         mediaSyntaxIsOK = true;
-         break;
-      }
+   /* parse a comma-separated list of media queries */
+   if (!parseMediaList (html, &mediaIsSelected)) {
+      ignoreStatement();
+      return;
    }
 
    /* check that the syntax is OK so far */
-   if (!(mediaSyntaxIsOK &&
-         ttype == CSS_TK_CHAR &&
+   if (!(ttype == CSS_TK_CHAR &&
          tval[0] == '{')) {
       ignoreStatement();
       return;
@@ -1918,9 +2162,15 @@ void CssParser::ignoreStatement()
 void CssParser::parse(DilloHtml *html, const DilloUrl *baseUrl,
                       CssContext *context,
                       const char *buf,
-                      int buflen, CssOrigin origin)
+                      int buflen, CssOrigin origin, int sheetOrder)
 {
-   CssParser parser (context, origin, baseUrl, buf, buflen);
+   /* Each style sheet gets its own range of cascade positions, according to
+    * its order in the document, so that e.g. an inline <style> element always
+    * wins over a <link> stylesheet that appears earlier in the document, no
+    * matter when the remote sheet was actually loaded. */
+   const int SHEET_STRIDE = 1 << 16;
+   CssParser parser (context, origin, baseUrl, buf, buflen,
+                     sheetOrder * SHEET_STRIDE);
    bool importsAreAllowed = true;
 
    while (parser.ttype != CSS_TK_END) {
@@ -1933,7 +2183,7 @@ void CssParser::parse(DilloHtml *html, const DilloUrl *baseUrl,
                 importsAreAllowed) {
                parser.parseImport(html);
             } else if (dStrAsciiCasecmp(parser.tval, "media") == 0) {
-               parser.parseMedia();
+               parser.parseMedia(html);
             } else {
                parser.ignoreStatement();
             }
@@ -1952,7 +2202,7 @@ void CssParser::parseDeclarationBlock(const DilloUrl *baseUrl,
                                       CssPropertyList *props,
                                       CssPropertyList *propsImortant)
 {
-   CssParser parser (NULL, CSS_ORIGIN_AUTHOR, baseUrl, buf, buflen);
+   CssParser parser (NULL, CSS_ORIGIN_AUTHOR, baseUrl, buf, buflen, 0);
 
    parser.withinBlock = true;
 

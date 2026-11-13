@@ -1129,14 +1129,14 @@ void StyleEngine::restyle (BrowserWindow *bw) {
 }
 
 void StyleEngine::parse (DilloHtml *html, DilloUrl *url, const char *buf,
-                         int buflen, CssOrigin origin) {
+                         int buflen, CssOrigin origin, int sheetOrder) {
    if (importDepth > 10) { // avoid looping with recursive @import directives
       MSG_WARN("Maximum depth of CSS @import reached--ignoring stylesheet.\n");
       return;
    }
 
    importDepth++;
-   CssParser::parse (html, url, cssContext, buf, buflen, origin);
+   CssParser::parse (html, url, cssContext, buf, buflen, origin, sheetOrder);
    importDepth--;
 }
 

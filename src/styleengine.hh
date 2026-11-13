@@ -89,7 +89,7 @@ class StyleEngine {
       ~StyleEngine ();
 
       void parse (DilloHtml *html, DilloUrl *url, const char *buf, int buflen,
-                  CssOrigin origin);
+                  CssOrigin origin, int sheetOrder = 0);
       void startElement (int tag, BrowserWindow *bw);
       void startElement (const char *tagname, BrowserWindow *bw);
       void setId (const char *id);

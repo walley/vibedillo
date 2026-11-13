@@ -184,6 +184,11 @@ public:  //BUG: for now everything is public
 
    /* vector of remote CSS resources, as given by the LINK element */
    lout::misc::SimpleVector<DilloUrl*> *cssUrls;
+   /* document order of each entry in cssUrls, used for cascade positions */
+   lout::misc::SimpleVector<int> *cssUrlOrders;
+   /* counter assigning a document order to each style sheet (LINK or
+    * STYLE element) */
+   int cssSheetCounter;
 
    lout::misc::SimpleVector<DilloHtmlState> *stack;
    StyleEngine *styleEngine;
@@ -240,7 +245,7 @@ public:
    DilloHtmlForm *getCurrentForm ();
    bool_t unloadedImages();
    void loadImages (const DilloUrl *pattern);
-   void addCssUrl(const DilloUrl *url);
+   void addCssUrl(const DilloUrl *url, int order);
 
    // useful shortcuts
    inline void startElement (int tag)
@@ -296,7 +301,7 @@ void a_Html_tag_set_align_attr(DilloHtml *html, const char *tag, int tagsize);
 bool a_Html_tag_set_valign_attr(DilloHtml *html,
                                 const char *tag, int tagsize);
 
-void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url);
+void a_Html_load_stylesheet(DilloHtml *html, DilloUrl *url, int sheetOrder);
 bool a_Html_should_display(DilloHtml *html);
 
 #endif /* __HTML_COMMON_HH__ */
