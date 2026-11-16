@@ -266,6 +266,8 @@ void PrefsParser::parse(FILE *fp)
       if (st == 0) {
          _MSG("prefsparser: name=%s, value=%s\n", name, value);
          parseOption(name, value, symbols, sizeof(symbols) / sizeof(symbols[0]));
+      } else if (st == 1) {
+         /* Comment or blank line - skip */
       } else if (st < 0) {
          MSG_ERR("prefsparser: Syntax error in dillorc line %d:"
                  " name=\"%s\" value=\"%s\"\n", line_number, name, value);

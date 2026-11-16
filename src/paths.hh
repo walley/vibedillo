@@ -23,6 +23,7 @@ public:
    static void free(void);
    static char *getOldWorkingDir(void);
    static FILE *getPrefsFP(const char *rcFile);
+   static void create_default_config(const char *rcFile, const char *path);
 };
 
 #endif /* __PATHS_HH__ */
