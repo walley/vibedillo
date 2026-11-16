@@ -28,8 +28,5 @@
 /*
  * Exported data
  */
-extern const char *AboutSplash;
-
-
 #endif /* __IO_H__ */
 

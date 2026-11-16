@@ -127,16 +127,6 @@ void a_Cache_init(void)
    ClientQueue = dList_new(32);
    DelayedQueue = dList_new(32);
    CachedURLs = dList_new(256);
-
-   /* inject the splash screen in the cache */
-   {
-      DilloUrl *url = a_Url_new("about:splash", NULL);
-      Dstr *ds = dStr_new(AboutSplash);
-      a_Cache_entry_inject(url, ds->str, ds->len,
-            CA_GotHeader | CA_GotLength | CA_InternalUrl);
-      dStr_free(ds, 1);
-      a_Url_free(url);
-   }
 }
 
 /* Client operations ------------------------------------------------------ */
@@ -440,6 +430,57 @@ static Dstr *Cache_stats(void)
    return s;
 }
 
+static Dstr *About_splash(void)
+{
+   Dstr *s = dStr_new(
+      "<!DOCTYPE HTML>\n"
+      "<html>\n"
+      "<head>\n"
+      "  <title>Welcome to " PACKAGE_NAME "</title>\n"
+      "  <style>\n"
+      "    body {\n"
+      "      background: white;\n"
+      "      margin: 3em;\n"
+      "      font-size: 16px;\n"
+      "      font-family: sans-serif;\n"
+      "      line-height: 1.4em;\n"
+      "    }\n"
+      "    .main { max-width: 40em; }\n"
+      "    p { margin-top: 1em; }\n"
+      "    ul { margin-left: 1em; }\n"
+      "    li { margin-top: 0.5em; }\n"
+      "    kbd {\n"
+      "      display: inline-block;\n"
+      "      border: solid 1px #999;\n"
+      "      padding: 1px 3px;\n"
+      "    }\n"
+      "  </style>\n"
+      "</head>\n"
+      "<body>\n"
+      "<div class=\"main\">\n"
+      "\n"
+      "<h1>Welcome to " PACKAGE_NAME "</h1>\n"
+      "\n"
+      "<p>Welcome to " PACKAGE_NAME " " VERSION ", a small and fast graphical web browser. To\n"
+      "access the help click the question mark button <code><kbd>?</kbd></code> in the top\n"
+      "right corner at any time. Here are some tips to get you started:</p>\n"
+      "\n"
+      "<ul>\n"
+      "  <li>The main configuration file is at <code>~/.config/" PACKAGE_NAME "/" PACKAGE_NAME "rc</code>.</li>\n"
+      "  <li>Most actions can also be done by using the <a href='about:keys'>keyboard</a>.</li>\n"
+      "  <li>Cookies are <em>disabled by default</em>.</li>\n"
+      "  <li>Several " PACKAGE_NAME " plugins are available.</li>\n"
+      "</ul>\n"
+      "\n"
+      "<p>See more details in the\n"
+      " <a href=\"https://walley.org/\">" PACKAGE_NAME " website</a>.</p>\n"
+      "\n"
+      "</div>\n"
+      "</body>\n"
+      "</html>\n");
+   return s;
+}
+
 static Dstr *About_about(void)
 {
    Dstr *s = dStr_new(
@@ -454,6 +495,7 @@ static Dstr *About_about(void)
       "  <li><a href=\"about:settings\">about:settings</a> - Settings</li>\n"
       "  <li><a href=\"about:cache\">about:cache</a> - Cache statistics</li>\n"
       "  <li><a href=\"about:dicache\">about:dicache</a> - Dicache statistics</li>\n"
+      "  <li><a href=\"about:splash\">about:splash</a> - Welcome page</li>\n"
       "</ul>\n"
       "</body>\n"
       "</html>\n");
@@ -901,6 +943,8 @@ static int Cache_internal_url(CacheEntry_t *entry)
       s = About_dillo();
    } else if (strcmp(path, "settings") == 0) {
       s = About_settings();
+   } else if (strcmp(path, "splash") == 0) {
+      s = About_splash();
    }
 
    if (s != NULL) {

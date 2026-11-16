@@ -300,7 +300,7 @@ UI *CustTabs::add_new_tab(UI *old_ui, int focus)
    /* The UI is constructed in a comfortable fitting size, and then resized
     * so FLTK doesn't get confused later with even smaller dimensions! */
    current(0);
-   UI *new_ui = new UI(0,0,UI_MIN_W,UI_MIN_H,"Dillo:",old_ui);
+   UI *new_ui = new UI(0,0,UI_MIN_W,UI_MIN_H,PACKAGE_NAME ":",old_ui);
    new_ui->resize(0,ctab_h,Wizard->w(),Wizard->h());
    new_ui->tabs(this);
    Wizard->add(new_ui);
