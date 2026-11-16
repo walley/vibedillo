@@ -4,18 +4,9 @@ Official dillo site: https://dillo-browser.org/
 Cloned from original https://github.com/dillo-browser/dillo, detached, 
 and applied patches from https://walley.org/dillo/ (26/11/10).
 AI continued working on this fork.
-Renamed to **vibedillo** (v3.3.2).
+Renamed to **vibedillo**.
 
-## Recent changes (v3.3.2)
-- **Config directory**: Changed from `~/.vibedillo` to `~/.config/vibedillo` (XDG standard)
-- **Version**: Bumped to 3.3.2
-
-## Recent changes (v3.3.1)
-- **CSS Grid Layout**: Full support for `display: grid` with `grid-template-columns/rows`, `grid-column/row`, `grid-gap`, named lines, `minmax()`, `repeat()`, `fr` units, negative line numbers, and auto-placement
-- **Dark Mode**: Support for `<meta name="color-scheme" content="dark light">` and `@media (prefers-color-scheme: dark/light)` media queries
-- **Font Family**: Explicit `inherit` handling, console warnings for uninstalled fonts
-- **About Protocol**: `about:vibedillo`, `about:settings` (full settings table), `about:about`, `about:cache`, `about:dicache`
-- **Rename**: dillo → vibedillo, dilloc → vibedilloc, all paths updated (~/.dillo → ~/.vibedillo, /etc/dillo → /etc/vibedillo)
+See [ChangeLog](ChangeLog) for detailed changes.
 
 # vibedillo web browser
 

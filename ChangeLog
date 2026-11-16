@@ -1,10 +1,33 @@
 =============================================================================
-Dillo project
+vibedillo project
 =============================================================================
 
 Here we list changes that are relatively significant and/or visible to the
 user. For a history of changes in full detail, see our Git repository
-at https://git.dillo-browser.org/dillo
+at https://github.com/walley/vibedillo
+
+vibedillo-3.3.2 [Nov 16, 2026]
+
++- Config directory changed to XDG standard: ~/.config/vibedillo
+  Patches: AI (walley)
+
+vibedillo-3.3.1 [Nov 13, 2026]
+
++- CSS Grid Layout: Full support for display: grid with grid-template-columns/rows,
+  grid-column/row, grid-gap, named lines, minmax(), repeat(), fr units,
+  negative line numbers, and auto-placement
+  Patches: AI (walley)
++- Dark Mode: Support for <meta name="color-scheme" content="dark light"> and
+  @media (prefers-color-scheme: dark/light) media queries
+  Patches: AI (walley)
++- Font Family: Explicit inherit handling, console warnings for uninstalled fonts
+  Patches: AI (walley)
++- About Protocol: about:vibedillo, about:settings (full settings table),
+  about:about, about:cache, about:dicache
+  Patches: AI (walley)
++- Rename: dillo -> vibedillo, dilloc -> vibedilloc, all paths updated
+  (~/.dillo -> ~/.vibedillo, /etc/dillo -> /etc/vibedillo)
+  Patches: AI (walley)
 
 dillo-3.4.0 [Unreleased]
 
