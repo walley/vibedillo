@@ -46,8 +46,8 @@ To build and install Vibedillo follow the steps below.
 ### From a release
 
 ```sh
-$ tar jxvf vibedillo-3.3.1.tar.bz2
-$ cd vibedillo-3.3.1
+$ tar jxvf vibedillo-3.3.2.tar.bz2
+$ cd vibedillo-3.3.2
 $ mkdir build
 $ cd build
 $ ../configure --prefix=/usr/local
@@ -81,7 +81,7 @@ help.
 These are installed by `make install`. If you don't have root access,
 copy "vibedillo" and "dpid" to some directory in your path and install
 the dpis by running `./install-dpi-local` from the top directory (they
-will be installed under ~/.vibedillo).
+will be installed under ~/.config/vibedillo).
 
 # Other systems
 

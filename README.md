@@ -4,7 +4,11 @@ Official dillo site: https://dillo-browser.org/
 Cloned from original https://github.com/dillo-browser/dillo, detached, 
 and applied patches from https://walley.org/dillo/ (26/11/10).
 AI continued working on this fork.
-Renamed to **vibedillo** (v3.3.1).
+Renamed to **vibedillo** (v3.3.2).
+
+## Recent changes (v3.3.2)
+- **Config directory**: Changed from `~/.vibedillo` to `~/.config/vibedillo` (XDG standard)
+- **Version**: Bumped to 3.3.2
 
 ## Recent changes (v3.3.1)
 - **CSS Grid Layout**: Full support for `display: grid` with `grid-template-columns/rows`, `grid-column/row`, `grid-gap`, named lines, `minmax()`, `repeat()`, `fr` units, negative line numbers, and auto-placement
