@@ -228,6 +228,7 @@ void PrefsParser::parse(FILE *fp)
       { "small_icons", &prefs.small_icons, PREFS_BOOL, 0 },
       { "start_page", &prefs.start_page, PREFS_URL, 0 },
       { "theme", &prefs.theme, PREFS_STRING, 0 },
+      { "color_scheme", &prefs.color_scheme, PREFS_STRING, 0 },
       { "ui_button_highlight_color", &prefs.ui_button_highlight_color,
         PREFS_COLOR, 0 },
       { "ui_fg_color", &prefs.ui_fg_color, PREFS_COLOR, 0 },

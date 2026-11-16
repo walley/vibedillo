@@ -39,6 +39,7 @@
 #include "dlib/dlib.h"
 #include "prefs.h"
 #include "config.h"
+#include <stdbool.h>
 
 /** Maximum initial size for the automatically-growing data buffer */
 #define MAX_INIT_BUF  1024*1024
@@ -475,16 +476,411 @@ static Dstr *About_dillo(void)
    return s;
 }
 
+/* Helper to format a setting value for display */
+static const char *setting_str_bool(bool_t v) { return v ? "true" : "false"; }
+static const char *setting_str_int(int32_t v) {
+   static char buf[32];
+   snprintf(buf, sizeof(buf), "%d", v);
+   return buf;
+}
+static const char *setting_str_double(double v) {
+   static char buf[32];
+   snprintf(buf, sizeof(buf), "%.2f", v);
+   return buf;
+}
+static const char *setting_str_color(int32_t v) {
+   static char buf[32];
+   if (v == -1) return "default";
+   snprintf(buf, sizeof(buf), "#%06x", v & 0xffffff);
+   return buf;
+}
+static const char *setting_str_string(const char *v) { return v ? v : ""; }
+static const char *setting_str_url(const DilloUrl *v) { return v ? URL_STR(v) : ""; }
+static const char *setting_str_url_str(const char *v) { return v ? v : ""; }
+static const char *setting_str_geometry(void) {
+   static char buf[64];
+   snprintf(buf, sizeof(buf), "%dx%d%+d%+d",
+            prefs.width, prefs.height, prefs.xpos, prefs.ypos);
+   return buf;
+}
+static const char *setting_str_panel_size(int v) {
+   return v == P_tiny ? "tiny" : (v == P_small ? "small" : "medium");
+}
+
+/* Default value getters - use functions instead of complex macros */
+static bool_t def_bool(const char *name) {
+   if (strcmp(name, "allow_white_bg")==0) return TRUE;
+   if (strcmp(name, "white_bg_replacement")==0) return FALSE;
+   if (strcmp(name, "contrast_visited_color")==0) return TRUE;
+   if (strcmp(name, "enterpress_forces_submit")==0) return FALSE;
+   if (strcmp(name, "focus_new_tab")==0) return FALSE;
+   if (strcmp(name, "fullwindow_start")==0) return FALSE;
+   if (strcmp(name, "limit_text_width")==0) return FALSE;
+   if (strcmp(name, "adjust_min_width")==0) return TRUE;
+   if (strcmp(name, "adjust_table_min_width")==0) return TRUE;
+   if (strcmp(name, "load_images")==0) return TRUE;
+   if (strcmp(name, "mark_unloaded_images")==0) return FALSE;
+   if (strcmp(name, "load_background_images")==0) return TRUE;
+   if (strcmp(name, "load_stylesheets")==0) return TRUE;
+   if (strcmp(name, "middle_click_drags_page")==0) return TRUE;
+   if (strcmp(name, "middle_click_opens_new_tab")==0) return TRUE;
+   if (strcmp(name, "right_click_closes_tab")==0) return TRUE;
+   if (strcmp(name, "scroll_switches_tabs")==0) return TRUE;
+   if (strcmp(name, "scroll_switches_tabs_reverse")==0) return FALSE;
+   if (strcmp(name, "parse_embedded_css")==0) return TRUE;
+   if (strcmp(name, "scrollbar_on_left")==0) return FALSE;
+   if (strcmp(name, "scrollbar_page_mode")==0) return FALSE;
+   if (strcmp(name, "show_back")==0) return TRUE;
+   if (strcmp(name, "show_bookmarks")==0) return TRUE;
+   if (strcmp(name, "show_clear_url")==0) return TRUE;
+   if (strcmp(name, "show_extra_warnings")==0) return FALSE;
+   if (strcmp(name, "show_filemenu")==0) return TRUE;
+   if (strcmp(name, "show_forw")==0) return TRUE;
+   if (strcmp(name, "show_help")==0) return TRUE;
+   if (strcmp(name, "show_home")==0) return TRUE;
+   if (strcmp(name, "show_msg")==0) return TRUE;
+   if (strcmp(name, "show_progress_box")==0) return TRUE;
+   if (strcmp(name, "show_quit_dialog")==0) return FALSE;
+   if (strcmp(name, "show_reload")==0) return TRUE;
+   if (strcmp(name, "show_save")==0) return TRUE;
+   if (strcmp(name, "show_url")==0) return TRUE;
+   if (strcmp(name, "show_search")==0) return TRUE;
+   if (strcmp(name, "show_stop")==0) return TRUE;
+   if (strcmp(name, "show_tools")==0) return TRUE;
+   if (strcmp(name, "show_tooltip")==0) return TRUE;
+   if (strcmp(name, "show_ui_tooltip")==0) return TRUE;
+   if (strcmp(name, "trace_http")==0) return FALSE;
+   if (strcmp(name, "small_icons")==0) return FALSE;
+   if (strcmp(name, "http_persistent_conns")==0) return TRUE;
+   if (strcmp(name, "http_strict_transport_security")==0) return TRUE;
+   if (strcmp(name, "http_force_https")==0) return FALSE;
+   return FALSE;
+}
+
+static int32_t def_int(const char *name) {
+   if (strcmp(name, "white_bg_replacement")==0) return 0xe0e0a3;
+   if (strcmp(name, "bg_color")==0) return 0xdcd1ba;
+   if (strcmp(name, "buffered_drawing")==0) return 1;
+   if (strcmp(name, "font_max_size")==0) return 100;
+   if (strcmp(name, "font_min_size")==0) return 6;
+   if (strcmp(name, "scroll_step")==0) return 100;
+   if (strcmp(name, "scroll_page_overlap")==0) return 50;
+   if (strcmp(name, "ui_tab_height")==0) return 20;
+   if (strcmp(name, "http_max_conns")==0) return 6;
+   return 0;
+}
+
+static double def_double(const char *name) {
+   if (strcmp(name, "font_factor")==0) return 1.0;
+   if (strcmp(name, "zoom_factor")==0) return 1.0;
+   return 0.0;
+}
+
+static const char *def_string(const char *name) {
+   if (strcmp(name, "theme")==0) return "none";
+   if (strcmp(name, "color_scheme")==0) return "auto";
+   if (strcmp(name, "font_cursive")==0) return "DejaVu Sans";
+   if (strcmp(name, "font_fantasy")==0) return "DejaVu Sans";
+   if (strcmp(name, "font_monospace")==0) return "DejaVu Sans Mono";
+   if (strcmp(name, "font_sans_serif")==0) return "DejaVu Sans";
+   if (strcmp(name, "font_serif")==0) return "DejaVu Serif";
+   if (strcmp(name, "http_language")==0) return "";
+   if (strcmp(name, "http_proxyuser")==0) return "";
+   if (strcmp(name, "http_referer")==0) return "host";
+   if (strcmp(name, "http_user_agent")==0) return "Dillo/" VERSION;
+   if (strcmp(name, "no_proxy")==0) return "localhost 127.0.0.1";
+   if (strcmp(name, "save_dir")==0) return "/tmp/";
+   if (strcmp(name, "ignore_image_formats")==0) return "";
+   return "";
+}
+
+static int32_t def_color(const char *name) {
+   if (strcmp(name, "ui_button_highlight_color")==0) return -1;
+   if (strcmp(name, "ui_fg_color")==0) return -1;
+   if (strcmp(name, "ui_main_bg_color")==0) return -1;
+   if (strcmp(name, "ui_selection_color")==0) return -1;
+   if (strcmp(name, "ui_tab_active_bg_color")==0) return -1;
+   if (strcmp(name, "ui_tab_bg_color")==0) return -1;
+   if (strcmp(name, "ui_tab_active_fg_color")==0) return -1;
+   if (strcmp(name, "ui_tab_fg_color")==0) return -1;
+   if (strcmp(name, "ui_text_bg_color")==0) return -1;
+   return -1;
+}
+
+static const char *def_url(const char *name) {
+   if (strcmp(name, "home")==0) return "https://dillo-browser.org/";
+   if (strcmp(name, "new_tab_page")==0) return "about:blank";
+   if (strcmp(name, "start_page")==0) return "about:splash";
+   if (strcmp(name, "http_proxy")==0) return "";
+   return NULL;
+}
+
+/* Helper to check if a setting differs from default */
+static bool_t setting_changed_bool(const char *name, bool_t val) {
+   return val != def_bool(name);
+}
+static bool_t setting_changed_int(const char *name, int32_t val) {
+   return val != def_int(name);
+}
+static bool_t setting_changed_double(const char *name, double val) {
+   return val != def_double(name);
+}
+static bool_t setting_changed_string(const char *name, const char *val) {
+   const char *def = def_string(name);
+   if (!val && !def) return false;
+   if (!val || !def) return true;
+   return strcmp(val, def) != 0;
+}
+static bool_t setting_changed_color(const char *name, int32_t val) {
+   return val != def_color(name);
+}
+static bool_t setting_changed_url(const char *name, const DilloUrl *val) {
+   const char *def = def_url(name);
+   const char *val_str = val ? URL_STR(val) : NULL;
+   if (!val_str && !def) return false;
+   if (!val_str || !def) return true;
+   return strcmp(val_str, def) != 0;
+}
+
+
 static Dstr *About_settings(void)
 {
    Dstr *s = dStr_new(
       "<!DOCTYPE HTML>\n"
       "<html>\n"
-      "<head><title>About Settings</title></head>\n"
+      "<head><title>About Settings</title>\n"
+      "<style>\n"
+      "body { font-family: sans-serif; margin: 20px; }\n"
+      "table { border-collapse: collapse; width: 100%; }\n"
+      "th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }\n"
+      "th { background: #f0f0f0; }\n"
+      "tr:nth-child(even) { background: #f9f9f9; }\n"
+      ".changed { font-weight: bold; color: #cc0000; }\n"
+      ".default { color: #888; font-size: 0.9em; }\n"
+      ".category { background: #e8e8e8; font-weight: bold; }\n"
+      "a { color: #0066cc; }\n"
+      "</style>\n"
+      "</head>\n"
       "<body>\n"
       "<h1>Dillo Settings</h1>\n"
-      "<p>Settings UI not yet implemented in about:settings.</p>\n"
-      "<p>See <a href=\"file:~/.dillo/dillorc\">~/.dillo/dillorc</a> for configuration.</p>\n"
+      "<p>Current configuration (bold = changed from default). "
+      "Edit <a href=\"file:~/.dillo/dillorc\">~/.dillo/dillorc</a> to change settings.</p>\n"
+      "<p>Version: " VERSION "</p>\n"
+      "<table>\n"
+      "<tr><th>Setting</th><th>Current Value</th><th>Default</th><th>Description</th></tr>\n");
+
+   /* Geometry */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">Geometry & Window</td></tr>\n");
+   {
+      bool_t ch = setting_changed_int("width", prefs.width) ||
+                  setting_changed_int("height", prefs.height) ||
+                  setting_changed_int("xpos", prefs.xpos) ||
+                  setting_changed_int("ypos", prefs.ypos);
+      dStr_sprintfa(s,
+         "<tr%s><td>geometry</td><td%s>%s</td><td class=\"default\">%dx%d-9999-9999</td><td>Window size and position</td></tr>\n",
+         ch ? " class=\"changed\"" : "",
+         ch ? " class=\"changed\"" : "",
+         setting_str_geometry(),
+         PREFS_GEOMETRY_DEFAULT_WIDTH, PREFS_GEOMETRY_DEFAULT_HEIGHT);
+   }
+
+   /* UI Settings */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">User Interface</td></tr>\n");
+
+   #define ADD_BOOL(name, desc) \
+      do { \
+         bool_t ch = setting_changed_bool(#name, prefs.name); \
+         dStr_sprintfa(s, \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            ch ? " class=\"changed\"" : "", \
+            #name, \
+            ch ? " class=\"changed\"" : "", \
+            setting_str_bool(prefs.name), \
+            setting_str_bool(def_bool(#name)), \
+            desc); \
+      } while(0)
+
+   #define ADD_INT(name, desc) \
+      do { \
+         bool_t ch = setting_changed_int(#name, prefs.name); \
+         dStr_sprintfa(s, \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%d</td><td>%s</td></tr>\\n", \
+            ch ? " class=\"changed\"" : "", \
+            #name, \
+            ch ? " class=\"changed\"" : "", \
+            setting_str_int(prefs.name), \
+            def_int(#name), \
+            desc); \
+      } while(0)
+
+   #define ADD_DOUBLE(name, desc) \
+      do { \
+         bool_t ch = setting_changed_double(#name, prefs.name); \
+         dStr_sprintfa(s, \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%.2f</td><td>%s</td></tr>\\n", \
+            ch ? " class=\"changed\"" : "", \
+            #name, \
+            ch ? " class=\"changed\"" : "", \
+            setting_str_double(prefs.name), \
+            def_double(#name), \
+            desc); \
+      } while(0)
+
+   #define ADD_STRING(name, desc) \
+      do { \
+         bool_t ch = setting_changed_string(#name, prefs.name); \
+         dStr_sprintfa(s, \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            ch ? " class=\"changed\"" : "", \
+            #name, \
+            ch ? " class=\"changed\"" : "", \
+            setting_str_string(prefs.name), \
+            def_string(#name), \
+            desc); \
+      } while(0)
+
+   #define ADD_COLOR(name, desc) \
+      do { \
+         bool_t ch = setting_changed_color(#name, prefs.name); \
+         dStr_sprintfa(s, \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            ch ? " class=\"changed\"" : "", \
+            #name, \
+            ch ? " class=\"changed\"" : "", \
+            setting_str_color(prefs.name), \
+            setting_str_color(def_color(#name)), \
+            desc); \
+      } while(0)
+
+   #define ADD_URL(name, desc) \
+      do { \
+         bool_t ch = setting_changed_url(#name, prefs.name); \
+         dStr_sprintfa(s, \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            ch ? " class=\"changed\"" : "", \
+            #name, \
+            ch ? " class=\"changed\"" : "", \
+            setting_str_url(prefs.name), \
+            setting_str_url_str(def_url(#name)), \
+            desc); \
+      } while(0)
+
+   ADD_BOOL(show_back, "Show back button");
+   ADD_BOOL(show_forw, "Show forward button");
+   ADD_BOOL(show_home, "Show home button");
+   ADD_BOOL(show_reload, "Show reload button");
+   ADD_BOOL(show_save, "Show save button");
+   ADD_BOOL(show_stop, "Show stop button");
+   ADD_BOOL(show_bookmarks, "Show bookmarks button");
+   ADD_BOOL(show_tools, "Show tools button");
+   ADD_BOOL(show_filemenu, "Show file menu");
+   ADD_BOOL(show_clear_url, "Show clear URL button");
+   ADD_BOOL(show_url, "Show URL bar");
+   ADD_BOOL(show_search, "Show search button");
+   ADD_BOOL(show_help, "Show help button");
+   ADD_BOOL(show_progress_box, "Show progress box");
+   ADD_BOOL(show_quit_dialog, "Show quit confirmation dialog");
+   ADD_BOOL(show_tooltip, "Show tooltips");
+   ADD_BOOL(show_ui_tooltip, "Show UI tooltips");
+   ADD_BOOL(show_msg, "Show messages");
+   ADD_BOOL(show_extra_warnings, "Show extra warnings");
+   ADD_BOOL(fullwindow_start, "Start in full-window mode");
+   ADD_BOOL(small_icons, "Use small icons");
+   ADD_BOOL(contrast_visited_color, "Contrast visited link color");
+   ADD_BOOL(allow_white_bg, "Allow white background");
+   ADD_INT(panel_size, "Panel size (0=tiny, 1=small, 2=medium)");
+   ADD_STRING(theme, "UI theme");
+   ADD_STRING(color_scheme, "Color scheme (light, dark, auto)");
+
+   /* Colors */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">Colors</td></tr>\n");
+   ADD_COLOR(bg_color, "Page background color");
+   ADD_COLOR(white_bg_replacement, "White background replacement");
+   ADD_COLOR(ui_button_highlight_color, "Button highlight");
+   ADD_COLOR(ui_fg_color, "UI foreground");
+   ADD_COLOR(ui_main_bg_color, "UI main background");
+   ADD_COLOR(ui_selection_color, "Selection color");
+   ADD_COLOR(ui_tab_active_bg_color, "Active tab background");
+   ADD_COLOR(ui_tab_bg_color, "Tab background");
+   ADD_COLOR(ui_tab_active_fg_color, "Active tab foreground");
+   ADD_COLOR(ui_tab_fg_color, "Tab foreground");
+   ADD_COLOR(ui_text_bg_color, "Text background");
+   ADD_INT(ui_tab_height, "Tab height");
+
+   /* Fonts */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">Fonts</td></tr>\n");
+   ADD_STRING(font_serif, "Serif font");
+   ADD_STRING(font_sans_serif, "Sans-serif font");
+   ADD_STRING(font_monospace, "Monospace font");
+   ADD_STRING(font_cursive, "Cursive font");
+   ADD_STRING(font_fantasy, "Fantasy font");
+   ADD_DOUBLE(font_factor, "Font size factor");
+   ADD_INT(font_min_size, "Minimum font size");
+   ADD_INT(font_max_size, "Maximum font size");
+
+   /* Network */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">Network</td></tr>\n");
+   ADD_STRING(http_user_agent, "User agent string");
+   ADD_STRING(http_language, "HTTP language");
+   ADD_URL(http_proxy, "HTTP proxy URL");
+   ADD_STRING(http_proxyuser, "Proxy user:pass");
+   ADD_BOOL(http_persistent_conns, "Persistent HTTP connections");
+   ADD_INT(http_max_conns, "Max concurrent connections");
+   ADD_BOOL(http_strict_transport_security, "Strict transport security (HSTS)");
+   ADD_BOOL(http_force_https, "Force HTTPS");
+   ADD_STRING(http_referer, "Referer policy");
+   ADD_STRING(no_proxy, "No-proxy hosts");
+
+   /* Behavior */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">Behavior</td></tr>\n");
+   ADD_BOOL(load_images, "Load images");
+   ADD_BOOL(load_background_images, "Load background images");
+   ADD_BOOL(load_stylesheets, "Load stylesheets");
+   ADD_BOOL(parse_embedded_css, "Parse embedded CSS");
+   ADD_STRING(ignore_image_formats, "Ignore image formats");
+   ADD_BOOL(mark_unloaded_images, "Mark unloaded images");
+   ADD_BOOL(limit_text_width, "Limit text width");
+   ADD_BOOL(adjust_min_width, "Adjust minimum width");
+   ADD_BOOL(adjust_table_min_width, "Adjust table minimum width");
+   ADD_BOOL(middle_click_drags_page, "Middle-click drags page");
+   ADD_BOOL(middle_click_opens_new_tab, "Middle-click opens new tab");
+   ADD_BOOL(right_click_closes_tab, "Right-click closes tab");
+   ADD_BOOL(scroll_switches_tabs, "Scroll wheel switches tabs");
+   ADD_BOOL(scroll_switches_tabs_reverse, "Reverse tab scroll direction");
+   ADD_BOOL(enterpress_forces_submit, "Enter forces form submit");
+   ADD_BOOL(focus_new_tab, "Focus new tab");
+   ADD_BOOL(show_quit_dialog, "Show quit dialog");
+   ADD_INT(scroll_step, "Scroll step (pixels)");
+   ADD_INT(scroll_page_overlap, "Page scroll overlap (pixels)");
+   ADD_BOOL(scrollbar_on_left, "Scrollbar on left");
+   ADD_BOOL(scrollbar_page_mode, "Scrollbar page mode");
+   ADD_DOUBLE(zoom_factor, "Default zoom factor");
+
+   /* Advanced */
+   dStr_append(s,
+      "<tr class=\"category\"><td colspan=\"4\">Advanced</td></tr>\n");
+   ADD_URL(home, "Home page");
+   ADD_URL(start_page, "Start page");
+   ADD_URL(new_tab_page, "New tab page");
+   ADD_STRING(save_dir, "Save directory");
+   ADD_BOOL(trace_http, "Trace HTTP");
+   ADD_BOOL(buffered_drawing, "Buffered drawing");
+   ADD_INT(buffered_drawing, "Buffered drawing level");
+   ADD_INT(stretchability_factor, "Stretchability factor");
+   ADD_INT(penalty_hyphen, "Hyphen penalty");
+   ADD_INT(penalty_hyphen_2, "Hyphen penalty 2");
+   ADD_INT(penalty_em_dash_left, "Em-dash left penalty");
+   ADD_INT(penalty_em_dash_right, "Em-dash right penalty");
+   ADD_INT(penalty_em_dash_right_2, "Em-dash right penalty 2");
+
+   dStr_append(s,
+      "</table>\n"
       "</body>\n"
       "</html>\n");
    return s;

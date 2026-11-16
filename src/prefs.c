@@ -26,6 +26,7 @@
 #define PREFS_HTTP_REFERER    "host"
 #define PREFS_HTTP_USER_AGENT "Dillo/" VERSION
 #define PREFS_THEME           "none"
+#define PREFS_COLOR_SCHEME    "auto"
 
 /*-----------------------------------------------------------------------------
  * Global Data
@@ -122,6 +123,7 @@ void a_Prefs_init(void)
    prefs.start_page = a_Url_new(PREFS_START_PAGE, NULL);
    prefs.new_tab_page = a_Url_new(PREFS_NEW_TAB_PAGE, NULL);
    prefs.theme = dStrdup(PREFS_THEME);
+   prefs.color_scheme = dStrdup(PREFS_COLOR_SCHEME);
    prefs.ui_button_highlight_color = -1;
    prefs.ui_fg_color = -1;
    prefs.ui_main_bg_color = -1;
@@ -168,4 +170,5 @@ void a_Prefs_freeall(void)
    a_Url_free(prefs.start_page);
    a_Url_free(prefs.new_tab_page);
    dFree(prefs.theme);
+   dFree(prefs.color_scheme);
 }

@@ -125,6 +125,7 @@ keywords.</p>
   <li><a href="#advanced-usage">Advanced usage</a>
     <ul>
       <li><a href="#plugins">Plugins</a></li>
+      <li><a href="#about-protocol">About protocol</a></li>
       <li><a href="#bug-meter">Bug meter</a></li>
       <li><a href="#keyboard-shortcuts">Keyboard shortcuts</a></li>
     </ul>
@@ -733,6 +734,33 @@ $ dpidc stop
 <code>gemini:</code> protocol, it will be processed by the
 <code>gemini/gemini.filter.dpi</code> program, and the output will be displayed
 by Dillo.</p>
+
+<h3 id="about-protocol">About Protocol</h3>
+<p>Dillo provides a built-in <code>about:</code> protocol for accessing
+internal browser information and settings. The following <code>about:</code>
+URLs are available:</p>
+
+<ul>
+  <li><a href="about:about"><code>about:about</code></a> - Lists all supported about: URLs</li>
+  <li><a href="about:dillo"><code>about:dillo</code></a> - Shows Dillo version information</li>
+  <li><a href="about:settings"><code>about:settings</code></a> - Displays all browser settings with current values (bold = changed from default)</li>
+  <li><a href="about:cache"><code>about:cache</code></a> - Shows cache statistics</li>
+  <li><a href="about:dicache"><code>about:dicache</code></a> - Shows dicache statistics</li>
+</ul>
+
+<p>The <code>about:settings</code> page is particularly useful for viewing all
+configuration options at once. It shows a table with the setting name,
+current value, default value, and description. Settings that differ from
+their defaults are highlighted in <strong>bold red</strong>.</p>
+
+<p>You can also configure the color scheme used by Dillo (for sites that
+support <code>@media (prefers-color-scheme)</code>) via the
+<code>color_scheme</code> setting in <code>dillorc</code>:</p>
+<pre>
+color_scheme=auto   # default: follow system preference
+color_scheme=light  # force light mode
+color_scheme=dark   # force dark mode
+</pre>
 
 <h3 id="bug-meter">Bug Meter</h3>
 <p>
