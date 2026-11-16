@@ -470,7 +470,7 @@ static Dstr *About_dillo(void)
       "<h1>" PACKAGE_NAME " Web Browser</h1>\n"
       "<p>Version " VERSION "</p>\n"
       "<p>A fast, lightweight web browser with support for HTML, CSS, and images.</p>\n"
-      "<p><a href=\"https://dillo-browser.org/\">https://dillo-browser.org/</a></p>\n"
+      "<p><a href=\"https://walley.org/\">https://walley.org/</a></p>\n"
       "</body>\n"
       "</html>\n");
    return s;
@@ -608,7 +608,7 @@ static int32_t def_color(const char *name) {
 }
 
 static const char *def_url(const char *name) {
-   if (strcmp(name, "home")==0) return "https://dillo-browser.org/";
+   if (strcmp(name, "home")==0) return "https://walley.org/";
    if (strcmp(name, "new_tab_page")==0) return "about:blank";
    if (strcmp(name, "start_page")==0) return "about:splash";
    if (strcmp(name, "http_proxy")==0) return "";

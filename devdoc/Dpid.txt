@@ -15,8 +15,8 @@ Nomenclature:
     generic term referring to dillo's plugin system (version1).
 
   dpi1:
-    specific term for dillo's plugin spec version 1.
-    at: https://dillo-browser.org/old/dpi1.html
+    specific term for vibedillo's plugin spec version 1.
+    at: https://walley.org/old/dpi1.html
 
   dpi program:
     any plugin program itself.

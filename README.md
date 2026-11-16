@@ -1,33 +1,35 @@
 # what is this repo
-cloned from original https://github.com/dillo-browser/dillo, detached, 
-and applied patches from https://git.dillo-browser.org/dillo/ (26/11/10).
-AI will be continuing working on this fork.
-It will also be renamedmost probably.
+Official dillo site: https://dillo-browser.org/
 
-we are working on acid tests now.
+Cloned from original https://github.com/dillo-browser/dillo, detached, 
+and applied patches from https://walley.org/dillo/ (26/11/10).
+AI continued working on this fork.
+Renamed to **vibedillo** (v3.3.1).
 
-# Dillo web browser
+## Recent changes (v3.3.1)
+- **CSS Grid Layout**: Full support for `display: grid` with `grid-template-columns/rows`, `grid-column/row`, `grid-gap`, named lines, `minmax()`, `repeat()`, `fr` units, negative line numbers, and auto-placement
+- **Dark Mode**: Support for `<meta name="color-scheme" content="dark light">` and `@media (prefers-color-scheme: dark/light)` media queries
+- **Font Family**: Explicit `inherit` handling, console warnings for uninstalled fonts
+- **About Protocol**: `about:vibedillo`, `about:settings` (full settings table), `about:about`, `about:cache`, `about:dicache`
+- **Rename**: dillo → vibedillo, dilloc → vibedilloc, all paths updated (~/.dillo → ~/.vibedillo, /etc/dillo → /etc/vibedillo)
 
-Dillo is a multi-platform graphical web browser, known for its speed and
+# vibedillo web browser
+
+vibedillo is a multi-platform graphical web browser, known for its speed and
 small footprint, that is developed with a focus on personal security and
 privacy. It is built with the [FLTK 1.3 GUI toolkit](http://fltk.org).
 
-Screenshot of the [Dillo Website][dillo] rendered in Dillo:
+Screenshot of the [vibedillo Website][vibedillo] rendered in vibedillo:
 
-[dillo]: https://dillo-browser.org/
+[vibedillo]: https://walley.org/
 
-![Screenshot of Dillo website rendered in Dillo](doc/dillo.png)
+![Screenshot of vibedillo website rendered in vibedillo](doc/vibedillo.png)
 
-To install Dillo follow the [installation guide](doc/install.md).
+To install vibedillo follow the [installation guide](doc/install.md).
 
-You can clone the latest version of Dillo directly from our git server:
+You can clone the latest version of vibedillo directly from our git server:
 
-- <https://git.dillo-browser.org/dillo>
-
-We also keep the following mirrors updated in case our git server fails:
-
-- <https://codeberg.org/dillo/dillo>
-- <https://git.sr.ht/~dillo/dillo>
+- <https://github.com/walley/vibedillo>
 
 The commits are signed with the same OpenPGP we use for the releases.
 
@@ -45,7 +47,7 @@ Dillo][mobilized].
 > of Dillo developers. A copy of the old website is archived in
 > [our website][old] and the [Wayback Machine (May 2022)][may].
 
-[gone]: https://dillo-browser.org/dillo.org.html
-[old]: https://dillo-browser.org/old/
+[gone]: https://walley.org/dillo.org.html
+[old]: https://walley.org/old/
 [may]: http://web.archive.org/web/20220508022123/https://www.dillo.org/
 

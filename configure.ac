@@ -260,7 +260,7 @@ case $fltk_version in
     else
       AC_MSG_RESULT([too new ($fltk_version)])
       AC_MSG_NOTICE([Support for FLTK >= 1.4 is experimental and has known graphical issues])
-      AC_MSG_NOTICE([See: https://bug.dillo-browser.org/246/])
+      AC_MSG_NOTICE([See: https://walley.org/bug/246/])
       AC_MSG_NOTICE([Enable it with --enable-experimental-fltk if you are sure])
       AC_MSG_ERROR([FLTK version $fltk_version not supported yet])
     fi
