@@ -551,6 +551,7 @@ DilloHtml::DilloHtml(BrowserWindow *p_bw, const DilloUrl *url,
    stack->getRef(0)->hand_over_break = false;
    stack->getRef(0)->flex_container = false;
    stack->getRef(0)->grid_container = false;
+   stack->getRef(0)->color_scheme = 0;
 
    InFlags = IN_NONE;
 
@@ -3381,6 +3382,22 @@ static void Html_tag_open_meta(DilloHtml *html, const char *tag, int tagsize)
 
       Html_update_content_type(html, content);
       dFree(content);
+   } else if ((content = a_Html_get_attr(html, tag, tagsize, "name")) &&
+              !dStrAsciiCasecmp(content, "color-scheme")) {
+      /* <meta name="color-scheme" content="..."> */
+      const char *scheme = a_Html_get_attr(html, tag, tagsize, "content");
+      int cs = 0;
+      if (scheme) {
+         if (dStriAsciiStr(scheme, "dark"))
+            cs |= 2;
+         if (dStriAsciiStr(scheme, "light"))
+            cs |= 1;
+      }
+      if (cs && html->stack->size() >= 2) {
+         /* Set on parent stack item (head), since meta is a void tag
+          * and its stack item will be replaced by the next tag. */
+         html->stack->getRef(html->stack->size() - 2)->color_scheme = cs;
+      }
    }
 }
 

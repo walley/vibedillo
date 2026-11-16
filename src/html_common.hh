@@ -158,6 +158,10 @@ typedef struct {
       have to be "handed over" (see Html_add_indented and
       Html_eventually_pop_dw). */
    bool hand_over_break;
+
+   /** Color scheme declared by <meta name="color-scheme">.
+       0 = none/auto, 1 = light, 2 = dark, 3 = both (dark and light) */
+   int color_scheme;
 } DilloHtmlState;
 
 /*

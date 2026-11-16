@@ -2002,8 +2002,21 @@ bool CssParser::parseMediaExpression (DilloHtml *html, bool *result)
       else if (hasValue && dStrAsciiCasecmp(valSym, "portrait") == 0)
          r = vw < vh;
    } else if (dStrAsciiCasecmp(feature, "prefers-color-scheme") == 0) {
-      /* Dillo renders the light scheme. */
-      r = hasValue && dStrAsciiCasecmp(valSym, "light") == 0;
+      /* Check <meta name="color-scheme"> first, then default to light. */
+      int cs = 0;
+      if (html && html->stack && html->stack->size() > 0)
+         cs = html->stack->getRef(html->stack->size() - 1)->color_scheme;
+      if (hasValue) {
+         if (dStrAsciiCasecmp(valSym, "dark") == 0)
+            r = (cs & 2) != 0;  /* dark is supported */
+         else if (dStrAsciiCasecmp(valSym, "light") == 0)
+            r = (cs & 1) != 0 || cs == 0;  /* light is supported or default */
+         else
+            r = false;
+      } else {
+         /* (prefers-color-scheme) without value: true if dark is supported */
+         r = (cs & 2) != 0;
+      }
    }
    /* Unknown features evaluate to false. */
 
