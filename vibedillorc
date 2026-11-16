@@ -1,5 +1,5 @@
-# dillorc
-# Sample dillo initialization file.
+# vibedillorc
+# Sample vibedillo initialization file.
 #
 # Lines that start with a '#' are comments.
 # "#option=..." shows the built-in default.
@@ -74,7 +74,7 @@
 # environment variables are set:
 #   $url:       URL being opened
 #   $origin:    URL of the current document
-#   $DILLO_PID: PID of dillo process
+#   $DILLO_PID: PID of vibedillo process
 # Examples:
 # link_action="Debug variables:echo url=$url origin=$origin"
 # link_action="Open in MPV:mpv $url"
@@ -85,10 +85,10 @@
 # implement your own handling logic in a script or program. The following
 # environment variables are set:
 #   $url:       URL of the current page
-#   $DILLO_PID: PID of dillo process
+#   $DILLO_PID: PID of vibedillo process
 # Examples:
-# page_action="Reader mode:dilloc dump | rdrview -H | dilloc load"
-# page_action="Mimic Chrome:curl_chrome136 -i --raw $url | dilloc rawload"
+# page_action="Reader mode:vibedilloc dump | rdrview -H | vibedilloc load"
+# page_action="Mimic Chrome:curl_chrome136 -i --raw $url | vibedilloc rawload"
 
 #-------------------------------------------------------------------------
 #                           RENDERING SECTION
@@ -215,7 +215,7 @@
 # Format: search_url="[prefix ][<label> ]<url>"
 # You can enable multiple search_url strings at once and select from among
 # them at runtime, with the first being the default.
-# (the prefix serves to search from the Location Bar. e.g. "dd dillo image")
+# (the prefix serves to search from the Location Bar. e.g. "dd vibedillo image")
 search_url="dd DuckDuckGo https://duckduckgo.com/lite/?kp=-1&kd=-1&q=%s"
 search_url="wi Wikipedia https://www.wikipedia.org/w/index.php?search=%s&go=Go"
 search_url="di Free Dictionary https://www.thefreedictionary.com/%s"
@@ -225,7 +225,7 @@ search_url="wb Wiby https://wiby.org/?q=%s"
 search_url="mj Mojeek https://www.mojeek.com/search?q=%s"
 
 # If set, dillo will ask web servers to send pages in this language.
-# This setting does NOT change dillo's user interface.
+# This setting does NOT change vibedillo's user interface.
 # Format explained: www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.4
 # Language-REGION values: www.iana.org/assignments/language-subtag-registry
 # (by default, no Accept-Language header is sent)
@@ -397,7 +397,7 @@ ui_tab_bg_color=#b7beb7
 #ui_tab_bg_color=#cac682
 
 
-# Size of dillo panel
+# Size of vibedillo panel
 # tiny   : buttons, location, and progress boxes in one row
 # small  : location in one row, buttons + progress boxes in another
 # medium : adds text labels to buttons and boxes
@@ -407,7 +407,7 @@ ui_tab_bg_color=#b7beb7
 
 #small_icons=NO
 
-# Here you can choose to hide some widgets of the dillo panel...
+# Here you can choose to hide some widgets of the vibedillo panel...
 #show_back=YES
 #show_forw=YES
 #show_home=YES
@@ -426,7 +426,7 @@ ui_tab_bg_color=#b7beb7
 # Show tooltip popups for the UI
 #show_ui_tooltip=YES
 
-# Start dillo with the panels hidden?
+# Start vibedillo with the panels hidden?
 #fullwindow_start=NO
 
 # When filling out forms, our default behaviour is to submit on enterpress,
@@ -487,4 +487,4 @@ ui_tab_bg_color=#b7beb7
 
 
 # -----------------------------------------------------------------------
-# dillorc ends here.
+# vibedillorc ends here.

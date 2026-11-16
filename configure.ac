@@ -1,6 +1,6 @@
 dnl Process this file with aclocal, autoconf and automake.
 
-AC_INIT([dillo], [3.3.0])
+AC_INIT([vibedillo], [3.3.1])
 
 dnl Detect the canonical target build environment
 AC_CANONICAL_TARGET

@@ -353,11 +353,11 @@ done:
  *  DilloURL = {
  *     url_string         = "http://dillo.sf.net:8080/index.html?long#part2"
  *     scheme             = "http"
- *     authority          = "dillo.sf.net:8080:
+ *     authority          = "vibedillo.sf.net:8080:
  *     path               = "/index.html"
  *     query              = "long"
  *     fragment           = "part2"
- *     hostname           = "dillo.sf.net"
+ *     hostname           = "vibedillo.sf.net"
  *     port               = 8080
  *     flags              = URL_Get
  *     data               = Dstr * ("")
@@ -701,7 +701,7 @@ int a_Url_host_type(const char *host)
 
 /**
  * How many internal dots are in the public portion of this hostname?.
- * e.g., for "www.dillo.org", it is one because everything under "dillo.org",
+ * e.g., for "www.vibedillo.org", it is one because everything under "vibedillo.org",
  * as a .org domain, is part of one organization.
  *
  * Of course this is only a simple and imperfect approximation of
@@ -756,7 +756,7 @@ static uint_t Url_host_public_internal_dots(const char *host)
 /**
  * Given a URL host string, return the portion that is public. i.e., the
  * domain that is in a registry outside the organization.
- * For 'www.dillo.org', that would be 'dillo.org'.
+ * For 'www.vibedillo.org', that would be 'vibedillo.org'.
  */
 static const char *Url_host_find_public_suffix(const char *host)
 {

@@ -450,7 +450,7 @@ static Dstr *About_about(void)
       "<h1>Supported about: URLs</h1>\n"
       "<ul>\n"
       "  <li><a href=\"about:about\">about:about</a> - This list</li>\n"
-      "  <li><a href=\"about:dillo\">about:dillo</a> - Dillo version info</li>\n"
+      "  <li><a href=\"about:" PACKAGE_NAME "\">about:" PACKAGE_NAME "</a> - " PACKAGE_NAME " version info</li>\n"
       "  <li><a href=\"about:settings\">about:settings</a> - Settings</li>\n"
       "  <li><a href=\"about:cache\">about:cache</a> - Cache statistics</li>\n"
       "  <li><a href=\"about:dicache\">about:dicache</a> - Dicache statistics</li>\n"
@@ -465,9 +465,9 @@ static Dstr *About_dillo(void)
    Dstr *s = dStr_new(
       "<!DOCTYPE HTML>\n"
       "<html>\n"
-      "<head><title>About Dillo</title></head>\n"
+      "<head><title>About " PACKAGE_NAME "</title></head>\n"
       "<body>\n"
-      "<h1>Dillo Web Browser</h1>\n"
+      "<h1>" PACKAGE_NAME " Web Browser</h1>\n"
       "<p>Version " VERSION "</p>\n"
       "<p>A fast, lightweight web browser with support for HTML, CSS, and images.</p>\n"
       "<p><a href=\"https://dillo-browser.org/\">https://dillo-browser.org/</a></p>\n"
@@ -897,7 +897,7 @@ static int Cache_internal_url(CacheEntry_t *entry)
       s = a_Dicache_stats();
    } else if (strcmp(path, "about") == 0) {
       s = About_about();
-   } else if (strcmp(path, "dillo") == 0) {
+   } else if (strcmp(path, PACKAGE_NAME) == 0) {
       s = About_dillo();
    } else if (strcmp(path, "settings") == 0) {
       s = About_settings();

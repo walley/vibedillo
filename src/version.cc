@@ -162,7 +162,7 @@ void a_Version_print_info(void)
    version = GIT_COMMIT;
 #endif
 
-   printf("Dillo %s\n", version);
+   printf(PACKAGE_NAME " %s\n", version);
    print_libs();
    print_features();
 }

@@ -180,9 +180,9 @@ void a_Dns_init(void)
    int res, i;
 
 #ifdef D_DNS_THREADED
-   MSG("dillo_dns_init: Here we go! (threaded)\n");
+   MSG("vibedillo_dns_init: Here we go! (threaded)\n");
 #else
-   MSG("dillo_dns_init: Here we go! (not threaded)\n");
+   MSG("vibedillo_dns_init: Here we go! (not threaded)\n");
 #endif
 
    dns_queue_size = 0;

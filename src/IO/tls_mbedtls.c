@@ -427,7 +427,7 @@ void a_Tls_mbedtls_init(void)
    mbedtls_entropy_init(&entropy);
 
    if((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
-                                   (unsigned char*)"dillo tls", 9))) {
+                                   (unsigned char*)"vibedillo tls", 12))) {
       ssl_enabled = FALSE;
       MSG_ERR("tls: mbedtls_ctr_drbg_seed() failed. TLS disabled.\n");
       return;

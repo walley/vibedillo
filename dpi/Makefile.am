@@ -1,14 +1,14 @@
 AM_CPPFLAGS = \
 	-I$(top_srcdir)
 
-bookmarksdir = $(libdir)/dillo/dpi/bookmarks
-downloadsdir = $(libdir)/dillo/dpi/downloads
-ftpdir = $(libdir)/dillo/dpi/ftp
-hellodir = $(libdir)/dillo/dpi/hello
-vsourcedir = $(libdir)/dillo/dpi/vsource
-filedir = $(libdir)/dillo/dpi/file
-cookiesdir = $(libdir)/dillo/dpi/cookies
-datauridir = $(libdir)/dillo/dpi/datauri
+bookmarksdir = $(libdir)/vibedillo/dpi/bookmarks
+downloadsdir = $(libdir)/vibedillo/dpi/downloads
+ftpdir = $(libdir)/vibedillo/dpi/ftp
+hellodir = $(libdir)/vibedillo/dpi/hello
+vsourcedir = $(libdir)/vibedillo/dpi/vsource
+filedir = $(libdir)/vibedillo/dpi/file
+cookiesdir = $(libdir)/vibedillo/dpi/cookies
+datauridir = $(libdir)/vibedillo/dpi/datauri
 bookmarks_PROGRAMS = bookmarks.dpi
 downloads_PROGRAMS = downloads.dpi
 ftp_PROGRAMS = ftp.filter.dpi

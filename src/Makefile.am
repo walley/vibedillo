@@ -10,18 +10,18 @@ AM_CXXFLAGS = @LIBPNG_CFLAGS@ @FLTK_CXXFLAGS@
 
 SUBDIRS = IO
 
-bin_PROGRAMS = dillo
+bin_PROGRAMS = vibedillo
 
 if ENABLE_CONTROL_SOCKET
-bin_PROGRAMS += dilloc
-dilloc_LDADD = \
+bin_PROGRAMS += vibedilloc
+vibedilloc_LDADD = \
 	$(top_builddir)/dlib/libDlib.a
 
-dilloc_SOURCES = \
+vibedilloc_SOURCES = \
 	dilloc.c
 endif
 
-dillo_LDADD = \
+vibedillo_LDADD = \
 	$(top_builddir)/dlib/libDlib.a \
 	$(top_builddir)/dpip/libDpip.a \
 	IO/libDiof.a \
@@ -35,10 +35,10 @@ dillo_LDADD = \
 	@LIBICONV_LIBS@ @LIBPTHREAD_LIBS@ @LIBX11_LIBS@ \
 	@BROTLI_LIBS@
 
-dillo_LDFLAGS = \
+vibedillo_LDFLAGS = \
 	@LIBPTHREAD_LDFLAGS@
 
-dillo_SOURCES = \
+vibedillo_SOURCES = \
 	dillo.cc \
 	version.cc \
 	version.hh \
@@ -156,7 +156,7 @@ dillo_SOURCES = \
 	xembed.hh
 
 # https://www.gnu.org/software/automake/manual/html_node/Built-Sources-Example.html
-nodist_dillo_SOURCES = commit.h
+nodist_vibedillo_SOURCES = commit.h
 version.$(OBJEXT) dillo.$(OBJEXT): commit.h
 CLEANFILES = commit.h
 

@@ -535,7 +535,7 @@ int main(int argc, char **argv)
    }
 
    // Sets WM_CLASS hint on X11
-   Fl_Window::default_xclass("dillo");
+   Fl_Window::default_xclass(PACKAGE_NAME);
 
    Fl::scheme(prefs.theme);
 

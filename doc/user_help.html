@@ -78,7 +78,7 @@ footer {
 
 <p>Welcome to the user manual of the Dillo browser. The manual is divided into
 <em>sections</em> but is written in a <em>single page</em> to allow search by
-keywords.</p>
+keywords. Generated for version 3.3.1.</p>
 
 <details><!-- Not supported in Dillo, but decays ok -->
 <summary class="toc">Table of contents:</summary>
@@ -90,6 +90,7 @@ keywords.</p>
       <li><a href="#scrolling">Scrolling</a></li>
       <li><a href="#find-text">Find text</a></li>
       <li><a href="#copy-and-paste">Copy and paste</a></li>
+      <li><a href="#zoom">Zoom</a></li>
     </ul>
   </li>
   <li><a href="#navigation">Navigation</a>
@@ -125,8 +126,9 @@ keywords.</p>
   <li><a href="#advanced-usage">Advanced usage</a>
     <ul>
       <li><a href="#plugins">Plugins</a></li>
-      <li><a href="#about-protocol">About protocol</a></li>
       <li><a href="#bug-meter">Bug meter</a></li>
+      <li><a href="#remote-control">Remote control</a></li>
+      <li><a href="#custom-actions">Custom actions</a></li>
       <li><a href="#keyboard-shortcuts">Keyboard shortcuts</a></li>
     </ul>
   </li>
@@ -142,7 +144,8 @@ IPFS and others are available as
 
 <p>Dillo supports a subset of HTML 4.01 and CSS 2.1 but it <b>doesn't support
 JavaScript</b> and only implements some elements of HTML 5 and CSS 3. It also
-renders plain text documents and images in PNG, JPG and GIF formats.</p>
+renders plain text documents and images in PNG, JPG, GIF, SVG and WebP
+formats.</p>
 
 <h2 id="reading">Reading</h2>
 <p>In this section we cover the basics to read a web page, scrolling and finding
@@ -151,7 +154,7 @@ or copying text.</p>
 <p>
 The graphical interface is designed to be used with a mouse or pointing
 device. At the top of the browser window you have the location bar and the main
-buttons to control the browser. You can leave the mouse for a brief moment over
+buttons to control the browser. You can hover the cursor for a brief moment over
 any part of the menu to show a tooltip with more information.
 <p>
 Dillo has <em>context sensitive menus</em>, which are opened with the right mouse
@@ -188,6 +191,7 @@ doesn't require a network connection.
   <li>Using the <em>mouse</em> or <em>pointing device</em>:
     <ul>
       <li>Rotate the mouse wheel to move one <em>step</em> in that direction.
+          Hold Shift to move one <em>page</em> instead.
       <li>Keep the middle button (or mouse wheel button) pressed while
         dragging to scroll the page precisely.
     </ul>
@@ -202,13 +206,27 @@ doesn't require a network connection.
         specific position of the page.
       <li>Click the scrollbar arrows to move the view one <em>step</em> in
           that direction.
+      <li>Rotate the mouse wheel over the vertical scrollbar to move one
+          <em>page</em> in that direction.
     </ul>
   </li>
 </ul>
 
 <p>You can control the <b>size of a <em>step</em></b> by setting the
 <code>scroll_step</code> option in the <a href="#dillorc">dillorc</a>
-configuration file. By default it will scroll 100 pixels per step.</p>
+configuration file. By default it will scroll 100 pixels per step. The vertical
+scrollbar can be positioned on the left side setting the
+<code>scrollbar_on_left</code> option to <code>YES</code>, by default it is on
+the right side.</p>
+
+The vertical scrollbar has another mode of operation to navigate full
+<em>pages</em> that can be enabled by setting the
+<code>scrollbar_page_mode</code> option to <code>YES</code> or temporarily by
+holding the Shift key. When this mode is active, left-clicking anywhere on the
+scrollbar will scroll down one page and right-clicking will scroll up one page.
+Middle clicking on the scrollbar will move the thumb to that position, which can
+also be dragged. The Shift key can also be used to temporarily disable this
+mode if it was enabled in the configuration.
 
 <h3 id="find-text">Find text</h3>
 <p>
@@ -225,16 +243,37 @@ ESC.
 
 <h3 id="copy-and-paste">Copy and paste</h3>
 <p>
-To copy some text just hold down the left mouse button and move to select the
-area to copy. To paste, go to the target application and press the middle mouse
-button.
+Dillo uses the Primary and Clipboard selections to copy and paste text. The
+Primary selection captures text that gets selected as soon as the left button is
+released, while to copy it in the Clipboard selection it requires the usual
+Ctrl+C and Ctrl+V shortcut.
+<p>
+To copy some text in the Primary selection just hold down the left mouse button
+and move to select the area to copy. To paste, go to the target application and
+press the middle mouse button. To copy text into the Clipboard, select the text
+and press Ctrl+C then go to the destination and press Ctrl+V to paste.
 <p>
 If you want to select more than one screen, hold the mouse left button down and
 scroll with PgUp, PgDn or the arrow keys.
-<P>
-If you want to paste an URL into Dillo, do it on the "clear-URL"
-button (the "X" next to the <a href="#location-bar">location bar</a>).
 <p>
+When a link is copied from the context menu, it is placed both in the Primary
+and Clipboard selections, so you can paste the URL with the middle click or with
+Ctrl+V.
+<p>
+If you want to paste an URL into Dillo from the Primary selection, do it on the
+"clear-URL" button (the "X" next to the <a href="#location-bar">location
+bar</a>) and the URL will be opened as well. You can also paste the URL using
+the Clipboard by using the Ctrl+V shortcut then pressing Enter to visit it.
+
+<h3 id="zoom">Zoom</h3>
+<p>
+You can increase or decrease the size of the elements of a page by changing the
+zoom factor. Use <code>Ctrl +</code> to increase the size, <code>Ctrl -</code>
+to decrease it and <code>Ctrl 0</code> to reset the value to 100%.
+<p>
+The initial zoom factor is specified by the <code>zoom_factor</code> option in
+the <a href="#dillorc">dillorc</a> configuration file. When a new tab or window
+is opened, the current zoom factor value is inherited.
 
 <h2 id="navigation">Navigation</h2>
 This section focuses on how to navigate to other pages by following hyperlinks,
@@ -268,7 +307,8 @@ bar to navigate among history pages.
 <p>
 When you follow several links across different web pages, they are remembered in
 case you can to go back. Use the "Back" and "Forward" buttons of the panel to go
-to the previous or next page.
+to the previous or next page. Click with the left button to open the page in the
+same tab or use the middle button to open it in a new tab.
 <p>
 You can also right-click on the Back or Forward buttons to open a menu with the
 list of previous or next pages available, so you can jump directly to them. Use
@@ -277,7 +317,8 @@ them in a new tab.
 <p>
 The <code>,</code> (comma) and <code>.</code> (dot) keys can be used to jump
 backwards or forward (mnemonic: those keys are usually labeled "&lt;" and
-"&gt;").
+"&gt;"). You can also use the back and forward buttons on your mouse if they are
+available.
 
 <h3 id="location-bar">Location bar</h3>
 <p>
@@ -318,19 +359,25 @@ DuckDuckGo for the keywords "dillo browser".
 <h3 id="tabs">Tabs</h3>
 <p>
 Dillo can open different web pages into tabs. To open a link in a new tab click
-the middle button instead of the left button. The same applies to buttons to
-submit a form.
+the middle button instead of the left button or keep <code>Control</code>
+pressed while left-clicking a link. The same applies to buttons to submit a
+form. A new tab can also be opened from the <code>File</code> menu or using the
+shortcut <code>Ctrl+T</code>.
 <p>
-By default the new tab will be automatically focused. If you want to change
-this behaviour, adjust the following options in the 
-<a href="#dillorc">dillorc</a> configuration file:
+Press <code>Shift</code> while opening a page in a new tab to focus the tab. If
+you want this behaviour to be the default, set the following option
+in the <a href="#dillorc">dillorc</a> configuration file:
 <pre>
-middle_click_opens_new_tab
-focus_new_tab
+focus_new_tab=YES
 </pre>
+If this option is set, pressing <code>Shift</code> will instead avoid focusing
+the new tab.
 <p>
-Press <code>Shift</code> to temporarily reverse the focusing behaviour while
-middle-clicking on a link.
+It is also possible to have the middle-click open a window instead of a tab. For
+this set the option:
+<pre>
+middle_click_opens_new_tab=NO
+</pre>
 <p>
 To close a tab press the X button on the top right (only visible with multiple
 tabs). You can also close the tab by clicking with the right button on the tab
@@ -338,6 +385,17 @@ label. The middle button can be used instead by setting the option:
 <pre>
 right_click_closes_tab=NO
 </pre>
+<p>
+Use the <code>new_tab_page</code> option to control which page is loaded in a
+newly opened tab, by default is an empty page. To open the
+bookmarks page set the following line in <a href="#dillorc">dillorc</a>:
+<pre>
+new_tab_page="dpi:/bm/"
+</pre>
+<p>
+You can quickly focus the N-th tab by pressing <code>Alt</code> and the tab
+number, for example <code>Alt+3</code> will focus the third tab. Using
+<code>Alt+0</code> focuses the tenth tab, as they start counting at 1.
 
 <h3 id="bookmarks">Bookmarks</h3>
 <p>
@@ -408,7 +466,7 @@ HTTPS traffic will be sent through the proxy.
 
 <h3 id="ad-blocking">Ad blocking</h3>
 <p>Dillo has the ability to block content when loading a page based on the domain
-the embeded content is being loaded from. You can control how Dillo handles
+the embedded content is being loaded from. You can control how Dillo handles
 automatic requests for resources (like images and style sheets) that aren't at
 the same domain as the original page.</p>
 
@@ -447,7 +505,7 @@ following sections.</p>
 
 <h3 id="dillorc">Dillorc</h3>
 
-<p>The main configuration of Dillo is controled by the
+<p>The main configuration of Dillo is controlled by the
 <a href="file:~/.dillo/dillorc"><code>dillorc</code></a> file.
 The list of all available options can be found in the system
 configuration file, typically 
@@ -489,12 +547,23 @@ The action can be: <code>DENY</code> to ignore cookies,
 to disk and <code>ACCEPT</code> to accept and store cookies in disk (this will
 allow sites to track you over time).
 <p>
+After modifying the cookiesrc file, use the <code>dpidc stop</code> command to
+stop the cookies plugin and force it to load the new configuration. <b>Until the
+cookies plugin is not restarted, it will continue to use the old settings.</b>
+You don't need to restart Dillo for the settings to take effect.
+<p>
 When the cookies plugin exits, only the accepted cookies by <code>ACCEPT</code>
 are saved to
 <a href="file:~/.dillo/cookies.txt"><code>~/.dillo/cookies.txt</code></a>,
 and ACCEPT_SESSION cookies are
 forgotten. The cookies plugin normally exits after a period of inactivity, but
 you can force it to exit with the command <code>dpidc stop</code>.
+<p>
+To remove or edit persistent cookies (those with ACCEPT) first close all Dillo
+processes and then stop the cookies plugin with <code>dpidc stop</code>. After
+that, you can erase or edit the <code>~/.dillo/cookies.txt</code> file with a
+text editor. In the next start of Dillo, the new persistent cookies will be
+loaded from disk.
 <p>
 Here is an example <code>cookiesrc</code> file:
 <pre>
@@ -636,7 +705,7 @@ tool.
 
 <h3 id="keysrc">Keysrc</h3>
 
-<p>The mapping of keys in Dillo is contolled by the
+<p>The mapping of keys in Dillo is controlled by the
 <a href="file:~/.dillo/keysrc"><code>~/.dillo/keysrc</code></a> file.
 The format is "<code>key = action</code>" or
 "<code>&lt;modifier&gt;key = action</code>". Lines that begin with a "#" are comments.
@@ -691,10 +760,10 @@ service.</p>
 
 <p>Plugins can be written in <em>any programming language</em> and they 
 interact with the browser using the 
-<a href="https://dillo-browser.github.io/old/dpi1.html">DPI protocol</a>. A
-<a href="https://dillo-browser.github.io/#plugins">list of plugins</a>
+<a href="https://dillo-browser.org/old/dpi1.html">DPI protocol</a>. A
+<a href="https://dillo-browser.org/#plugins">list of plugins</a>
 is available on the Dillo website. Some plugins are just a 
-<a href="https://raw.githubusercontent.com/dillo-browser/dillo-plugin-man/master/man.filter.dpi">few 
+<a href="https://git.dillo-browser.org/plugins/man/tree/man.filter.dpi">few 
 lines of shell script</a>, so you are encouraged to read them to learn how to
 write your own plugins. Plugins are searched by looking for files that end with
 the <code>.dpi</code> extension (or <code>.dpi.exe</code> in Windows) in
@@ -720,7 +789,7 @@ the
 Plugins may have other software dependencies required for it to work.</p>
 
 <p>Here is an example of how to manually install the
-<a href="https://github.com/dillo-browser/dillo-plugin-gemini">Gemini protocol plugin</a>
+<a href="ihttps://git.dillo-browser.org/plugins/gemini/">Gemini protocol plugin</a>
 (it comes with a Makefile that automates the process, so this is not necessary),
 which is a filter plugin written in shell script:</p>
 <pre>
@@ -735,37 +804,10 @@ $ dpidc stop
 <code>gemini/gemini.filter.dpi</code> program, and the output will be displayed
 by Dillo.</p>
 
-<h3 id="about-protocol">About Protocol</h3>
-<p>Dillo provides a built-in <code>about:</code> protocol for accessing
-internal browser information and settings. The following <code>about:</code>
-URLs are available:</p>
-
-<ul>
-  <li><a href="about:about"><code>about:about</code></a> - Lists all supported about: URLs</li>
-  <li><a href="about:dillo"><code>about:dillo</code></a> - Shows Dillo version information</li>
-  <li><a href="about:settings"><code>about:settings</code></a> - Displays all browser settings with current values (bold = changed from default)</li>
-  <li><a href="about:cache"><code>about:cache</code></a> - Shows cache statistics</li>
-  <li><a href="about:dicache"><code>about:dicache</code></a> - Shows dicache statistics</li>
-</ul>
-
-<p>The <code>about:settings</code> page is particularly useful for viewing all
-configuration options at once. It shows a table with the setting name,
-current value, default value, and description. Settings that differ from
-their defaults are highlighted in <strong>bold red</strong>.</p>
-
-<p>You can also configure the color scheme used by Dillo (for sites that
-support <code>@media (prefers-color-scheme)</code>) via the
-<code>color_scheme</code> setting in <code>dillorc</code>:</p>
-<pre>
-color_scheme=auto   # default: follow system preference
-color_scheme=light  # force light mode
-color_scheme=dark   # force dark mode
-</pre>
-
 <h3 id="bug-meter">Bug Meter</h3>
 <p>
 Dillo includes a
-<a 	href='https://dillo-browser.github.io/old/help/bug_meter.html'>bug meter</a>
+<a href='https://dillo-browser.org/old/help/bug_meter.html'>bug meter</a>
 which shows the number of detected bugs inside the page. The bugs are caught at
 parsing time, so the error messages also show the line where they occur and
 provide a hint of what was expected instead.
@@ -777,12 +819,68 @@ compliant with HTML standards.
 The bug meter is located at the lower right corner of Dillo. Use the left-click
 to see the messages, right-click for a menu to open other HTML validators.
 
+<h3 id="remote-control">Remote control</h3>
+<p>
+Dillo is built with support for remote control by default (can be disabled using
+the flag <code>--disable-control-socket</code> at configure time). When enabled,
+the <code>dilloc</code> program is also built, which allows the remote control
+of dillo given its PID using a UNIX socket. By default, the first process that
+replies is used. The environment variable <code>DILLO_PID</code> can be used to
+select which instance of dillo to use.
+
+<p>
+The dilloc program sends commands to dillo and prints the response in the
+standard output. Some commands can also read data from the standard input and
+write it to dillo. Use <code>dilloc help</code> to see which commands are
+available and their syntax.
+
+<h3 id="custom-actions">Custom actions</h3>
+<p>
+Users can define custom actions that execute arbitrary programs directly from
+Dillo's UI. The context menu that appears when clicking with the right mouse
+button over a link or over the current page can be configured to show additional
+entries that will run programs defined in the dillorc configuration. The options
+<code>link_action</code> and <code>page_action</code> define new entries
+for the link and page menu respectively, multiple entries can be configured by
+writing them multiple times.
+
+<p>
+The format to specify an action is
+"<em>label</em><code>:</code><em>command</em>".
+The label will be shown in the context menu, when clicked the command will be
+executed with the <code>system()</code> function in the system shell, so it can
+include variables or pipes.
+
+<p>
+Dillo always sets the <code>DILLO_PID</code> environment variable, so that
+dilloc can select the correct Dillo process to query and manipulate the state of
+the browser (to use dilloc, the <a href="#remote-control">remote control</a>
+feature must be enabled at build time). Additionally, the following variables
+are set:
+<ul>
+  <li>For link actions, <code>url</code> is set to the hyperlink href and
+    <code>origin</code> to the current page URL that contains it.</li>
+  <li>For page actions, <code>url</code> is set to the current page URL.
+</ul>
+<p>
+Some examples are included in the dillorc configuration and shown below:
+<pre>
+link_action="Echo variables:echo url=$url origin=$origin"
+link_action="Open in MPV:mpv $url"
+link_action="Open in Firefox:firefox $url"
+link_action="Open in Mupdf:f=$(mktemp -u /tmp/XXXX.pdf); curl $url -o $f &amp;&amp; mupdf $f"
+
+page_action="Reader mode:dilloc dump | rdrview -H | dilloc load"
+page_action="Mimic Chrome:curl_chrome136 -i --raw $url | dilloc rawload"
+</pre>
+
 <h3 id="keyboard-shortcuts">Keyboard shortcuts</h3>
 <p>
 Most actions can be issued by using a keyboard shortcut. The key bindings can be
 changed in the
 <code><a href="file:~/.dillo/keysrc">~/.dillo/keysrc</a></code> file (see the
 <a href="#keysrc">keysrc</a> section).
+To see the current key bindings go to <a href='about:keys'>about:keys</a>.
 The list of default bindings is given in the following table.
 <p>
 <table>
@@ -798,6 +896,10 @@ The list of default bindings is given in the following table.
 <tr><td>Ctrl-U                     <td>                <td>View source
 <tr><td>Ctrl-B                     <td>Bookmarks       <td>View bookmarks
 <tr><td>Ctrl-Q                     <td>Quit            <td>Quit dillo
+<tr><td>Ctrl-C                     <td>Copy            <td>Copy to clipboard
+<tr><td>Ctrl-+ or Ctrl-=           <td>Bigger          <td>Zoom in
+<tr><td>Ctrl--                     <td>Smaller         <td>Zoom out
+<tr><td>Ctrl-0                     <td>100%            <td>Reset zoom to 100%
 <tr><td>Back       or "<b>,</b>"   <td>&lt;            <td>Previous page
 <tr><td>Shift-Back or "<b>.</b>"   <td>&gt;            <td>Next page
 <tr><td>Alt-F                      <td>File            <td>File menu
@@ -812,7 +914,6 @@ The list of default bindings is given in the following table.
 <footer>
 <p>This manual has been written in HTML <em>by hand</em> using Vim.<br>
 If you find any issue, please report it via
-<a href="https://github.com/dillo-browser/dillo/issues/new">GitHub</a> or
 <a href="mailto:dillo-dev@mailman3.com">email</a>.
 </footer>
 </div>
