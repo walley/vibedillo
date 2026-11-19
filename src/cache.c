@@ -755,7 +755,7 @@ static Dstr *About_config(void)
       do { \
          bool_t ch = setting_changed_bool(#name, prefs.name); \
          dStr_sprintfa(s, \
-            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\n", \
             ch ? " class=\"changed\"" : "", \
             #name, \
             ch ? " class=\"changed\"" : "", \
@@ -768,7 +768,7 @@ static Dstr *About_config(void)
       do { \
          bool_t ch = setting_changed_int(#name, prefs.name); \
          dStr_sprintfa(s, \
-            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%d</td><td>%s</td></tr>\\n", \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%d</td><td>%s</td></tr>\n", \
             ch ? " class=\"changed\"" : "", \
             #name, \
             ch ? " class=\"changed\"" : "", \
@@ -781,7 +781,7 @@ static Dstr *About_config(void)
       do { \
          bool_t ch = setting_changed_double(#name, prefs.name); \
          dStr_sprintfa(s, \
-            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%.2f</td><td>%s</td></tr>\\n", \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%.2f</td><td>%s</td></tr>\n", \
             ch ? " class=\"changed\"" : "", \
             #name, \
             ch ? " class=\"changed\"" : "", \
@@ -794,7 +794,7 @@ static Dstr *About_config(void)
       do { \
          bool_t ch = setting_changed_string(#name, prefs.name); \
          dStr_sprintfa(s, \
-            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\n", \
             ch ? " class=\"changed\"" : "", \
             #name, \
             ch ? " class=\"changed\"" : "", \
@@ -807,7 +807,7 @@ static Dstr *About_config(void)
       do { \
          bool_t ch = setting_changed_color(#name, prefs.name); \
          dStr_sprintfa(s, \
-            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\n", \
             ch ? " class=\"changed\"" : "", \
             #name, \
             ch ? " class=\"changed\"" : "", \
@@ -820,7 +820,7 @@ static Dstr *About_config(void)
       do { \
          bool_t ch = setting_changed_url(#name, prefs.name); \
          dStr_sprintfa(s, \
-            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\\n", \
+            "<tr%s><td>%s</td><td%s>%s</td><td class=\"default\">%s</td><td>%s</td></tr>\n", \
             ch ? " class=\"changed\"" : "", \
             #name, \
             ch ? " class=\"changed\"" : "", \
