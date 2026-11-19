@@ -16,6 +16,7 @@ class CssParser {
       CssContext *context;
       CssOrigin origin;
       const DilloUrl *baseUrl;
+      DilloHtml *html; /* page being parsed, for light-dark() and media queries */
 
       const char *buf;
       int buflen, bufptr;
@@ -41,6 +42,8 @@ class CssParser {
       bool parseWeight();
       bool parseRgbColorComponent(int32_t *cc, int *percentage);
       bool parseRgbColor(int32_t *c);
+      bool parseColorArg(int32_t *c);
+      static int effectiveColorScheme(DilloHtml *html);
       void parseDeclaration(CssPropertyList * props,
                             CssPropertyList * importantProps);
       bool parseSimpleSelector(CssSimpleSelector *selector);

@@ -136,6 +136,12 @@ extern DilloPrefs prefs;
 
 void a_Prefs_init(void);
 void a_Prefs_freeall(void);
+/** Expand template keywords in a string: {version} -> VERSION. Returns a
+ *  newly allocated string. */
+char *a_Prefs_expand_template(const char *str);
+/** Persist one "name=value" line into the user vibedillorc (replacing the
+ *  existing entry, preserving comments). Returns 0 on success. */
+int a_Prefs_write_rc_value(const char *name, const char *value);
 
 #ifdef __cplusplus
 }

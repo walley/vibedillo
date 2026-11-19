@@ -17,6 +17,10 @@ class PrefsParser {
 public:
    static int parseLine(char *line, char *name, char *value);
    static void parse(FILE *fp);
+   /** Persist one "name=value" line into ~/.config/vibedillo/vibedillorc,
+    *  replacing the existing (uncommented) entry or appending it, while
+    *  preserving comments and all other lines. Returns 0 on success. */
+   static int write_value(const char *name, const char *value);
 };
 #endif /* __cplusplus */
 

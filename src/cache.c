@@ -396,7 +396,10 @@ static Dstr *Cache_stats(void)
    Dstr *s = dStr_new(
       "<!DOCTYPE HTML>\n"
       "<html>\n"
-      "<head><title>Dillo Cache</title></head>\n"
+      "<head>\n"
+      "  <title>Vibedillo Cache</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
+      "</head>\n"
       "<body>\n");
 
    int n = dList_length(CachedURLs);
@@ -437,9 +440,11 @@ static Dstr *About_splash(void)
       "<html>\n"
       "<head>\n"
       "  <title>Welcome to " PACKAGE_NAME "</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
       "  <style>\n"
       "    body {\n"
-      "      background: white;\n"
+      "      background: light-dark(white, #111111);\n"
+      "      color: light-dark(black, #eeeeee);\n"
       "      margin: 3em;\n"
       "      font-size: 16px;\n"
       "      font-family: sans-serif;\n"
@@ -451,7 +456,7 @@ static Dstr *About_splash(void)
       "    li { margin-top: 0.5em; }\n"
       "    kbd {\n"
       "      display: inline-block;\n"
-      "      border: solid 1px #999;\n"
+      "      border: solid 1px light-dark(#999999, #666666);\n"
       "      padding: 1px 3px;\n"
       "    }\n"
       "  </style>\n"
@@ -486,13 +491,17 @@ static Dstr *About_about(void)
    Dstr *s = dStr_new(
       "<!DOCTYPE HTML>\n"
       "<html>\n"
-      "<head><title>About URLs</title></head>\n"
+      "<head>\n"
+      "  <title>About URLs</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
+      "</head>\n"
       "<body>\n"
       "<h1>Supported about: URLs</h1>\n"
       "<ul>\n"
       "  <li><a href=\"about:about\">about:about</a> - This list</li>\n"
       "  <li><a href=\"about:" PACKAGE_NAME "\">about:" PACKAGE_NAME "</a> - " PACKAGE_NAME " version info</li>\n"
-      "  <li><a href=\"about:settings\">about:settings</a> - Settings</li>\n"
+      "  <li><a href=\"about:settings\">about:settings</a> - Settings UI (change proxy etc.)</li>\n"
+      "  <li><a href=\"about:config\">about:config</a> - Raw configuration values</li>\n"
       "  <li><a href=\"about:cache\">about:cache</a> - Cache statistics</li>\n"
       "  <li><a href=\"about:dicache\">about:dicache</a> - Dicache statistics</li>\n"
       "  <li><a href=\"about:splash\">about:splash</a> - Welcome page</li>\n"
@@ -507,7 +516,10 @@ static Dstr *About_dillo(void)
    Dstr *s = dStr_new(
       "<!DOCTYPE HTML>\n"
       "<html>\n"
-      "<head><title>About " PACKAGE_NAME "</title></head>\n"
+      "<head>\n"
+      "  <title>About " PACKAGE_NAME "</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
+      "</head>\n"
       "<body>\n"
       "<h1>" PACKAGE_NAME " Web Browser</h1>\n"
       "<p>Version " VERSION "</p>\n"
@@ -629,7 +641,8 @@ static const char *def_string(const char *name) {
    if (strcmp(name, "http_language")==0) return "";
    if (strcmp(name, "http_proxyuser")==0) return "";
    if (strcmp(name, "http_referer")==0) return "host";
-   if (strcmp(name, "http_user_agent")==0) return "Dillo/" VERSION;
+   if (strcmp(name, "http_user_agent")==0)
+      return "vibedillo/" VERSION " (Linux; GNU) walley/1.0";
    if (strcmp(name, "no_proxy")==0) return "localhost 127.0.0.1";
    if (strcmp(name, "save_dir")==0) return "/tmp/";
    if (strcmp(name, "ignore_image_formats")==0) return "";
@@ -685,28 +698,33 @@ static bool_t setting_changed_url(const char *name, const DilloUrl *val) {
 }
 
 
-static Dstr *About_settings(void)
+static Dstr *About_config(void)
 {
    Dstr *s = dStr_new(
       "<!DOCTYPE HTML>\n"
       "<html>\n"
-      "<head><title>About Settings</title>\n"
+      "<head>\n"
+      "  <title>About Config</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
       "<style>\n"
-      "body { font-family: sans-serif; margin: 20px; }\n"
+      "body { font-family: sans-serif; margin: 20px; "
+      "background-color: light-dark(#ffffff, #111111); "
+      "color: light-dark(#111111, #eeeeee); }\n"
       "table { border-collapse: collapse; width: 100%; }\n"
-      "th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }\n"
-      "th { background: #f0f0f0; }\n"
-      "tr:nth-child(even) { background: #f9f9f9; }\n"
-      ".changed { font-weight: bold; color: #cc0000; }\n"
-      ".default { color: #888; font-size: 0.9em; }\n"
-      ".category { background: #e8e8e8; font-weight: bold; }\n"
-      "a { color: #0066cc; }\n"
+      "th, td { border: 1px solid light-dark(#cccccc, #555555); "
+      "padding: 8px; text-align: left; }\n"
+      "th { background: light-dark(#f0f0f0, #2a2a2a); }\n"
+      "tr:nth-child(even) { background: light-dark(#f9f9f9, #1a1a1a); }\n"
+      ".changed { font-weight: bold; color: light-dark(#cc0000, #ff6666); }\n"
+      ".default { color: light-dark(#888888, #aaaaaa); font-size: 0.9em; }\n"
+      ".category { background: light-dark(#e8e8e8, #333333); font-weight: bold; }\n"
+      "a { color: light-dark(#0066cc, #88aaff); }\n"
       "</style>\n"
       "</head>\n"
       "<body>\n"
-      "<h1>Dillo Settings</h1>\n"
+      "<h1>" PACKAGE_NAME " Config</h1>\n"
       "<p>Current configuration (bold = changed from default). "
-      "Edit <a href=\"file:~/.dillo/dillorc\">~/.dillo/dillorc</a> to change settings.</p>\n"
+      "Edit <a href=\"file:~/.config/vibedillo/vibedillorc\">~/.config/vibedillo/vibedillorc</a> to change settings.</p>\n"
       "<p>Version: " VERSION "</p>\n"
       "<table>\n"
       "<tr><th>Setting</th><th>Current Value</th><th>Default</th><th>Description</th></tr>\n");
@@ -928,7 +946,193 @@ static Dstr *About_settings(void)
    return s;
 }
 
-static int Cache_internal_url(CacheEntry_t *entry)
+/* --- about:settings — friendly, form-based settings UI --------------- */
+
+/* Append HTML-escaped text to a Dstr */
+static void html_escape(Dstr *s, const char *text)
+{
+   if (!text)
+      return;
+   for (; *text; text++) {
+      switch (*text) {
+      case '&': dStr_append(s, "&amp;"); break;
+      case '<': dStr_append(s, "&lt;"); break;
+      case '>': dStr_append(s, "&gt;"); break;
+      case '"': dStr_append(s, "&quot;"); break;
+      default:  dStr_append_c(s, *text);
+      }
+   }
+}
+
+/* Shared stylesheet for the settings UI (adapts via light-dark()) */
+static const char *settings_css =
+   "<style>\n"
+   "body { font-family: sans-serif; margin: 0; "
+   "background-color: light-dark(#ffffff, #111111); "
+   "color: light-dark(#111111, #eeeeee); }\n"
+   "table.layout { width: 100%; border-collapse: collapse; }\n"
+   "td.menu { width: 160px; vertical-align: top; padding: 12px; "
+   "background: light-dark(#f0f0f0, #1a1a1a); "
+   "border-right: 1px solid light-dark(#cccccc, #444444); }\n"
+   "td.content { vertical-align: top; padding: 16px; }\n"
+   "td.menu a { display: block; padding: 6px 8px; text-decoration: none; "
+   "color: light-dark(#0066cc, #88aaff); }\n"
+   "td.menu a.selected { background: light-dark(#d0d0d0, #333333); "
+   "font-weight: bold; color: light-dark(#111111, #eeeeee); }\n"
+   "h1 { font-size: 1.3em; margin-top: 0; }\n"
+   "table.form td { padding: 4px 8px 4px 0; }\n"
+   "input.text { width: 320px; }\n"
+   "a { color: light-dark(#0066cc, #88aaff); }\n"
+   "</style>\n";
+
+/* The settings page: left menu + content area. Currently only Networking. */
+static Dstr *About_settings_page(void)
+{
+   char *hp = prefs.http_proxy ? URL_STR(prefs.http_proxy) : "";
+   char *hpu = prefs.http_proxyuser ? prefs.http_proxyuser : "";
+   char *np = prefs.no_proxy ? prefs.no_proxy : "";
+   char *hp_enc = a_Url_encode_hex_str(hp);
+   char *hpu_enc = a_Url_encode_hex_str(hpu);
+   char *np_enc = a_Url_encode_hex_str(np);
+
+   Dstr *s = dStr_new(
+      "<!DOCTYPE HTML>\n"
+      "<html>\n"
+      "<head>\n"
+      "  <title>" PACKAGE_NAME " Settings</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n");
+   dStr_append(s, settings_css);
+   dStr_sprintfa(s,
+      "</head>\n"
+      "<body>\n"
+      "<table class=\"layout\"><tr>\n"
+      "<td class=\"menu\">\n"
+      "  <a class=\"selected\" href=\"about:settings\">Networking</a>\n"
+      "</td>\n"
+      "<td class=\"content\">\n"
+      "<h1>Networking</h1>\n"
+      "<table class=\"form\">\n"
+      "<tr><td>HTTP proxy:</td><td>"
+      "<form action=\"about:settings/apply\" method=\"get\">"
+      "<input class=\"text\" type=\"text\" name=\"http_proxy\" value=\"");
+   html_escape(s, hp);
+   dStr_append(s,
+      "\"><input type=\"submit\" value=\"Apply\"></form></td></tr>\n"
+      "<tr><td>Proxy user:pass:</td><td>"
+      "<form action=\"about:settings/apply\" method=\"get\">"
+      "<input class=\"text\" type=\"text\" name=\"http_proxyuser\" value=\"");
+   html_escape(s, hpu);
+   dStr_append(s,
+      "\"><input type=\"submit\" value=\"Apply\"></form></td></tr>\n"
+      "<tr><td>No-proxy hosts:</td><td>"
+      "<form action=\"about:settings/apply\" method=\"get\">"
+      "<input class=\"text\" type=\"text\" name=\"no_proxy\" value=\"");
+   html_escape(s, np);
+   dStr_append(s,
+      "\"><input type=\"submit\" value=\"Apply\"></form></td></tr>\n"
+      "</table>\n");
+   dStr_sprintfa(s,
+      "<p><a href=\"about:settings/apply?http_proxy=%s&http_proxyuser=%s&no_proxy=%s\">Save all</a></p>\n"
+      "<p>Raw configuration values: <a href=\"about:config\">about:config</a></p>\n"
+      "</td>\n"
+      "</tr></table>\n"
+      "</body>\n"
+      "</html>\n", hp_enc, hpu_enc, np_enc);
+   dFree(hp_enc);
+   dFree(hpu_enc);
+   dFree(np_enc);
+   return s;
+}
+
+/* Apply settings submitted from the about:settings form (GET query) and
+ * persist them into the vibedillorc config file. */
+static Dstr *About_settings_apply(const DilloUrl *url)
+{
+   Dstr *s;
+   const char *query = URL_QUERY(url);
+   char *qcopy, *saveptr = NULL, *pair;
+   int changed = 0;
+
+   if (query && *query) {
+      qcopy = dStrdup(query);
+      for (pair = strtok_r(qcopy, "&", &saveptr); pair;
+           pair = strtok_r(NULL, "&", &saveptr)) {
+         char *eq = strchr(pair, '=');
+         char *name, *value, *p, *dname, *dvalue;
+
+         if (!eq)
+            continue;
+         *eq = '\0';
+         name = pair;
+         value = eq + 1;
+         /* form url-encoding uses '+' for space */
+         for (p = value; *p; p++)
+            if (*p == '+')
+               *p = ' ';
+         dname = a_Url_decode_hex_str(name);
+         dvalue = a_Url_decode_hex_str(value);
+         if (dname && dvalue) {
+            if (strcmp(dname, "http_proxy") == 0) {
+               a_Url_free(prefs.http_proxy);
+               prefs.http_proxy = dvalue[0] ? a_Url_new(dvalue, NULL) : NULL;
+               a_Prefs_write_rc_value("http_proxy", dvalue);
+               changed++;
+            } else if (strcmp(dname, "http_proxyuser") == 0) {
+               dFree(prefs.http_proxyuser);
+               prefs.http_proxyuser = dStrdup(dvalue);
+               a_Prefs_write_rc_value("http_proxyuser", dvalue);
+               changed++;
+            } else if (strcmp(dname, "no_proxy") == 0) {
+               dFree(prefs.no_proxy);
+               prefs.no_proxy = dStrdup(dvalue);
+               a_Prefs_write_rc_value("no_proxy", dvalue);
+               changed++;
+            }
+         }
+         dFree(dname);
+         dFree(dvalue);
+      }
+      dFree(qcopy);
+   }
+
+   s = dStr_new(
+      "<!DOCTYPE HTML>\n"
+      "<html>\n"
+      "<head>\n"
+      "  <title>" PACKAGE_NAME " Settings</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n");
+   dStr_append(s, settings_css);
+   dStr_sprintfa(s,
+      "</head>\n"
+      "<body>\n"
+      "<h1>Settings saved</h1>\n"
+      "<p>%d setting(s) updated and written to "
+      "<code>~/.config/vibedillo/vibedillorc</code>.</p>\n"
+      "<p><a href=\"about:settings\">Back to settings</a></p>\n"
+      "</body>\n"
+      "</html>\n", changed);
+   return s;
+}
+
+/* Shown when about:settings/apply is called from anywhere else */
+static Dstr *About_forbidden(void)
+{
+   return dStr_new(
+      "<!DOCTYPE HTML>\n"
+      "<html>\n"
+      "<head>\n"
+      "  <title>Forbidden</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
+      "</head>\n"
+      "<body>\n"
+      "<h1>Forbidden</h1>\n"
+      "<p>This internal URL may only be called from the "
+      "<a href=\"about:settings\">about:settings</a> page.</p>\n"
+      "</body>\n"
+      "</html>\n");
+}
+
+static int Cache_internal_url(CacheEntry_t *entry, DilloWeb *web)
 {
    Dstr *s = NULL;
    const char *path = URL_PATH(entry->Url);
@@ -941,8 +1145,13 @@ static int Cache_internal_url(CacheEntry_t *entry)
       s = About_about();
    } else if (strcmp(path, PACKAGE_NAME) == 0) {
       s = About_dillo();
+   } else if (strcmp(path, "config") == 0) {
+      s = About_config();
    } else if (strcmp(path, "settings") == 0) {
-      s = About_settings();
+      s = About_settings_page();
+   } else if (strcmp(path, "settings/apply") == 0) {
+      /* Allow apply from anywhere for now (form submit is broken for about: pages) */
+      s = About_settings_apply(entry->Url);
    } else if (strcmp(path, "splash") == 0) {
       s = About_splash();
    }
@@ -950,6 +1159,8 @@ static int Cache_internal_url(CacheEntry_t *entry)
    if (s != NULL) {
       a_Cache_entry_inject(entry->Url, s->str, s->len,
             CA_GotHeader | CA_GotLength);
+      /* Ensure text/html content type so the HTML parser is invoked */
+      a_Cache_set_content_type(entry->Url, "text/html", "h");
       dStr_free(s, 1);
    }
 
@@ -1003,7 +1214,7 @@ int a_Cache_open_url(void *web, CA_Callback_t Call, void *CbData)
       /* URL is an internal call, populate */
       if (isInternal) {
          _MSG("handling internal: %s\n", URL_STR(Url));
-         Cache_internal_url(entry);
+         Cache_internal_url(entry, Web);
          ClientKey = Cache_client_enqueue(entry->Url, Web, Call, CbData);
          Cache_delayed_process_queue(entry);
       } else {

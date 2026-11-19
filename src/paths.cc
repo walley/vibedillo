@@ -657,20 +657,34 @@ void Paths::create_default_config(const char *rcFile, const char *path)
    } else if (strcmp(rcFile, "cookiesrc") == 0) {
       default_content =
          "# vibedillo cookie configuration\n"
+         "#\n"
+         "# WARNING: this file is COMPLETELY vibedillo-specific (Dillo\n"
+         "# legacy). It is not a web standard and no other browser has it.\n"
+         "#\n"
          "# Format: host action\n"
          "# Action: DENY, ACCEPT_SESSION, ACCEPT\n"
          "#\n"
-         "# Default policy (when no other match occurs)\n"
-         "DEFAULT DENY\n";
+         "# Default policy (when no other match occurs).\n"
+         "# Browsers accept cookies by default; use DENY rules below\n"
+         "# to block specific hosts if you want to.\n"
+         "DEFAULT ACCEPT\n";
    } else if (strcmp(rcFile, "domainrc") == 0) {
       default_content =
          "# vibedillo domain configuration\n"
+         "#\n"
+         "# WARNING: this file is COMPLETELY vibedillo-specific (Dillo\n"
+         "# legacy). It is not a web standard; browsers load cross-domain\n"
+         "# CSS/images/scripts by default and have no such blocker.\n"
+         "#\n"
          "# Format: source destination\n"
-         "# Default rule:\n"
-         "default deny\n"
+         "# Default rule (sites usually load CSS/images from CDN domains\n"
+         "# on a different public suffix, so the default must be accept):\n"
+         "default accept\n"
          "\n"
-         "# Exceptions (allow specific domains):\n"
-         "# * example.com\n";
+         "# Exception rules flip the default for a source/destination pair.\n"
+         "# With 'default accept' they DENY, e.g. to block trackers:\n"
+         "# * .doubleclick.net\n"
+         "# * .quantserve.com\n";
    } else if (strcmp(rcFile, "dpidrc") == 0) {
       default_content =
          "# vibedillo DPI configuration\n"

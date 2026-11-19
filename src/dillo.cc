@@ -562,7 +562,7 @@ int main(int argc, char **argv)
                                             // only way to set the
                                             // default font in fltk1.3
 
-   fl_message_title_default("Dillo: Message");
+   fl_message_title_default(PACKAGE_NAME ": Message");
 
    // Create a new UI/bw pair
    BrowserWindow *bw = a_UIcmd_browser_window_new(0, 0, xid, NULL);
@@ -573,15 +573,10 @@ int main(int argc, char **argv)
     */
    ((Fl_Widget *)bw->ui)->window()->make_current();
 
-   /* Proxy authentication */
-   if (prefs.http_proxyuser && !a_Http_proxy_auth()) {
-      const char *passwd = a_UIcmd_get_passwd(prefs.http_proxyuser);
-      if (passwd) {
-         a_Http_set_proxy_passwd(passwd);
-      } else {
-         MSG_WARN("Not using proxy authentication.\n");
-      }
-   }
+   /* Proxy authentication is handled via http_proxyuser config:
+    * - If http_proxyuser contains "user:pass", it's used directly
+    * - Otherwise, empty password is sent ("user:")
+    * - No startup prompt; proxy will challenge with 407 if auth needed */
 
    /* Open URLs/files */
    const bool local = options_got & DILLO_CLI_LOCAL;
@@ -651,6 +646,6 @@ int main(int argc, char **argv)
    /* TODO: auth, css */
 
    //a_Dpi_dillo_exit();
-   MSG("Dillo: normal exit!\n");
+   MSG(PACKAGE_NAME ": normal exit!\n");
    return 0;
 }

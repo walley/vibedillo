@@ -4,7 +4,6 @@
  * Copyright 2004 Sebastian Geerken <sgeerken@dillo.org>
  * Copyright 2008-2009 Johannes Hofmann <Johannes.Hofmann@gmx.de>
  * Copyright 2024 Rodrigo Arias Mallo <rodarima@gmail.com>
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
@@ -483,6 +482,7 @@ CssParser::CssParser(CssContext *context, CssOrigin origin,
 {
    this->context = context;
    this->origin = origin;
+   this->html = NULL;
    this->buf = buf;
    this->buflen = buflen;
    this->bufptr = 0;
@@ -821,6 +821,7 @@ bool CssParser::tokenMatchesProperty(CssPropertyName prop, CssValueType *type)
          if ((ttype == CSS_TK_COLOR ||
               ttype == CSS_TK_SYMBOL) &&
             (dStrAsciiCasecmp(tval, "rgb") == 0 ||
+             dStrAsciiCasecmp(tval, "light-dark") == 0 ||
              a_Color_parse(tval, -1, &err) != -1))
             return true;
          break;
@@ -942,6 +943,54 @@ bool CssParser::parseRgbColor(int32_t *c) {
    }
 
    return true;
+}
+
+/**
+ * Parse a single color argument (inside light-dark()): #hex, rgb() or a
+ * named color. Leaves the current token at the one following the color.
+ */
+bool CssParser::parseColorArg(int32_t *c) {
+   int err = 0;
+
+   if (ttype == CSS_TK_COLOR) {
+      *c = a_Color_parse(tval, -1, &err);
+      nextToken();
+      return !err;
+   } else if (ttype == CSS_TK_SYMBOL) {
+      if (dStrAsciiCasecmp(tval, "rgb") == 0) {
+         nextToken();
+         return parseRgbColor(c);
+      }
+      *c = a_Color_parse(tval, -1, &err);
+      nextToken();
+      return !err;
+   }
+   return false;
+}
+
+/**
+ * Compute the effective color scheme: 1 = light, 2 = dark.
+ * Priority: explicit user config (prefs.color_scheme = dark/light) >
+ * first scheme listed in the page's <meta name="color-scheme"> >
+ * default (light). Shared by prefers-color-scheme media queries and
+ * the light-dark() function.
+ */
+int CssParser::effectiveColorScheme(DilloHtml *html) {
+   int cs = 0;
+   if (html && html->stack && html->stack->size() > 0)
+      cs = html->stack->getRef(html->stack->size() - 1)->color_scheme;
+
+   const char *user_scheme = prefs.color_scheme ? prefs.color_scheme : "auto";
+   if (dStrAsciiCasecmp(user_scheme, "dark") == 0)
+      return 2;
+   if (dStrAsciiCasecmp(user_scheme, "light") == 0)
+      return 1;
+
+   /* "auto": the first scheme in the meta tag is preferred
+    * (cs bits: 1=light, 2=dark). */
+   if (cs & 2)
+      return 2;
+   return 1;
 }
 
 bool CssParser::parseValue(CssPropertyName prop,
@@ -1090,6 +1139,28 @@ bool CssParser::parseValue(CssPropertyName prop,
                ret = true;
             else
                MSG_CSS("Failed to parse %s color\n", "rgb(r,g,b)");
+         } else if (dStrAsciiCasecmp(tval, "light-dark") == 0) {
+            /* light-dark(<light>, <dark>): pick based on the effective
+             * color scheme. Leaves the current token at ')', like
+             * parseRgbColor(), so the shared nextToken() below moves
+             * past it. */
+            int32_t light_c, dark_c;
+            nextToken();
+            if (ttype == CSS_TK_CHAR && tval[0] == '(') {
+               nextToken();
+               if (parseColorArg(&light_c) &&
+                   ttype == CSS_TK_CHAR && tval[0] == ',') {
+                  nextToken();
+                  if (parseColorArg(&dark_c) &&
+                      ttype == CSS_TK_CHAR && tval[0] == ')') {
+                     val->intVal = (effectiveColorScheme(html) == 2)
+                                   ? dark_c : light_c;
+                     ret = true;
+                  }
+               }
+            }
+            if (!ret)
+               MSG_CSS("Failed to parse %s color\n", "light-dark(c1, c2)");
          } else {
             val->intVal = a_Color_parse(tval, -1, &err);
             if (err)
@@ -1715,6 +1786,8 @@ void CssParser::parseRuleset()
    CssPropertyList *props, *importantProps;
    CssSelector *selector;
 
+   printf("DEBUG parseRuleset: origin=%d\n", origin); fflush(stdout);
+
    list = new lout::misc::SimpleVector < CssSelector * >(1);
 
    while (true) {
@@ -2001,22 +2074,22 @@ bool CssParser::parseMediaExpression (DilloHtml *html, bool *result)
          r = vw >= vh;
       else if (hasValue && dStrAsciiCasecmp(valSym, "portrait") == 0)
          r = vw < vh;
-   } else if (dStrAsciiCasecmp(feature, "prefers-color-scheme") == 0) {
-      /* Check <meta name="color-scheme"> first, then default to light. */
-      int cs = 0;
-      if (html && html->stack && html->stack->size() > 0)
-         cs = html->stack->getRef(html->stack->size() - 1)->color_scheme;
-      if (hasValue) {
+       } else if (dStrAsciiCasecmp(feature, "prefers-color-scheme") == 0) {
+       /* Effective scheme: explicit user config > meta tag first value >
+        * default (light). Only ONE scheme matches at a time. */
+       int effective_cs = effectiveColorScheme(html);
+
+       if (hasValue) {
          if (dStrAsciiCasecmp(valSym, "dark") == 0)
-            r = (cs & 2) != 0;  /* dark is supported */
+            r = (effective_cs == 2);
          else if (dStrAsciiCasecmp(valSym, "light") == 0)
-            r = (cs & 1) != 0 || cs == 0;  /* light is supported or default */
+            r = (effective_cs == 1);
          else
             r = false;
-      } else {
-         /* (prefers-color-scheme) without value: true if dark is supported */
-         r = (cs & 2) != 0;
-      }
+       } else {
+         /* (prefers-color-scheme) without value: true if dark is preferred */
+         r = (effective_cs == 2);
+       }
    }
    /* Unknown features evaluate to false. */
 
@@ -2032,7 +2105,6 @@ bool CssParser::parseMediaQuery (DilloHtml *html, bool *selected)
 {
    bool negate = false;
    bool result = false;
-
    if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "only") == 0)
       nextToken();
    if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "not") == 0) {
@@ -2149,6 +2221,8 @@ void CssParser::parseMedia(DilloHtml *html)
 
    nextToken();
 
+   printf("DEBUG parseMedia: starting\n"); fflush(stdout);
+
    /* parse a comma-separated list of media queries */
    if (!parseMediaList (html, &mediaIsSelected)) {
       ignoreStatement();
@@ -2163,8 +2237,10 @@ void CssParser::parseMedia(DilloHtml *html)
    }
 
    /* parse/ignore the block as required */
+   printf("DEBUG parseMedia: mediaIsSelected=%d, ttype=%d, tval=%s\n", mediaIsSelected, ttype, tval ? tval : "NULL"); fflush(stdout);
    if (mediaIsSelected) {
       nextToken();
+      printf("DEBUG parseMedia: after nextToken, ttype=%d, tval=%s\n", ttype, tval ? tval : "NULL"); fflush(stdout);
       while (ttype != CSS_TK_END) {
          parseRuleset();
          if (ttype == CSS_TK_CHAR && tval[0] == '}') {
@@ -2172,8 +2248,10 @@ void CssParser::parseMedia(DilloHtml *html)
             break;
          }
       }
-   } else
+   } else {
+      printf("DEBUG parseMedia: ignoring block\n"); fflush(stdout);
       ignoreBlock();
+   }
 }
 
 const char * CssParser::propertyNameString(CssPropertyName name)
@@ -2229,6 +2307,7 @@ void CssParser::parse(DilloHtml *html, const DilloUrl *baseUrl,
    const int SHEET_STRIDE = 1 << 16;
    CssParser parser (context, origin, baseUrl, buf, buflen,
                      sheetOrder * SHEET_STRIDE);
+   parser.html = html;
    bool importsAreAllowed = true;
 
    while (parser.ttype != CSS_TK_END) {

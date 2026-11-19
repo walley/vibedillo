@@ -1187,7 +1187,7 @@ void StyleEngine::parse (DilloHtml *html, DilloUrl *url, const char *buf,
  */
 void StyleEngine::init () {
    const char *cssBuf =
-      "body  {margin: 5px}"
+      "body  {margin: 5px; color: black; background-color: white}"
       "big {font-size: 1.17em}"
       "blockquote, dd {margin-left: 40px; margin-right: 40px}"
       "center {text-align: center}"
@@ -1239,9 +1239,28 @@ void StyleEngine::init () {
        * http://developer.mozilla.org/en-US/Fixing_Table_Inheritance_in_Quirks_Mode
        * has a detailed description of the issue.
        */
-      "table, caption {font-size: medium; font-weight: normal}";
+      "table, caption {font-size: medium; font-weight: normal}"
+      /* Dark mode color scheme */
+      "@media (prefers-color-scheme: dark) {"
+      "  body {color: white; background-color: black}"
+      "  a:link {color: #88f;}"
+      "  a:visited {color: #f88;}"
+      "  table, caption {background-color: #222; color: white}"
+      "  td, th {border-color: #444; color: white}"
+      "  input, textarea, select {background-color: #333; color: white; border-color: #555}"
+      "  pre, code {background-color: #222; color: #8ff}"
+      "  blockquote, dd {border-color: #444}"
+      "  hr {border-color: #444}"
+      "  button {background-color: #444; color: white; border: 1px solid #555}"
+      "  select option {background-color: #333; color: white}"
+      "  ::selection {background-color: #555; color: white}"
+      "}"
+      "::selection {background-color: #00f; color: white}";
 
    CssContext context;
+   CssParser::parse (NULL, NULL, &context, cssBuf, strlen (cssBuf),
+                    CSS_ORIGIN_USER_AGENT);
+
    CssParser::parse (NULL, NULL, &context, cssBuf, strlen (cssBuf),
                      CSS_ORIGIN_USER_AGENT);
 }

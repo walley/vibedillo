@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -271,6 +272,20 @@ static int Dpi_blocking_write(int fd, const char *msg, int msg_len)
    }
 
    return (sent == msg_len) ? 1 : -1;
+}
+
+/**
+ * Set send/receive timeouts on a socket used for blocking dpi commands,
+ * so a wedged or unresponsive dpi server cannot hang the browser forever.
+ */
+static void Dpi_set_blocking_timeouts(int fd)
+{
+   struct timeval tv;
+
+   tv.tv_sec = 5;
+   tv.tv_usec = 0;
+   setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+   setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 }
 
 /**
@@ -550,6 +565,7 @@ static int Dpi_get_server_port(const char *server_name)
           connect(sock_fd, (struct sockaddr *)&sin, sin_sz) == -1) {
          MSG("Dpi_get_server_port: %s\n", dStrerror(errno));
       } else {
+         Dpi_set_blocking_timeouts(sock_fd);
          ok = 1;
       }
    }
@@ -782,10 +798,13 @@ char *a_Dpi_send_blocking_cmd(const char *server_name, const char *cmd)
 
    if ((sock_fd = Dpi_connect_socket(server_name)) == -1) {
       MSG_ERR("[a_Dpi_send_blocking_cmd] Can't connect to server.\n");
-   } else if (Dpi_blocking_write(sock_fd, cmd, strlen(cmd)) == -1) {
-      MSG_ERR("[a_Dpi_send_blocking_cmd] Can't send message.\n");
-   } else if ((ret = Dpi_blocking_read(sock_fd)) == NULL) {
-      MSG_ERR("[a_Dpi_send_blocking_cmd] Can't read message.\n");
+   } else {
+      Dpi_set_blocking_timeouts(sock_fd);
+      if (Dpi_blocking_write(sock_fd, cmd, strlen(cmd)) == -1) {
+         MSG_ERR("[a_Dpi_send_blocking_cmd] Can't send message.\n");
+      } else if ((ret = Dpi_blocking_read(sock_fd)) == NULL) {
+         MSG_ERR("[a_Dpi_send_blocking_cmd] Can't read message.\n");
+      }
    }
    dClose(sock_fd);
 

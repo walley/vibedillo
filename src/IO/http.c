@@ -40,6 +40,7 @@
 #include "../misc.h"
 #include "dlib/dlib.h" /* dIsdigit */
 
+#include "../timeout.hh"
 #include "../uicmd.hh"
 
 /* Used to send a message to the bw's status bar */
@@ -128,12 +129,22 @@ int a_Http_init(void)
    if (!HTTP_Proxy && prefs.http_proxy)
       HTTP_Proxy = a_Url_dup(prefs.http_proxy);
 
-/*  This allows for storing the proxy password in "user:passwd" format
- * in dillorc, but as this constitutes a security problem, it was disabled.
- *
-   if (HTTP_Proxy && prefs.http_proxyuser && strchr(prefs.http_proxyuser, ':'))
-      HTTP_Proxy_Auth_base64 = a_Misc_encode_base64(prefs.http_proxyuser);
- */
+/* Configure proxy authentication from http_proxyuser:
+   * - If not set: no authentication
+   * - If "user:pass": use as-is
+   * - If "user" (no colon): send "user:" (empty password)
+   * Never prompts on startup; proxy will challenge with 407 if auth required. */
+   if (HTTP_Proxy && prefs.http_proxyuser) {
+      if (strchr(prefs.http_proxyuser, ':')) {
+         /* Already has password */
+         HTTP_Proxy_Auth_base64 = a_Misc_encode_base64(prefs.http_proxyuser);
+      } else {
+         /* User only - send with empty password */
+         char *up = dStrconcat(prefs.http_proxyuser, ":", NULL);
+         HTTP_Proxy_Auth_base64 = a_Misc_encode_base64(up);
+         dFree(up);
+      }
+   }
 
    servers = dList_new(5);
    fd_map = dList_new(20);
@@ -509,6 +520,55 @@ static void Http_send_query(SocketData_t *S)
    dStr_free(query, 1);
 }
 
+/* Proxy handshake timeout callback */
+static void Http_proxy_handshake_timeout(void *data)
+{
+   int SKey = VOIDP2INT(data);
+   SocketData_t *S = a_Klist_get_data(ValidSocks, SKey);
+   if (!S) return;
+
+   if (S->https_proxy_reply) {
+      MSG("Http_connect_tls: proxy handshake timeout\n");
+      if (S->flags & HTTP_SOCKET_IOWATCH_ACTIVE) {
+         a_IOwatch_remove_fd(S->SockFD, DIO_READ);
+         S->flags &= ~HTTP_SOCKET_IOWATCH_ACTIVE;
+      }
+      if (S->SockFD >= 0) {
+         Http_fd_map_remove_entry(S->SockFD);
+         dClose(S->SockFD);
+         S->SockFD = -1;
+      }
+      if (S->addr_list_idx < dList_length(S->addr_list)) {
+         S->addr_list_idx++;
+         Http_connect_socket(S->Info);
+      } else {
+         MSG("Http_connect_tls: proxy handshake timeout, no more addresses\n");
+         a_Http_connect_done(S->SockFD, FALSE);
+      }
+   }
+}
+
+/* Connect timeout callback - aborts slow connection attempts */
+static void Http_connect_timeout(void *data)
+{
+   int SKey = VOIDP2INT(data);
+   SocketData_t *S = a_Klist_get_data(ValidSocks, SKey);
+   if (!S) return;
+
+   if (S->flags & HTTP_SOCKET_IOWATCH_ACTIVE) {
+      a_IOwatch_remove_fd(S->SockFD, DIO_WRITE);
+      S->flags &= ~HTTP_SOCKET_IOWATCH_ACTIVE;
+   }
+   if (S->SockFD >= 0) {
+      Http_fd_map_remove_entry(S->SockFD);
+      dClose(S->SockFD);
+      S->SockFD = -1;
+   }
+   MSG("Http_connect_socket: connect timeout\n");
+   S->addr_list_idx++;
+   Http_connect_socket(S->Info);
+}
+
 /**
  * Prepare an HTTPS connection.  If necessary, tunnel through a proxy first.
  */
@@ -525,6 +585,9 @@ static void Http_connect_tls(ChainLink *info)
       a_Chain_bfcb(OpSend, info, &S->SockFD, "FD");
       S->https_proxy_reply = dStr_new(NULL);
       a_Chain_bcb(OpSend, info, dbuf, NULL);
+
+      /* Arm proxy handshake timeout (10 seconds) */
+      a_Timeout_add(10.0f, Http_proxy_handshake_timeout, INT2VOIDP(SKey));
 
       dFree(dbuf);
       dFree(connect_str);
@@ -579,6 +642,9 @@ static void Http_connect_socket(ChainLink *Info)
 {
    DilloHost *dh;
    SocketData_t *S = a_Klist_get_data(ValidSocks, VOIDP2INT(Info->LocalKey));
+
+   /* Connect timeout (seconds) - prevents hanging on unresponsive proxies */
+   const float connect_timeout = 10.0f;
 
    for (; (dh = dList_nth_data(S->addr_list, S->addr_list_idx));
         S->addr_list_idx++) {
@@ -640,6 +706,7 @@ static void Http_connect_socket(ChainLink *Info)
 
       if (connect(S->SockFD, (struct sockaddr *)&name, socket_len) == 0) {
          /* probably never succeeds immediately on any system */
+         a_Timeout_actually_remove(Http_connect_timeout, INT2VOIDP(VOIDP2INT(Info->LocalKey)));
          if (S->flags & HTTP_SOCKET_TLS) {
             Http_connect_tls(Info);
             break;
@@ -652,6 +719,9 @@ static void Http_connect_socket(ChainLink *Info)
             a_IOwatch_add_fd(S->SockFD, DIO_WRITE, Http_connect_socket_cb,
                              Info->LocalKey);
             S->flags |= HTTP_SOCKET_IOWATCH_ACTIVE;
+            /* Arm connect timeout */
+            a_Timeout_add(connect_timeout, Http_connect_timeout,
+                          INT2VOIDP(VOIDP2INT(Info->LocalKey)));
             break;
          } else {
             MSG("Http_connect_socket connect ERROR: %s\n", dStrerror(errno));
@@ -955,6 +1025,7 @@ void a_Http_ccc(int Op, int Branch, int Dir, ChainLink *Info,
                dbuf = Data1;
                dStr_append(sd->https_proxy_reply, dbuf->Buf);
                if (strstr(sd->https_proxy_reply->str, "\r\n\r\n")) {
+                  a_Timeout_actually_remove(Http_proxy_handshake_timeout, INT2VOIDP(SKey));
                   if (sd->https_proxy_reply->len >= 12 &&
                       sd->https_proxy_reply->str[9] == '2') {
                      /* e.g. "HTTP/1.1 200 Connection established[...]" */

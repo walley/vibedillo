@@ -28,6 +28,7 @@
 #include <FL/Fl_Return_Button.H>
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Input.H>
+#include <config.h>
 #include <FL/Fl_Secret_Input.H>
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Menu_Item.H>
@@ -152,7 +153,7 @@ int EnterButton::handle(int e)
 void a_Dialog_msg(const char *title, const char *msg)
 {
    if (!(title && *title))
-      title = "Dillo: Message";
+      title = PACKAGE_NAME ": Message";
    fl_message_title(title);
    fl_message("%s", msg);
 }
@@ -181,7 +182,7 @@ const char *a_Dialog_input(const char *title, const char *msg)
    input_answer = 0;
 
    if (!(title && *title))
-      title = "Dillo: Input";
+      title = PACKAGE_NAME ": Input";
 
    Fl_Window *window = new Fl_Window(ww,wh,title);
    window->set_modal();
@@ -261,7 +262,7 @@ const char *a_Dialog_input(const char *title, const char *msg)
 const char *a_Dialog_passwd(const char *title, const char *msg)
 {
    if (!(title && *title))
-      title = "Dillo: Password";
+      title = PACKAGE_NAME ": Password";
    fl_message_title(title);
    return fl_password("%s", "", msg);
 }
@@ -326,7 +327,7 @@ void a_Dialog_text_window(const char *title, const char *txt)
    int wh = prefs.height, ww = prefs.width, bh = 30;
 
    if (!(title && *title))
-      title = "Dillo: Text";
+      title = PACKAGE_NAME ": Text";
 
    Fl_Window *window = new Fl_Window(ww, wh, title);
    Fl_Group::current(0);
@@ -373,7 +374,7 @@ int a_Dialog_choice(const char *title, const char *msg, ...)
    int i, n;
 
    if (title == NULL || *title == '\0')
-      title = "Dillo: Choice";
+      title = PACKAGE_NAME ": Choice";
 
    va_start(ap, msg);
    for (n = 0; va_arg(ap, char *) != NULL; n++);
@@ -448,7 +449,7 @@ int a_Dialog_user_password(const char *title, const char *msg,
 
    /* window is resized below */
    if (!(title && *title))
-      title = "Dillo: User/Password";
+      title = PACKAGE_NAME ": User/Password";
    Fl_Window *window = new Fl_Window(window_w,window_h,title);
    Fl_Group::current(0);
    window->user_data(NULL);

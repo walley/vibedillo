@@ -10,6 +10,9 @@
  * (at your option) any later version.
  */
 
+#include <ctype.h>
+#include <string.h>
+
 #include "prefs.h"
 
 #define PREFS_START_PAGE      "about:splash"
@@ -24,7 +27,7 @@
 #define PREFS_NO_PROXY        "localhost 127.0.0.1"
 #define PREFS_SAVE_DIR        "/tmp/"
 #define PREFS_HTTP_REFERER    "host"
-#define PREFS_HTTP_USER_AGENT "Dillo/" VERSION
+#define PREFS_HTTP_USER_AGENT "vibedillo/{version} (Linux; GNU) walley/1.0"
 #define PREFS_THEME           "none"
 #define PREFS_COLOR_SCHEME    "auto"
 
@@ -72,7 +75,7 @@ void a_Prefs_init(void)
    prefs.http_referer = dStrdup(PREFS_HTTP_REFERER);
    prefs.http_strict_transport_security = TRUE;
    prefs.http_force_https = FALSE;
-   prefs.http_user_agent = dStrdup(PREFS_HTTP_USER_AGENT);
+   prefs.http_user_agent = a_Prefs_expand_template(PREFS_HTTP_USER_AGENT);
    prefs.limit_text_width = FALSE;
    prefs.adjust_min_width = TRUE;
    prefs.adjust_table_min_width = TRUE;
@@ -141,6 +144,58 @@ void a_Prefs_init(void)
    prefs.penalty_em_dash_right = 100;
    prefs.penalty_em_dash_right_2 = 800;
    prefs.stretchability_factor = 100;
+}
+
+/**
+ * Expand template keywords in a preference string. Currently only
+ * "{version}" (case-insensitive) is recognized and replaced with the
+ * actual VERSION. Returns a newly allocated string.
+ */
+char *a_Prefs_expand_template(const char *str)
+{
+   static const char kw[] = "{version}";
+   const size_t kwlen = sizeof(kw) - 1;
+   const char *p, *hit = NULL;
+   char *out, *d;
+   size_t i, n_hits = 0, len;
+
+   if (!str)
+      return NULL;
+
+   /* find all case-insensitive occurrences of the keyword */
+   for (p = str; *p; p++) {
+      for (i = 0; i < kwlen; i++)
+         if (!p[i] ||
+             tolower((unsigned char)p[i]) != tolower((unsigned char)kw[i]))
+            break;
+      if (i == kwlen) {
+         if (!hit)
+            hit = p;
+         n_hits++;
+         p += kwlen - 1;
+      }
+   }
+   if (!hit)
+      return dStrdup(str);
+
+   len = strlen(str) + n_hits * (strlen(VERSION) - kwlen);
+   out = dNew(char, len + 1);
+   d = out;
+   for (p = str; *p; ) {
+      for (i = 0; i < kwlen; i++)
+         if (!p[i] ||
+             tolower((unsigned char)p[i]) != tolower((unsigned char)kw[i]))
+            break;
+      if (i == kwlen) {
+         memcpy(d, VERSION, strlen(VERSION));
+         d += strlen(VERSION);
+         p += kwlen;
+      } else {
+         *d++ = *p++;
+      }
+   }
+   *d = '\0';
+   return out;
 }
 
 /**

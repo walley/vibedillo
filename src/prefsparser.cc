@@ -17,6 +17,9 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
 #include <locale.h>            /* for setlocale */
 #include <math.h>              /* for HUGE_VAL */
 #include <limits.h>
@@ -25,6 +28,7 @@
 #include "misc.h"
 #include "msg.h"
 #include "colors.h"
+#include "paths.hh"
 
 #include "prefsparser.hh"
 
@@ -83,7 +87,11 @@ static int parseOption(char *name, char *value,
       break;
    case PREFS_STRING:
       dFree(*(char **)node->pref);
-      *(char **)node->pref = dStrdup(value);
+      /* expand template keywords (e.g. {version} in http_user_agent) */
+      if (node->pref == &prefs.http_user_agent)
+         *(char **)node->pref = a_Prefs_expand_template(value);
+      else
+         *(char **)node->pref = dStrdup(value);
       break;
    case PREFS_STRINGS:
    {
@@ -265,6 +273,9 @@ void PrefsParser::parse(FILE *fp)
 
       if (st == 0) {
          _MSG("prefsparser: name=%s, value=%s\n", name, value);
+         if (strcmp(name, "color_scheme") == 0) {
+            MSG("prefsparser: parsing color_scheme = %s\n", value);
+         }
          parseOption(name, value, symbols, sizeof(symbols) / sizeof(symbols[0]));
       } else if (st == 1) {
          /* Comment or blank line - skip */
@@ -280,4 +291,78 @@ void PrefsParser::parse(FILE *fp)
    // restore the old numeric locale
    setlocale(LC_NUMERIC, oldLocale);
    dFree(oldLocale);
+}
+
+/**
+ * Persist one "name=value" line into the user vibedillorc, replacing the
+ * existing uncommented entry (comments are left untouched) or appending
+ * it at the end. The file is created if missing. The update is done via
+ * a temp file + rename so a crash cannot truncate the config.
+ */
+int PrefsParser::write_value(const char *name, const char *value)
+{
+   char *path, *tmp;
+   FILE *in = NULL, *out = NULL;
+   char *line;
+   int found = 0, ret = -1;
+   size_t namelen = strlen(name);
+
+   path = dStrconcat(dGethomedir(), "/.config/vibedillo/", PATHS_RC_PREFS,
+                     NULL);
+   tmp  = dStrconcat(path, ".tmp", NULL);
+
+   in = fopen(path, "r");
+   if (in == NULL && errno != ENOENT) {
+      MSG("prefsparser: cannot read %s: %s\n", path, dStrerror(errno));
+      goto done;
+   }
+   out = fopen(tmp, "w");
+   if (!out) {
+      MSG("prefsparser: cannot write %s: %s\n", tmp, dStrerror(errno));
+      goto done;
+   }
+
+   if (in) {
+      while ((line = dGetline(in)) != NULL) {
+         char *p = line;
+         while (*p == ' ' || *p == '\t')
+            p++;
+         if (strncmp(p, name, namelen) == 0 &&
+             (p[namelen] == '=' || p[namelen] == ' ' || p[namelen] == '\t')) {
+            fprintf(out, "%s=%s\n", name, value);
+            found = 1;
+         } else {
+            fputs(line, out);
+         }
+         dFree(line);
+      }
+   } else {
+      fprintf(out, "# vibedillorc (created by vibedillo)\n");
+   }
+   if (!found)
+      fprintf(out, "%s=%s\n", name, value);
+
+   fclose(out);
+   out = NULL;
+   if (rename(tmp, path) != 0) {
+      MSG("prefsparser: cannot rename %s -> %s: %s\n", tmp, path,
+          dStrerror(errno));
+      goto done;
+   }
+   ret = 0;
+
+done:
+   if (in)
+      fclose(in);
+   if (out)
+      fclose(out);
+   dFree(path);
+   dFree(tmp);
+   return ret;
+}
+
+/* C-callable wrapper (cache.c is C) */
+extern "C" int a_Prefs_write_rc_value(const char *name, const char *value)
+{
+   return PrefsParser::write_value(name, value);
 }

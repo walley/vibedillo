@@ -621,7 +621,7 @@ void a_Menu_image_popup(BrowserWindow *bw, const DilloUrl *url,
    static DilloUrl *popup_page_url = NULL;
    static DilloUrl *popup_link_url = NULL;
    static Fl_Menu_Item pm[] = {
-      {"Isolate image", 0, Menu_open_url_cb,0,0,0,0,0,0},
+      {"Show image", 0, Menu_open_url_cb,0,0,0,0,0,0},
       {"Open image in new tab", 0, Menu_open_url_nt_cb,0,0,0,0,0,0},
       {"Open image in new window", 0, Menu_open_url_nw_cb, 0, FL_MENU_DIVIDER,
        0,0,0,0},

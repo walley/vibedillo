@@ -1944,14 +1944,47 @@ static void Html_tag_open_body(DilloHtml *html, const char *tag, int tagsize)
    html->dw->setStyle (html->style ());
 
    bgColor = html->styleEngine->backgroundColor ();
+
+bgColor = html->styleEngine->backgroundColor ();
+
+   /* If no explicit background color is set, check if page prefers dark mode */
+   int page_color_scheme = S_TOP(html)->color_scheme;
+   int user_cs = 0;
+   int effective_cs = 0;
+   if (prefs.color_scheme) {
+      if (dStrAsciiCasecmp(prefs.color_scheme, "dark") == 0)
+         user_cs = 2;
+      else if (dStrAsciiCasecmp(prefs.color_scheme, "light") == 0)
+         user_cs = 1;
+   }
+   if (user_cs != 0) {
+      effective_cs = user_cs;
+   } else if (S_TOP(html)->color_scheme != 0) {
+      if (S_TOP(html)->color_scheme & 2)  /* dark is preferred */
+         effective_cs = 2;
+      else if (S_TOP(html)->color_scheme & 1)
+         effective_cs = 1;
+   }
+   if (effective_cs == 2) {
+      /* Dark mode preferred - use black background */
+      bgColor = Color::create (HT2LT(html), 0x000000);
+   }
+
    if (bgColor)
       HT2LT(html)->setBgColor(bgColor);
-
    bgImage = html->styleEngine->backgroundImage (&bgRepeat, &bgAttachment,
                                                  &bgPositionX, &bgPositionY);
    if (bgImage)
       HT2LT(html)->setBgImage(bgImage, bgRepeat, bgAttachment, bgPositionX,
                               bgPositionY);
+
+   /* Also set body element's background to transparent in dark mode,
+ * so the layout's dark background shows through the body element */
+   if (effective_cs == 2) {
+      html->styleEngine->setNonCssHint (CSS_PROPERTY_BACKGROUND_COLOR,
+                                        CSS_TYPE_ENUM,
+                                        0);  /* 0 = transparent */
+   }
 
    /* Determine a color for visited links.
     * This color is computed once per page and used for immediate feedback

@@ -625,7 +625,7 @@ static int Auth_do_auth_dialog(const AuthParse_t *auth_parse,
 
    _MSG("auth.c: Auth_do_auth_dialog: realm = '%s'\n", auth_parse->realm);
 
-   title = dStrconcat("Dillo: Password for ", auth_parse->realm, NULL);
+   title = dStrconcat(PACKAGE_NAME ": Password for ", auth_parse->realm, NULL);
    msg = dStrconcat("The server at ", URL_HOST(url), " requires a username"
                     " and password for  \"", auth_parse->realm, "\".\n\n"
                     "Authentication scheme: ", typestr, NULL);

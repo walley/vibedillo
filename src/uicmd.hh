@@ -28,6 +28,8 @@ void a_UIcmd_send_event_to_tabs_by_wid(int e, void *v_wid);
 int a_UIcmd_by_name(void *vbw, const char *cmd_name);
 void a_UIcmd_open_urlstr(void *vbw, const char *urlstr);
 void a_UIcmd_open_url(BrowserWindow *bw, const DilloUrl *url);
+void a_UIcmd_open_url_with_requester(BrowserWindow *bw, const DilloUrl *url,
+                                     const DilloUrl *requester);
 void a_UIcmd_open_url_nw(BrowserWindow *bw, const DilloUrl *url);
 void a_UIcmd_open_url_nt(void *vbw, const DilloUrl *url, int focus);
 int a_UIcmd_has_finished(BrowserWindow *bw);

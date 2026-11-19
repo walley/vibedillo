@@ -1084,7 +1084,6 @@ DilloHtmlForm::~DilloHtmlForm ()
 
 void DilloHtmlForm::eventHandler(Resource *resource, EventButton *event)
 {
-   _MSG("DilloHtmlForm::eventHandler\n");
    if (event && (event->button == 3)) {
       a_UIcmd_form_popup(html->bw, html->page_url, this, showing_hiddens);
    } else {
@@ -1105,7 +1104,7 @@ void DilloHtmlForm::submit(DilloHtmlInput *active_input, EventButton *event)
 {
    if (!dStrAsciiCasecmp(URL_SCHEME(html->page_url), "https") &&
        dStrAsciiCasecmp(URL_SCHEME(action), "https")) {
-      int choice = a_Dialog_choice("Dillo: Insecure form submission",
+      int choice = a_Dialog_choice(PACKAGE_NAME ": Insecure form submission",
                                    "A form on a SECURE page wants to use an "
                                    "INSECURE protocol to submit data.",
                                    "Continue", "Cancel", NULL);
@@ -1124,7 +1123,9 @@ void DilloHtmlForm::submit(DilloHtmlInput *active_input, EventButton *event)
             a_UIcmd_open_url_nw(html->bw, url);
          }
       } else {
-         a_UIcmd_open_url(html->bw, url);
+         /* Pass the current page as requester for cross-domain checks
+          * and internal page access control. */
+         a_UIcmd_open_url_with_requester(html->bw, url, html->page_url);
       }
       a_Url_free(url);
    }
