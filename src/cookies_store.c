@@ -21,6 +21,7 @@ void cookies_store_freeall(void) {}
 int cookies_store_set(const char *c, const char *h, const char *p, const char *d) { (void)c; (void)h; (void)p; (void)d; return -1; }
 char *cookies_store_get(const char *h, const char *p, const char *s) { (void)h; (void)p; (void)s; return dStrdup(""); }
 bool_t cookies_store_check_host(const char *h) { (void)h; return FALSE; }
+void cookies_store_iterate(cookies_store_iter_cb cb, void *ud) { (void)cb; (void)ud; }
 
 #else
 
@@ -1546,6 +1547,21 @@ bool_t cookies_store_check_host(const char *host)
 
    CookieControlAction action = Cookies_control_check_domain(host);
    return (action != COOKIE_DENY);
+}
+
+void cookies_store_iterate(cookies_store_iter_cb cb, void *userdata)
+{
+   int i, n;
+
+   if (!cb || disabled || !all_cookies)
+      return;
+
+   n = dList_length(all_cookies);
+   for (i = 0; i < n; i++) {
+      CookieData_t *c = dList_nth_data(all_cookies, i);
+      cb(c->domain, c->path, c->name, c->value, c->host_only, c->secure,
+         c->session_only, c->expires_at, userdata);
+   }
 }
 
 #endif /* !DISABLE_COOKIES */

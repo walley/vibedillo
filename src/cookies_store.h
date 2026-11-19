@@ -17,6 +17,8 @@
 #ifndef __COOKIES_STORE_H__
 #define __COOKIES_STORE_H__
 
+#include <time.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,6 +45,16 @@ char *cookies_store_get(const char *url_host,
 
 /* Check if cookies are enabled for a host (access control) */
 bool_t cookies_store_check_host(const char *host);
+
+/* Callback for cookies_store_iterate() */
+typedef void (*cookies_store_iter_cb)(const char *domain, const char *path,
+                                      const char *name, const char *value,
+                                      bool_t host_only, bool_t secure,
+                                      bool_t session_only, time_t expires_at,
+                                      void *userdata);
+
+/* Call 'cb' for every cookie currently in the store */
+void cookies_store_iterate(cookies_store_iter_cb cb, void *userdata);
 
 #ifdef __cplusplus
 }

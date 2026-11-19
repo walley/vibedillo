@@ -28,6 +28,7 @@
 #include "dicache.h"
 #include "nav.h"
 #include "cookies.h"
+#include "cookies_store.h"
 #include "hsts.h"
 #include "misc.h"
 #include "capi.h"
@@ -505,6 +506,7 @@ static Dstr *About_about(void)
       "  <li><a href=\"about:cache\">about:cache</a> - Cache statistics</li>\n"
       "  <li><a href=\"about:dicache\">about:dicache</a> - Dicache statistics</li>\n"
       "  <li><a href=\"about:splash\">about:splash</a> - Welcome page</li>\n"
+      "  <li><a href=\"about:cookies\">about:cookies</a> - Stored cookies</li>\n"
       "</ul>\n"
       "</body>\n"
       "</html>\n");
@@ -1132,6 +1134,79 @@ static Dstr *About_forbidden(void)
       "</html>\n");
 }
 
+/* --- about:cookies — list all cookies currently stored ----------------- */
+
+static void cookies_row_cb(const char *domain, const char *path,
+                           const char *name, const char *value,
+                           bool_t host_only, bool_t secure,
+                           bool_t session_only, time_t expires_at,
+                           void *userdata)
+{
+   Dstr *s = userdata;
+   char expiry[64];
+
+   if (session_only || expires_at == (time_t) -1) {
+      snprintf(expiry, sizeof(expiry), "session");
+   } else {
+      struct tm tm;
+      if (gmtime_r(&expires_at, &tm) != NULL &&
+          strftime(expiry, sizeof(expiry), "%Y-%m-%d %H:%M UTC", &tm) == 0)
+         snprintf(expiry, sizeof(expiry), "%ld", (long)expires_at);
+   }
+
+   dStr_append(s, "<tr>\n");
+   dStr_append(s, "<td>");
+   html_escape(s, name);
+   dStr_append(s, "</td>\n<td>");
+   html_escape(s, value);
+   dStr_append(s, "</td>\n<td>");
+   html_escape(s, domain);
+   dStr_append(s, host_only ? " (host only)" : " (incl. subdomains)");
+   dStr_append(s, "</td>\n<td>");
+   html_escape(s, path);
+   dStr_append(s, "</td>\n<td>");
+   dStr_append(s, expiry);
+   dStr_append(s, "</td>\n<td>");
+   dStr_append(s, secure ? "yes" : "no");
+   dStr_append(s, "</td>\n</tr>\n");
+}
+
+static Dstr *About_cookies(void)
+{
+   Dstr *s = dStr_new(
+      "<!DOCTYPE HTML>\n"
+      "<html>\n"
+      "<head>\n"
+      "  <title>Cookies</title>\n"
+      "  <meta name=\"color-scheme\" content=\"dark light\">\n"
+      "  <style>\n"
+      "    body { font-family: sans-serif; margin: 2em; "
+      "background: light-dark(#ffffff, #111111); "
+      "color: light-dark(#111111, #eeeeee); }\n"
+      "    table { border-collapse: collapse; }\n"
+      "    th, td { border: 1px solid light-dark(#cccccc, #444444); "
+      "padding: 4px 10px; text-align: left; vertical-align: top; }\n"
+      "    th { background: light-dark(#f0f0f0, #1a1a1a); }\n"
+      "  </style>\n"
+      "</head>\n"
+      "<body>\n"
+      "<h1>Stored cookies</h1>\n");
+
+   dStr_append(s, "<table>\n<tr>\n");
+   dStr_append(s, "<th>Name</th><th>Value</th><th>Domain</th>"
+                  "<th>Path</th><th>Expires</th><th>Secure</th>\n");
+   dStr_append(s, "</tr>\n");
+
+   cookies_store_iterate(cookies_row_cb, s);
+
+   dStr_append(s, "</table>\n");
+
+   dStr_append(s,
+      "</body>\n"
+      "</html>\n");
+   return s;
+}
+
 static int Cache_internal_url(CacheEntry_t *entry, DilloWeb *web)
 {
    Dstr *s = NULL;
@@ -1154,6 +1229,8 @@ static int Cache_internal_url(CacheEntry_t *entry, DilloWeb *web)
       s = About_settings_apply(entry->Url);
    } else if (strcmp(path, "splash") == 0) {
       s = About_splash();
+   } else if (strcmp(path, "cookies") == 0) {
+      s = About_cookies();
    }
 
    if (s != NULL) {
