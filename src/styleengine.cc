@@ -1136,6 +1136,13 @@ Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
       attrs.borderWidth = s->borderWidth;
       attrs.borderStyle = s->borderStyle;
       attrs.borderColor = s->borderColor;
+      /* Also keep position-related properties for inline elements
+       * so that relatively positioned inline content can be offset. */
+      attrs.position = s->position;
+      attrs.top = s->top;
+      attrs.right = s->right;
+      attrs.bottom = s->bottom;
+      attrs.left = s->left;
    }
 
    stack->getRef(stack->size() - 1)->wordStyle = Style::create(&attrs);

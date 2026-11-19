@@ -1625,10 +1625,29 @@ void Textblock::drawLine (Line *line, core::View *view, core::Rectangle *area,
                          word->style == words->getRef(wordIndex2 + 1)->style)
                      wordIndex2++;
 
-                  drawWord(line, wordIndex, wordIndex2, view, area,
-                           xWidget, yWidgetBase);
-                  wordSize = 0;
-                  for (int i = wordIndex; i <= wordIndex2; i++)
+                  /* Apply relative positioning offset for inline text. */
+                   int drawX = xWidget;
+                   int drawY = yWidgetBase;
+                   if (word->style->position == core::style::POSITION_RELATIVE) {
+                      if (word->style->left != core::style::LENGTH_AUTO ||
+                          word->style->right != core::style::LENGTH_AUTO) {
+                         if (word->style->left != core::style::LENGTH_AUTO)
+                            drawX += core::style::absLengthVal (word->style->left);
+                         else
+                            drawX -= core::style::absLengthVal (word->style->right);
+                      }
+                      if (word->style->top != core::style::LENGTH_AUTO ||
+                          word->style->bottom != core::style::LENGTH_AUTO) {
+                         if (word->style->top != core::style::LENGTH_AUTO)
+                            drawY += core::style::absLengthVal (word->style->top);
+                         else
+                            drawY -= core::style::absLengthVal (word->style->bottom);
+                      }
+                   }
+                   drawWord(line, wordIndex, wordIndex2, view, area,
+                            drawX, drawY);
+                   wordSize = 0;
+                   for (int i = wordIndex; i <= wordIndex2; i++)
                      wordSize += words->getRef(i)->size.width;
 
                   wordIndex = wordIndex2;
