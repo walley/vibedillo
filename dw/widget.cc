@@ -1063,7 +1063,11 @@ int Widget::calcHeight (style::Length cssValue, bool usePercentage,
                   cssValue, usePercentage ? "true" : "false", refHeight,
                   refWidget);
 
-   assert (refHeight != -1 || refWidget != NULL);
+   /* An unknown containing-block height makes a percentage height behave
+    * as auto. Absolute lengths do not need a reference. */
+   if (refHeight == -1 && refWidget == NULL &&
+       !style::isAbsLength (cssValue))
+      return -1;
 
    int height;
 
