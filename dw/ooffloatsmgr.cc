@@ -794,8 +794,7 @@ void OOFFloatsMgr::tellPosition1 (Widget *widget, int x, int y)
    DBG_OBJ_ENTER ("resize.oofm", 0, "tellPosition1", "%p, %d, %d",
                   widget, x, y);
 
-   assert (y >= 0);
-
+   /* Negative margins can place a float above its container's origin. */
    Float *vloat = findFloatByWidget(widget);
 
    SortedFloatsVector *listSame, *listOpp;
