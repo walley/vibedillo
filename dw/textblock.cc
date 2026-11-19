@@ -439,6 +439,14 @@ void Textblock::sizeRequestImpl (core::Requisition *requisition, int numPos,
    // OutOfFlowMgr::getSize honours CSS attributes an corrected sizes.
 
    correctRequisitionByOOF (requisition, core::splitHeightPreserveAscent);
+   if (requisition->ascent < 0) {
+      /* Preserve the flow height from negative margins or clearance, but do
+       * not expose a negative ascent to the parent line (which clamps it to
+       * zero and otherwise leaves the following content behind). */
+      requisition->descent = misc::max (0, requisition->ascent +
+                                        requisition->descent);
+      requisition->ascent = 0;
+   }
 
    DBG_OBJ_MSGF ("resize", 1, "final: %d * (%d + %d)",
                  requisition->width, requisition->ascent, requisition->descent);
