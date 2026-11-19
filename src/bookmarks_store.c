@@ -12,13 +12,29 @@
  * (at your option) any later version.
  */
 
-#include <stdio.h>
+#ifdef DISABLE_COOKIES
+
+void bookmarks_store_init(void) { MSG("Bookmarks: disabled at compile time.\n"); }
+void bookmarks_store_free(void *store) { (void)store; }
+void bookmarks_store_add(void *store, const char *url, const char *title) { (void)store; (void)url; (void)title; }
+char *bookmarks_store_get_page(void *store) { (void)store; return dStrdup(""); }
+char *bookmarks_store_get_modify_page(void *store) { (void)store; return dStrdup(""); }
+char *bookmarks_store_get_add_section_page(void *store) { (void)store; return dStrdup(""); }
+char *bookmarks_store_get_add_url_page(void *store) { (void)store; return dStrdup(""); }
+char *bookmarks_store_get_update_page(void *store, const char *q) { (void)store; (void)q; return dStrdup(""); }
+int bookmarks_store_process_modify(void *store, const char *q) { (void)store; (void)q; return -1; }
+int bookmarks_store_check_modify(void *store, const char *q) { (void)store; (void)q; return -1; }
+const char *bookmarks_store_get_file_path(void) { return ""; }
+
+#else
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <stddef.h>
 
 #include "msg.h"
 #include "list.h"
@@ -76,13 +92,13 @@ static void Unencode_str(char *e_str);
 static char *Escape_html_str(const char *str);
 static char *Unescape_html_str(const char *str);
 static char *Escape_uri_str(const char *url, const char *chars);
-static int Bmsrv_process_modify_request(BookmarkStore *store, char *url);
 static int Bmsrv_modify_delete(BookmarkStore *store, char *url);
 static int Bmsrv_modify_move(BookmarkStore *store, char *url);
 static int Bmsrv_modify_update(BookmarkStore *store, char *url);
 static int Bmsrv_modify_add_section(BookmarkStore *store, char *url);
 static int Bmsrv_modify_add_url(BookmarkStore *store, char *url);
 static int Bmsrv_check_modify_request(BookmarkStore *store, char *url);
+static int Bmsrv_process_modify_request(BookmarkStore *store, char *url);
 static char *send_bm_page(BookmarkStore *store);
 static char *send_modify_page(BookmarkStore *store);
 static char *send_modify_add_section_page(void);
@@ -92,21 +108,7 @@ static char *send_modify_update_page(BookmarkStore *store, char *url);
 /* HTML templates */
 #define DOCTYPE "<!DOCTYPE html>\n"
 
-#define CSS_STYLE \
-    "<style type='text/css'>\n" \
-    "body { margin: 2em; background: light-dark(white, #111111); font-size: 14px }\n" \
-    "ul { font-size: inherit; margin-left: 1em; margin-top: 0.5em; list-style-type: none; }\n" \
-    "ul.main { list-style-type: none; }\n" \
-    "li { min-height: 1.6em; }\n" \
-    "div.modify-menu { background-color: light-dark(#f0f0f0, #333); border: solid 1px light-dark(#ccc, #666); padding: 1em }\n" \
-    "nav ul { margin-top: 1em }\n" \
-    "nav li { display: inline; }\n" \
-    "a { color: light-dark(black, #88aaff); }\n" \
-    "input[type=text] { background: light-dark(white, #222); color: light-dark(black, #eee); border: 1px solid light-dark(#ccc, #666); }\n" \
-    "input[type=submit] { background: light-dark(#ddd, #444); color: light-dark(black, #eee); border: 1px solid light-dark(#ccc, #666); padding: 0.2em 0.5em; }\n" \
-    "select { background: light-dark(white, #222); color: light-dark(black, #eee); border: 1px solid light-dark(#ccc, #666); }\n" \
-    "option { background: light-dark(white, #222); color: light-dark(black, #eee); }\n" \
-    "</style>\n"
+#define CSS_STYLE     "<style type='text/css'>\n"     "body { margin: 2em; background: light-dark(white, #111111); font-size: 14px }\n"     "ul { font-size: inherit; margin-left: 1em; margin-top: 0.5em; list-style-type: none; }\n"     "ul.main { list-style-type: none; }\n"     "li { min-height: 1.6em; }\n"     "div.modify-menu { background-color: light-dark(#f0f0f0, #333); border: solid 1px light-dark(#ccc, #666); padding: 1em }\n"     "nav ul { margin-top: 1em }\n"     "nav li { display: inline; }\n"     "a { color: light-dark(black, #88aaff); }\n"     "input[type=text] { background: light-dark(white, #222); color: light-dark(black, #eee); border: 1px solid light-dark(#ccc, #666); }\n"     "input[type=submit] { background: light-dark(#ddd, #444); color: light-dark(black, #eee); border: 1px solid light-dark(#ccc, #666); padding: 0.2em 0.5em; }\n"     "select { background: light-dark(white, #222); color: light-dark(black, #eee); border: 1px solid light-dark(#ccc, #666); }\n"     "option { background: light-dark(white, #222); color: light-dark(black, #eee); }\n"     "</style>\n"
 
 static const char *mainpage_header =
 DOCTYPE
@@ -666,7 +668,6 @@ static void Unencode_str(char *e_str)
    *p = 0;
 }
 
-/* Simple HTML escape/unescape - ported from dpiutil.c */
 static char *Escape_html_str(const char *str)
 {
    if (!str) return dStrdup("");
@@ -678,7 +679,7 @@ static char *Escape_html_str(const char *str)
          case '&': strcpy(out + j, "&"); j += 5; break;
          case '<': strcpy(out + j, "<"); j += 4; break;
          case '>': strcpy(out + j, ">"); j += 4; break;
-         case '"': strcpy(out + j, """); j += 6; break;
+         case '"': strcpy(out + j, "&quot;"); j += 6; break;
          case '\'': strcpy(out + j, "'"); j += 5; break;
          default: out[j++] = str[i]; break;
       }
@@ -698,7 +699,7 @@ static char *Unescape_html_str(const char *str)
          if (strncmp(str + i, "&", 5) == 0) { out[j++] = '&'; i += 4; continue; }
          if (strncmp(str + i, "<", 4) == 0) { out[j++] = '<'; i += 3; continue; }
          if (strncmp(str + i, ">", 4) == 0) { out[j++] = '>'; i += 3; continue; }
-         if (strncmp(str + i, """, 6) == 0) { out[j++] = '"'; i += 5; continue; }
+         if (strncmp(str + i, "&quot;", 6) == 0) { out[j++] = '"'; i += 5; continue; }
          if (strncmp(str + i, "'", 5) == 0) { out[j++] = '\''; i += 4; continue; }
       }
       out[j++] = str[i];
@@ -729,152 +730,6 @@ static char *Escape_uri_str(const char *url, const char *chars)
    out[j] = 0;
    return out;
 }
-
-/* Page generators */
-
-static char *send_bm_page(BookmarkStore *store)
-{
-   Dstr *dstr = dStr_new("");
-   char *l_title;
-   BmSec *sec_node;
-   BmRec *bm_node;
-   int i, j;
-
-   dStr_sprintfa(dstr, "%s", mainpage_header);
-
-   dStr_sprintfa(dstr, "%s", mainpage_sections_header);
-   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
-      if (i > 0) dStr_sprintfa(dstr, "%s", sections_sep);
-      dStr_sprintf(dstr, mainpage_sections_item, sec_node->section, sec_node->title);
-   }
-   dStr_sprintfa(dstr, "%s", mainpage_sections_footer);
-
-   dStr_sprintfa(dstr, "%s", mainpage_middle1);
-
-   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
-      l_title = make_one_line_str(sec_node->title);
-      dStr_sprintf(dstr, mainpage_section_card_header, sec_node->section, l_title);
-      dFree(l_title);
-
-      for (j = 0; (bm_node = dList_nth_data(store->B_bms, j)); ++j) {
-         if (bm_node->section == sec_node->section) {
-            dStr_sprintf(dstr, mainpage_section_card_item, bm_node->url, bm_node->title);
-         }
-      }
-      dStr_sprintfa(dstr, "%s", mainpage_section_card_footer);
-   }
-
-   dStr_sprintfa(dstr, "%s", mainpage_footer);
-
-   return dstr->str;
-}
-
-static char *send_modify_page(BookmarkStore *store)
-{
-   Dstr *dstr = dStr_new("");
-   char *l_title;
-   BmSec *sec_node;
-   BmRec *bm_node;
-   int i, j;
-
-   dStr_sprintfa(dstr, "%s", modifypage_header);
-   dStr_sprintfa(dstr, "%s", modifypage_sections_header);
-
-   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
-      if (i > 0) dStr_sprintfa(dstr, "%s", sections_sep);
-      dStr_sprintf(dstr, modifypage_sections_item,
-                   sec_node->section, sec_node->section, sec_node->title);
-   }
-   dStr_sprintfa(dstr, "%s", modifypage_sections_footer);
-   dStr_sprintfa(dstr, "%s", modifypage_middle1);
-
-   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
-      l_title = make_one_line_str(sec_node->title);
-      dStr_sprintf(dstr, modifypage_section_card_header, sec_node->section, l_title);
-      dFree(l_title);
-
-      for (j = 0; (bm_node = dList_nth_data(store->B_bms, j)); ++j) {
-         if (bm_node->section == sec_node->section) {
-            dStr_sprintf(dstr, modifypage_section_card_item,
-                         bm_node->key, bm_node->url, bm_node->title);
-         }
-      }
-      dStr_sprintfa(dstr, "%s", modifypage_section_card_footer);
-   }
-
-   dStr_sprintfa(dstr, "%s", modifypage_footer);
-
-   return dstr->str;
-}
-
-static char *send_modify_add_section_page(void)
-{
-   return dStrdup(modifypage_add_section_page);
-}
-
-static char *send_modify_add_url_page(void)
-{
-   return dStrdup(modifypage_add_url);
-}
-
-static char *send_modify_update_page(BookmarkStore *store, char *url)
-{
-   static char *url1 = NULL;
-   Dstr *dstr = dStr_new("");
-   char *p, *q;
-   int i, key, n_sec, n_url;
-   BmRec *bm_node;
-   BmSec *sec_node;
-
-   if (url) {
-      dFree(url1);
-      url1 = dStrdup(url);
-   }
-
-   dStr_sprintfa(dstr, "%s", modifypage_update_header);
-
-   Bmsrv_count_urls_and_sections(url1, &n_sec, &n_url);
-
-   if (n_sec) {
-      dStr_sprintf(dstr, modifypage_update_title, "Update sections");
-      dStr_sprintfa(dstr, "%s", modifypage_update_item_header);
-      p = strchr(url1, '?');
-      for (q = p; (q = strstr(q, "&s")); ++q) {
-         for (i = 0; dIsdigit(q[2+i]); ++i);
-         if (q[2+i] == '=') {
-            key = strtol(q + 2, NULL, 10);
-            if ((sec_node = Bms_get_sec(store, key))) {
-               dStr_sprintf(dstr, modifypage_update_item2,
-                            sec_node->section, sec_node->title);
-            }
-         }
-      }
-      dStr_sprintfa(dstr, "%s", modifypage_update_item_footer);
-   }
-
-   if (n_url) {
-      dStr_sprintf(dstr, modifypage_update_title, "Update titles");
-      dStr_sprintfa(dstr, "%s", modifypage_update_item_header);
-      p = strchr(url1, '?');
-      for (q = p; (q = strstr(q, "&url")); ++q) {
-         for (i = 0; dIsdigit(q[4+i]); ++i);
-         if (q[4+i] == '=') {
-            key = strtol(q + 4, NULL, 10);
-            if ((bm_node = Bms_get(store, key))) {
-               dStr_sprintf(dstr, modifypage_update_item,
-                            bm_node->key, bm_node->title, bm_node->url);
-            }
-         }
-      }
-      dStr_sprintfa(dstr, "%s", modifypage_update_item_footer);
-   }
-
-   dStr_sprintfa(dstr, "%s", modifypage_update_footer);
-
-   return dstr->str;
-}
-
-/* Modify operations */
 
 static int Bmsrv_modify_delete(BookmarkStore *store, char *url)
 {
@@ -1018,7 +873,7 @@ static int Bmsrv_modify_add_url(BookmarkStore *store, char *url)
 
 static int Bmsrv_check_modify_request(BookmarkStore *store, char *url)
 {
-   char *p, *msg;
+   char *p;
    int n_sec, n_url;
 
    Bmsrv_count_urls_and_sections(url, &n_sec, &n_url);
@@ -1067,6 +922,152 @@ static int Bmsrv_process_modify_request(BookmarkStore *store, char *url)
       Bmsrv_modify_add_url(store, url);
    }
    return 0;
+}
+
+static char *send_bm_page(BookmarkStore *store)
+{
+   Dstr *dstr = dStr_new("");
+   char *l_title;
+   BmSec *sec_node;
+   BmRec *bm_node;
+   int i, j;
+
+   Bms_cond_load(store);
+
+   dStr_sprintfa(dstr, "%s", mainpage_header);
+
+   dStr_sprintfa(dstr, "%s", mainpage_sections_header);
+   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
+      if (i > 0) dStr_sprintfa(dstr, "%s", sections_sep);
+      dStr_sprintf(dstr, mainpage_sections_item, sec_node->section, sec_node->title);
+   }
+   dStr_sprintfa(dstr, "%s", mainpage_sections_footer);
+
+   dStr_sprintfa(dstr, "%s", mainpage_middle1);
+
+   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
+      l_title = make_one_line_str(sec_node->title);
+      dStr_sprintf(dstr, mainpage_section_card_header, sec_node->section, l_title);
+      dFree(l_title);
+
+      for (j = 0; (bm_node = dList_nth_data(store->B_bms, j)); ++j) {
+         if (bm_node->section == sec_node->section) {
+            dStr_sprintf(dstr, mainpage_section_card_item, bm_node->url, bm_node->title);
+         }
+      }
+      dStr_sprintfa(dstr, "%s", mainpage_section_card_footer);
+   }
+
+   dStr_sprintfa(dstr, "%s", mainpage_footer);
+
+   return dstr->str;
+}
+
+static char *send_modify_page(BookmarkStore *store)
+{
+   Dstr *dstr = dStr_new("");
+   char *l_title;
+   BmSec *sec_node;
+   BmRec *bm_node;
+   int i, j;
+
+   Bms_cond_load(store);
+
+   dStr_sprintfa(dstr, "%s", modifypage_header);
+   dStr_sprintfa(dstr, "%s", modifypage_sections_header);
+
+   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
+      if (i > 0) dStr_sprintfa(dstr, "%s", sections_sep);
+      dStr_sprintf(dstr, modifypage_sections_item,
+                   sec_node->section, sec_node->section, sec_node->title);
+   }
+   dStr_sprintfa(dstr, "%s", modifypage_sections_footer);
+   dStr_sprintfa(dstr, "%s", modifypage_middle1);
+
+   for (i = 0; (sec_node = dList_nth_data(store->B_secs, i)); ++i) {
+      l_title = make_one_line_str(sec_node->title);
+      dStr_sprintf(dstr, modifypage_section_card_header, sec_node->section, l_title);
+      dFree(l_title);
+
+      for (j = 0; (bm_node = dList_nth_data(store->B_bms, j)); ++j) {
+         if (bm_node->section == sec_node->section) {
+            dStr_sprintf(dstr, modifypage_section_card_item,
+                         bm_node->key, bm_node->url, bm_node->title);
+         }
+      }
+      dStr_sprintfa(dstr, "%s", modifypage_section_card_footer);
+   }
+
+   dStr_sprintfa(dstr, "%s", modifypage_footer);
+
+   return dstr->str;
+}
+
+static char *send_modify_add_section_page(void)
+{
+   return dStrdup(modifypage_add_section_page);
+}
+
+static char *send_modify_add_url_page(void)
+{
+   return dStrdup(modifypage_add_url);
+}
+
+static char *send_modify_update_page(BookmarkStore *store, char *url)
+{
+   static char *url1 = NULL;
+   Dstr *dstr = dStr_new("");
+   char *p, *q;
+   int i, key, n_sec, n_url;
+   BmRec *bm_node;
+   BmSec *sec_node;
+
+   if (url) {
+      dFree(url1);
+      url1 = dStrdup(url);
+   }
+
+   dStr_sprintfa(dstr, "%s", modifypage_update_header);
+
+   Bmsrv_count_urls_and_sections(url1, &n_sec, &n_url);
+
+   if (n_sec) {
+      dStr_sprintf(dstr, modifypage_update_title, "Update sections");
+      dStr_sprintfa(dstr, "%s", modifypage_update_item_header);
+      p = strchr(url1, '?');
+      for (q = p; (q = strstr(q, "&s")); ++q) {
+         for (i = 0; dIsdigit(q[2+i]); ++i);
+         if (q[2+i] == '=') {
+            key = strtol(q + 2, NULL, 10);
+            if ((sec_node = Bms_get_sec(store, key))) {
+               dStr_sprintf(dstr, modifypage_update_item2,
+                            sec_node->section, sec_node->title);
+            }
+         }
+      }
+      dStr_sprintfa(dstr, "%s", modifypage_update_item_footer);
+   }
+
+   if (n_url) {
+      dStr_sprintf(dstr, modifypage_update_title, "Update titles");
+      dStr_sprintfa(dstr, "%s", modifypage_update_item_header);
+      p = strchr(url1, '?');
+      for (q = p; (q = strstr(q, "&url")); ++q) {
+         for (i = 0; dIsdigit(q[4+i]); ++i);
+         if (q[4+i] == '=') {
+            key = strtol(q + 4, NULL, 10);
+            if ((bm_node = Bms_get(store, key))) {
+               dStr_sprintf(dstr, modifypage_update_item,
+                            bm_node->key, bm_node->title, bm_node->url);
+            }
+         }
+      }
+      dStr_sprintfa(dstr, "%s", modifypage_update_item_footer);
+   }
+
+   dStr_sprintfa(dstr, "%s", modifypage_update_footer);
+
+   return dstr->str;
 }
 
 /* --- Public API --- */
@@ -1144,3 +1145,5 @@ const char *bookmarks_store_get_file_path(void)
    if (!path) path = dStrconcat(dGethomedir(), "/.config/vibedillo/bm.txt", NULL);
    return path;
 }
+
+#endif /* !DISABLE_COOKIES */

@@ -32,6 +32,7 @@
 #include "dpiapi.h"
 #include "uicmd.hh"
 #include "domain.h"
+#include "bookmarks_store.h"
 #include "../dpip/dpip.h"
 #include "prefs.h"
 
@@ -344,6 +345,40 @@ static void Capi_dpi_send_source(BrowserWindow *bw, DilloUrl *url)
    dFree(cmd);
 }
 
+/* Handle bookmarks requests in-process */
+static void Capi_handle_bookmarks_request(DilloUrl *url, BrowserWindow *bw)
+{
+   char *page = NULL;
+   const char *url_str = URL_STR(url);
+   char *p = strchr(url_str + 5, '/'); /* skip "dpi:/" */
+   
+   if (!p) return;
+   p++; /* skip '/' */
+   
+   if (strcmp(p, "bm/") == 0 || strcmp(p, "bm") == 0) {
+      page = a_Bookmarks_get_page();
+   } else if (strncmp(p, "bm/modify", 9) == 0) {
+      if (strcmp(p, "bm/modify") == 0) {
+         page = a_Bookmarks_get_modify_page();
+      } else if (strncmp(p, "bm/modify?", 10) == 0) {
+         page = a_Bookmarks_get_update_page(p + 10);
+      }
+   } else if (strcmp(p, "bm/add_section") == 0) {
+      page = a_Bookmarks_get_add_section_page();
+   } else if (strcmp(p, "bm/add_url") == 0) {
+      page = a_Bookmarks_get_add_url_page();
+   }
+   
+   if (page) {
+      /* Inject the page into cache and display it */
+      DilloUrl *new_url = a_Url_new(url_str, NULL);
+      a_Cache_entry_inject(new_url, page, strlen(page),
+                           CA_GotHeader | CA_GotLength | CA_InternalUrl);
+      a_Cache_set_content_type(new_url, dStrdup("text/html"), "h");
+      a_Url_free(new_url);
+   }
+}
+
 /**
  * Shall we permit this request to open a URL?
  */
@@ -503,15 +538,21 @@ int a_Capi_open_url(DilloWeb *web, CA_Callback_t Call, void *CbData)
                   reload = 1;
                }
             }
-            if (reload) {
+                        if (reload) {
                a_Capi_conn_abort_by_url(web->url);
-               /* Send dpip command */
-               _MSG("a_Capi_open_url, reload url='%s'\n", URL_STR(web->url));
-               cmd = Capi_dpi_build_cmd(web, server);
-               a_Capi_dpi_send_cmd(web->url, web->bw, cmd, server, 1);
-               dFree(cmd);
-               if (strcmp(server, "vsource") == 0) {
-                  Capi_dpi_send_source(web->bw, web->url);
+               /* Handle bookmarks in-process, others via dpid */
+               if (strcmp(server, "bookmarks") == 0) {
+                  /* Handle bookmarks in-process */
+                  Capi_handle_bookmarks_request(web->url, web->bw);
+               } else {
+                  /* Send dpip command */
+                  _MSG("a_Capi_open_url, reload url='%s'", URL_STR(web->url));
+                  cmd = Capi_dpi_build_cmd(web, server);
+                  a_Capi_dpi_send_cmd(web->url, web->bw, cmd, server, 1);
+                  dFree(cmd);
+                  if (strcmp(server, "vsource") == 0) {
+                     Capi_dpi_send_source(web->bw, web->url);
+                  }
                }
             }
             use_cache = 1;
@@ -855,7 +896,7 @@ void a_Capi_ccc(int Op, int Branch, int Dir, ChainLink *Info,
                a_UIcmd_set_msg(conn->bw, "%s", Data1);
             } else if (strcmp(Data2, "chat") == 0) {
                a_UIcmd_set_msg(conn->bw, "%s", Data1);
-               a_Bookmarks_chat_add(NULL, NULL, Data1);
+               /* Bookmarks DPI moved in-process; no chat handshake needed */
             } else if (strcmp(Data2, "dialog") == 0) {
                a_Dpiapi_dialog(conn->bw, conn->server, Data1);
             } else if (strcmp(Data2, "reload_request") == 0) {
