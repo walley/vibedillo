@@ -228,9 +228,8 @@ public:
 
    static inline bool testStyleOutOfFlow (core::style::Style *style)
    {  // Second part is equivalent to testStylePositioned(), but we still keep
-      // the two separately.
+      // the two separately. Relatively positioned elements are NOT out of flow.
       return testStyleFloat (style) || testStyleAbsolutelyPositioned (style)
-         || testStyleRelativelyPositioned (style)
          || testStyleFixedlyPositioned (style); }
    
    static inline bool testWidgetFloat (Widget *widget)

@@ -698,7 +698,28 @@ void Textblock::sizeAllocateImpl (core::Allocation *allocation)
             childAllocation.width = word->size.width;
             childAllocation.ascent = word->size.ascent;
             childAllocation.descent = word->size.descent;
- 
+
+            /* Apply relative positioning offset for inline elements. */
+            if (wstyle->position == core::style::POSITION_RELATIVE) {
+               int relX = 0, relY = 0;
+               if (wstyle->left != core::style::LENGTH_AUTO ||
+                   wstyle->right != core::style::LENGTH_AUTO) {
+                  if (wstyle->left != core::style::LENGTH_AUTO)
+                     relX = core::style::absLengthVal (wstyle->left);
+                  else
+                     relX = -core::style::absLengthVal (wstyle->right);
+               }
+               if (wstyle->top != core::style::LENGTH_AUTO ||
+                   wstyle->bottom != core::style::LENGTH_AUTO) {
+                  if (wstyle->top != core::style::LENGTH_AUTO)
+                     relY = core::style::absLengthVal (wstyle->top);
+                  else
+                     relY = -core::style::absLengthVal (wstyle->bottom);
+               }
+               childAllocation.x += relX;
+               childAllocation.y += relY;
+            }
+
             oldChildAllocation = word->content.widget->getAllocation();
 
             if (childAllocation.x != oldChildAllocation->x ||
