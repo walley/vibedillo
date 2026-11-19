@@ -1353,7 +1353,8 @@ int OOFFloatsMgr::getClearPosition (OOFAwareWidget *widget)
 {
    DBG_OBJ_ENTER ("resize.oofm", 0, "getClearPosition", "%p", widget);
 
-   int pos;
+   int pos = 0;
+   bool havePos = false;
 
    if (widget->getStyle()) {
       bool left = false, right = false;
@@ -1365,10 +1366,16 @@ int OOFFloatsMgr::getClearPosition (OOFAwareWidget *widget)
       default: assertNotReached ();
       }
 
-      pos = max (left ? getClearPosition (widget, LEFT) : 0,
-                 right ? getClearPosition (widget, RIGHT) : 0);
-   } else
-      pos = 0;
+      int sidePos;
+      if (left && getClearPosition (widget, LEFT, &sidePos)) {
+         pos = sidePos;
+         havePos = true;
+      }
+      if (right && getClearPosition (widget, RIGHT, &sidePos)) {
+         pos = havePos ? max (pos, sidePos) : sidePos;
+         havePos = true;
+      }
+   }
 
    DBG_OBJ_LEAVE_VAL ("%d", pos);
    return pos;
@@ -1389,33 +1396,33 @@ bool OOFFloatsMgr::mayAffectBordersAtAll ()
    return true;
 }
 
-int OOFFloatsMgr::getClearPosition (OOFAwareWidget *widget, Side side)
+bool OOFFloatsMgr::getClearPosition (OOFAwareWidget *widget, Side side,
+                                     int *pos)
 {
    DBG_OBJ_ENTER ("resize.oofm", 0, "getClearPosition", "%p, %s",
                   widget, side == LEFT ? "LEFT" : "RIGHT");
 
-   int pos;
    SortedFloatsVector *list = side == LEFT ? leftFloats : rightFloats;
 
    // Search the last float before (therefore -1) this widget.
    int i = list->findFloatIndex (widget, -1);
-   if (i < 0)
-      pos = 0;
-   else {
-      Float *vloat = list->get(i);
-      assert (vloat->generator != widget);
-      ensureFloatSize (vloat);
-      int yRel = widget->getGeneratorY (oofmIndex);
-      pos = max (vloat->yReal + vloat->size.ascent + vloat->size.descent - yRel,
-                 0);
-      DBG_OBJ_MSGF ("resize.oofm", 1, "pos = max (%d + %d + %d - %d, 0)",
-                    vloat->yReal, vloat->size.ascent, vloat->size.descent,
-                    yRel);
+   if (i < 0) {
+      *pos = 0;
+      DBG_OBJ_LEAVE ();
+      return false;
    }
-   
-   DBG_OBJ_LEAVE_VAL ("%d", pos);
 
-   return pos;
+   Float *vloat = list->get(i);
+   assert (vloat->generator != widget);
+   ensureFloatSize (vloat);
+   int yRel = widget->getGeneratorY (oofmIndex);
+   /* CSS 2.1 section 9.5.1 permits negative clearance. */
+   *pos = vloat->yReal + vloat->size.ascent + vloat->size.descent - yRel;
+   DBG_OBJ_MSGF ("resize.oofm", 1, "pos = %d + %d + %d - %d",
+                 vloat->yReal, vloat->size.ascent, vloat->size.descent, yRel);
+
+   DBG_OBJ_LEAVE_VAL ("%d", *pos);
+   return true;
 }
 
 void OOFFloatsMgr::ensureFloatSize (Float *vloat)

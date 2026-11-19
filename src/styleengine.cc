@@ -686,6 +686,7 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                attrs->marginLeftAuto = true;
             } else {
                computeValue (&attrs->margin.left, p->value.lenVal, attrs->font);
+               attrs->marginLeftAuto = false;
             }
             break;
          case CSS_PROPERTY_MARGIN_RIGHT:
@@ -694,6 +695,7 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                attrs->marginRightAuto = true;
             } else {
                computeValue (&attrs->margin.right, p->value.lenVal, attrs->font);
+               attrs->marginRightAuto = false;
             }
             break;
          case CSS_PROPERTY_MARGIN_TOP:

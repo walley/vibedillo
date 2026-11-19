@@ -418,8 +418,10 @@ void Textblock::sizeRequestImpl (core::Requisition *requisition, int numPos,
    DBG_OBJ_MSGF ("resize", 1, "before correction: %d * (%d + %d)",
                  requisition->width, requisition->ascent, requisition->descent);
 
+   /* A float's specified height and min/max-height constrain its border box;
+    * intrinsic content may overflow instead of forcing the box taller. */
    correctRequisition (requisition, core::splitHeightPreserveAscent, true,
-                       false);
+                       getStyle()->vloat != core::style::FLOAT_NONE);
 
    // Dealing with parts out of flow, which may overlap the borders of
    // the text block. Base lines are ignored here: they do not play a
@@ -464,10 +466,11 @@ int Textblock::calcVerticalBorder (int widgetPadding, int widgetBorder,
    int result;
    
    if (widgetPadding == 0 && widgetBorder == 0) {
-      if (lineMarginTotal - lineBorderTotal >= widgetMargin)
-         result = lineMarginTotal;
-      else
-         result = widgetMargin + lineBorderTotal;
+      int lineMargin = lineMarginTotal - lineBorderTotal;
+      /* CSS 2.1 section 8.3.1: combine the largest positive margins
+       * and the most negative margins when the signs differ. */
+      result = misc::max (widgetMargin, lineMargin, 0) +
+         misc::min (widgetMargin, lineMargin, 0) + lineBorderTotal;
    } else
       result = lineMarginTotal + widgetPadding + widgetBorder + widgetMargin;
 
@@ -783,14 +786,12 @@ void Textblock::calcExtraSpaceImpl (int numPos, Widget **references, int *x,
 
    OOFAwareWidget::calcExtraSpaceImpl (numPos, references, x, y);
 
-   int clearPosition = 0;
    for (int i = 0; i < NUM_OOFM; i++)
-      if (searchOutOfFlowMgr (i) && findSizeRequestReference (i, NULL, NULL))
-         clearPosition =
-            misc::max (clearPosition,
-                       searchOutOfFlowMgr(i)->getClearPosition (this));
-   
-   extraSpace.top = misc::max (extraSpace.top, clearPosition);
+      if (searchOutOfFlowMgr (i) &&
+          searchOutOfFlowMgr (i)->mayAffectBordersAtAll () &&
+          findSizeRequestReference (i, NULL, NULL))
+         /* Clearance may be negative (CSS 2.1 section 9.5.1). */
+         extraSpace.top = searchOutOfFlowMgr(i)->getClearPosition (this);
 
    DBG_OBJ_LEAVE ();
 }

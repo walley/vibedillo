@@ -747,9 +747,11 @@ protected:
    {
       /* When the allocation is smaller than the first line (e.g. a
        * block with height:0), the content overflows *below* the top
-       * edge, not above it (CSS overflow:visible). */
+       * edge, not above it (CSS overflow:visible). A negative top margin
+       * also moves the content together with the border edge. */
       int off = allocation->ascent - lines->getRef(0)->borderAscent;
-      return line->top + (off < 0 ? 0 : off);
+      return line->top + lout::misc::max (off, 0) +
+         lout::misc::min (0, getStyle()->margin.top);
    }
 
    inline int lineYOffsetWidget (Line *line)

@@ -127,6 +127,7 @@ void StyleAttrs::resetValues ()
    minWidth = maxWidth = minHeight = maxHeight = LENGTH_AUTO;
 
    margin.setVal (0);
+   marginLeftAuto = marginRightAuto = false;
    borderWidth.setVal (0);
    padding.setVal (0);
    setBorderColor (NULL);
@@ -197,6 +198,8 @@ bool StyleAttrs::equals (object::Object *other) {
        lineHeight == otherAttrs->lineHeight &&
        textIndent == otherAttrs->textIndent &&
        margin.equals (&otherAttrs->margin) &&
+       marginLeftAuto == otherAttrs->marginLeftAuto &&
+       marginRightAuto == otherAttrs->marginRightAuto &&
        borderWidth.equals (&otherAttrs->borderWidth) &&
        padding.equals (&otherAttrs->padding) &&
        borderCollapse == otherAttrs->borderCollapse &&

@@ -212,7 +212,7 @@ private:
    int getFloatHeight (Side side, int y, int h, OOFAwareWidget *lastGB,
                        int lastExtIndex);
 
-   int getClearPosition (OOFAwareWidget *widget, Side side);
+   bool getClearPosition (OOFAwareWidget *widget, Side side, int *pos);
 
    void ensureFloatSize (Float *vloat);
 

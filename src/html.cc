@@ -2677,9 +2677,8 @@ static void Html_tag_content_object(DilloHtml *html, const char *tag,
       /* The image is the object's content; skip the nested fallback
        * content (nested <object>/text), as in real fallback handling. */
       S_TOP(html)->display_none = true;
-   } else if (a_Html_get_attr(html, tag, tagsize, "data")) {
-      HT2TB(html)->addText("[OBJECT]", html->wordStyle ());
    }
+   /* Non-image objects render their nested fallback content normally. */
 }
 
 /*
