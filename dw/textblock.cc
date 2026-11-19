@@ -702,19 +702,25 @@ void Textblock::sizeAllocateImpl (core::Allocation *allocation)
             /* Apply relative positioning offset for inline elements. */
             if (wstyle->position == core::style::POSITION_RELATIVE) {
                int relX = 0, relY = 0;
+               /* Get containing block dimensions from generator (Textblock). */
+               Widget *gen = word->content.widget->getGenerator ();
+               Textblock *tbGen = gen ? gen->instanceOf (Textblock::CLASS_ID)
+                                      ? (Textblock*)gen : NULL : NULL;
+               int cbWidth = tbGen ? tbGen->getGeneratorWidth () : 0;
+               int cbHeight = tbGen ? tbGen->getGeneratorHeight () : 0;
                if (wstyle->left != core::style::LENGTH_AUTO ||
                    wstyle->right != core::style::LENGTH_AUTO) {
                   if (wstyle->left != core::style::LENGTH_AUTO)
-                     relX = core::style::absLengthVal (wstyle->left);
+                     relX = resolveRelativeLength (wstyle->left, cbWidth, cbHeight, true);
                   else
-                     relX = -core::style::absLengthVal (wstyle->right);
+                     relX = -resolveRelativeLength (wstyle->right, cbWidth, cbHeight, true);
                }
                if (wstyle->top != core::style::LENGTH_AUTO ||
                    wstyle->bottom != core::style::LENGTH_AUTO) {
                   if (wstyle->top != core::style::LENGTH_AUTO)
-                     relY = core::style::absLengthVal (wstyle->top);
+                     relY = resolveRelativeLength (wstyle->top, cbWidth, cbHeight, false);
                   else
-                     relY = -core::style::absLengthVal (wstyle->bottom);
+                     relY = -resolveRelativeLength (wstyle->bottom, cbWidth, cbHeight, false);
                }
                childAllocation.x += relX;
                childAllocation.y += relY;
@@ -1629,21 +1635,23 @@ void Textblock::drawLine (Line *line, core::View *view, core::Rectangle *area,
                    int drawX = xWidget;
                    int drawY = yWidgetBase;
                    if (word->style->position == core::style::POSITION_RELATIVE) {
+                      int cbWidth = getGeneratorWidth ();
+                      int cbHeight = getGeneratorHeight ();
                       if (word->style->left != core::style::LENGTH_AUTO ||
                           word->style->right != core::style::LENGTH_AUTO) {
                          if (word->style->left != core::style::LENGTH_AUTO)
-                            drawX += core::style::absLengthVal (word->style->left);
+                            drawX += resolveRelativeLength (word->style->left, cbWidth, cbHeight, true);
                          else
-                            drawX -= core::style::absLengthVal (word->style->right);
-                      }
-                      if (word->style->top != core::style::LENGTH_AUTO ||
-                          word->style->bottom != core::style::LENGTH_AUTO) {
+                            drawX -= resolveRelativeLength (word->style->right, cbWidth, cbHeight, true);
+                       }
+                       if (word->style->top != core::style::LENGTH_AUTO ||
+                           word->style->bottom != core::style::LENGTH_AUTO) {
                          if (word->style->top != core::style::LENGTH_AUTO)
-                            drawY += core::style::absLengthVal (word->style->top);
+                            drawY += resolveRelativeLength (word->style->top, cbWidth, cbHeight, false);
                          else
-                            drawY -= core::style::absLengthVal (word->style->bottom);
-                      }
-                   }
+                            drawY -= resolveRelativeLength (word->style->bottom, cbWidth, cbHeight, false);
+                       }
+                    }
                    drawWord(line, wordIndex, wordIndex2, view, area,
                             drawX, drawY);
                    wordSize = 0;
@@ -3550,6 +3558,30 @@ void Textblock::oofSizeChanged (bool extremesChanged)
       containerSizeChanged ();
 
    DBG_OBJ_LEAVE ();
+}
+
+/* Resolve a CSS length (which may be a percentage) to absolute pixels
+ * for relative positioning. The percentage base is the containing block's
+ * width (for horizontal) or height (for vertical). */
+int Textblock::resolveRelativeLength (core::style::Length length,
+                                      int containingBlockWidth,
+                                      int containingBlockHeight,
+                                      bool isHorizontal)
+{
+    if (core::style::isPerLength (length)) {
+       double percent = core::style::perLengthVal_useThisOnlyForDebugging (length);
+       int base = isHorizontal ? containingBlockWidth : containingBlockHeight;
+       return (int) round (percent * base / 100.0);
+    }
+    return core::style::absLengthVal (length);
+}
+
+int Textblock::getGeneratorHeight ()
+{
+   DBG_OBJ_ENTER0 ("resize", 0, "Textblock::getGeneratorHeight");
+   int h = allocation.ascent + allocation.descent;
+   DBG_OBJ_LEAVE_VAL ("%d", h);
+   return h;
 }
 
 int Textblock::getGeneratorX (int oofmIndex)

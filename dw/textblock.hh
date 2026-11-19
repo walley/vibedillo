@@ -965,6 +965,11 @@ public:
    int getGeneratorX (int oofmIndex);
    int getGeneratorY (int oofmIndex);
    int getGeneratorWidth ();
+   int getGeneratorHeight ();
+   int resolveRelativeLength (core::style::Length length,
+                              int containingBlockWidth,
+                              int containingBlockHeight,
+                              bool isHorizontal);
    int getMaxGeneratorWidth ();
    bool usesMaxGeneratorWidth ();
    bool isPossibleOOFContainer (int oofmIndex);
