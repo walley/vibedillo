@@ -9,8 +9,17 @@ extern "C" {
 
 void a_Bookmarks_add(BrowserWindow *bw, const DilloUrl *url);
 
-/* TODO: this is for testing purposes */
-void a_Bookmarks_chat_add(BrowserWindow *Bw, char *Cmd, char *answer);
+/* In-process bookmarks store API */
+void a_Bookmarks_init(void);
+void a_Bookmarks_free(void);
+char *a_Bookmarks_get_page(void);
+char *a_Bookmarks_get_modify_page(void);
+char *a_Bookmarks_get_add_section_page(void);
+char *a_Bookmarks_get_add_url_page(void);
+char *a_Bookmarks_get_update_page(const char *query_string);
+int a_Bookmarks_process_modify(const char *query_string);
+int a_Bookmarks_check_modify(const char *query_string);
+const char *a_Bookmarks_get_file_path(void);
 
 #ifdef __cplusplus
 }
