@@ -67,6 +67,7 @@ typedef struct {
    bool_t show_ui_tooltip;
    char *theme;
    char *color_scheme;  /* "light", "dark", "auto" */
+   int detected_desktop_theme;  /* 1 = light, 2 = dark, 0 = not detected yet */
    int panel_size;
    bool_t small_icons;
    bool_t limit_text_width;

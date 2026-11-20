@@ -127,6 +127,7 @@ void a_Prefs_init(void)
    prefs.new_tab_page = a_Url_new(PREFS_NEW_TAB_PAGE, NULL);
    prefs.theme = dStrdup(PREFS_THEME);
    prefs.color_scheme = dStrdup(PREFS_COLOR_SCHEME);
+   prefs.detected_desktop_theme = 0;
    prefs.ui_button_highlight_color = -1;
    prefs.ui_fg_color = -1;
    prefs.ui_main_bg_color = -1;

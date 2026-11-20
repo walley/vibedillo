@@ -68,6 +68,44 @@
 #include "dw/widget.hh"
 #include "dw/textblock.hh"
 #include "dw/table.hh"
+#include "dlib/dlib.h"  /* dIsspace */
+
+/**
+ * Query the desktop portal for the system color scheme preference.
+ * Returns: 1 = light, 2 = dark, 0 = no preference / error.
+ * Uses dbus-send to call org.freedesktop.portal.Settings.Read.
+ */
+static int queryDesktopPortalColorScheme() {
+    FILE *fp = popen(
+        "dbus-send --session --print-reply=literal "
+        "--dest=org.freedesktop.portal.Desktop "
+        "/org/freedesktop/portal/desktop "
+        "org.freedesktop.portal.Settings.Read "
+        "string:org.freedesktop.appearance string:color-scheme 2>/dev/null",
+        "r");
+    if (!fp) {
+        return 0;
+    }
+
+    char buf[256];
+    int result = 0;
+    while (fgets(buf, sizeof(buf), fp)) {
+        // Output format: "uint32 1" or "uint32 2" or "uint32 0"
+        // Parse the number at the end
+        char *p = strstr(buf, "uint32");
+        if (p) {
+            p += 6;  // skip "uint32"
+            while (*p && dIsspace(*p)) p++;
+            int val = atoi(p);
+            if (val == 1 || val == 2)
+                result = val;
+            break;
+        }
+    }
+    pclose(fp);
+
+    return result;
+}
 
 static volatile sig_atomic_t sig_reload = 0;
 static volatile sig_atomic_t sig_exit = 0;
@@ -494,6 +532,21 @@ int main(int argc, char **argv)
       fclose(fp);
    }
    dLib_show_messages(prefs.show_msg);
+
+   /* Query desktop portal for color scheme preference when set to "auto" */
+   if (prefs.color_scheme && dStrAsciiCasecmp(prefs.color_scheme, "auto") == 0) {
+       printf("Vibedillo: Querying desktop portal...\n");
+       fflush(stdout);
+       prefs.detected_desktop_theme = queryDesktopPortalColorScheme();
+       const char *scheme_str = (prefs.detected_desktop_theme == 1) ? "light" :
+                                (prefs.detected_desktop_theme == 2) ? "dark" :
+                                "no preference (defaulting to light)";
+       printf("Vibedillo: Desktop theme detected via portal: %s\n", scheme_str);
+       fflush(stdout);
+   } else {
+       printf("Vibedillo: Not querying portal (color_scheme = '%s')\n", prefs.color_scheme ? prefs.color_scheme : "NULL");
+       fflush(stdout);
+   }
 
    // initialize internal modules
    a_Dpi_init();

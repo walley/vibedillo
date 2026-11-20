@@ -971,6 +971,7 @@ bool CssParser::parseColorArg(int32_t *c) {
 /**
  * Compute the effective color scheme: 1 = light, 2 = dark.
  * Priority: explicit user config (prefs.color_scheme = dark/light) >
+ * desktop portal (when "auto", cached at startup in prefs.detected_desktop_theme) >
  * first scheme listed in the page's <meta name="color-scheme"> >
  * default (light). Shared by prefers-color-scheme media queries and
  * the light-dark() function.
@@ -985,6 +986,11 @@ int CssParser::effectiveColorScheme(DilloHtml *html) {
       return 2;
    if (dStrAsciiCasecmp(user_scheme, "light") == 0)
       return 1;
+
+   /* "auto": use cached desktop portal preference from startup */
+   int portal_cs = prefs.detected_desktop_theme;
+   if (portal_cs == 1 || portal_cs == 2)
+      return portal_cs;
 
    /* "auto": the first scheme in the meta tag is preferred
     * (cs bits: 1=light, 2=dark). */
