@@ -804,8 +804,8 @@ bool CssParser::tokenMatchesProperty(CssPropertyName prop, CssValueType *type)
       case CSS_TYPE_LENGTH_PERCENTAGE:
       case CSS_TYPE_LENGTH_PERCENTAGE_NUMBER:
       case CSS_TYPE_LENGTH:
-         if (tval[0] == '-')
-            return false;
+         /* Negative values are valid for relative positioning offsets
+          * (left/right/top/bottom). The style engine validates per-property. */
          // Fall Through
       case CSS_TYPE_SIGNED_LENGTH:
          if (ttype == CSS_TK_DECINT || ttype == CSS_TK_FLOAT)
