@@ -706,8 +706,8 @@ void Textblock::sizeAllocateImpl (core::Allocation *allocation)
                Widget *gen = word->content.widget->getGenerator ();
                Textblock *tbGen = gen ? gen->instanceOf (Textblock::CLASS_ID)
                                       ? (Textblock*)gen : NULL : NULL;
-               int cbWidth = tbGen ? tbGen->getGeneratorWidth () : 0;
-               int cbHeight = tbGen ? tbGen->getGeneratorHeight () : 0;
+               int cbWidth = tbGen ? tbGen->getContainingBlockWidth () : 0;
+               int cbHeight = tbGen ? tbGen->getContainingBlockHeight () : 0;
                if (wstyle->left != core::style::LENGTH_AUTO ||
                    wstyle->right != core::style::LENGTH_AUTO) {
                   if (wstyle->left != core::style::LENGTH_AUTO)
@@ -1635,8 +1635,8 @@ void Textblock::drawLine (Line *line, core::View *view, core::Rectangle *area,
                    int drawX = xWidget;
                    int drawY = yWidgetBase;
                    if (word->style->position == core::style::POSITION_RELATIVE) {
-                      int cbWidth = getGeneratorWidth ();
-                      int cbHeight = getGeneratorHeight ();
+                      int cbWidth = getContainingBlockWidth ();
+                      int cbHeight = getContainingBlockHeight ();
                       if (word->style->left != core::style::LENGTH_AUTO ||
                           word->style->right != core::style::LENGTH_AUTO) {
                          if (word->style->left != core::style::LENGTH_AUTO)
@@ -3562,16 +3562,15 @@ void Textblock::oofSizeChanged (bool extremesChanged)
 
 /* Resolve a CSS length (which may be a percentage) to absolute pixels
  * for relative positioning. The percentage base is the containing block's
- * width (for horizontal) or height (for vertical). */
+ * content width (for horizontal) or content height (for vertical). */
 int Textblock::resolveRelativeLength (core::style::Length length,
                                       int containingBlockWidth,
                                       int containingBlockHeight,
                                       bool isHorizontal)
 {
     if (core::style::isPerLength (length)) {
-       double percent = core::style::perLengthVal_useThisOnlyForDebugging (length);
        int base = isHorizontal ? containingBlockWidth : containingBlockHeight;
-       return (int) round (percent * base / 100.0);
+       return core::style::multiplyWithPerLengthRounded (base, length);
     }
     return core::style::absLengthVal (length);
 }
@@ -3582,6 +3581,31 @@ int Textblock::getGeneratorHeight ()
    int h = allocation.ascent + allocation.descent;
    DBG_OBJ_LEAVE_VAL ("%d", h);
    return h;
+}
+
+int Textblock::getContainingBlockWidth ()
+{
+   /* Return the content width of this Textblock (the containing block's
+    * content width for percentage resolution). */
+   int w = getStyle()->width;
+   if (core::style::isAbsLength (w)) {
+      return core::style::absLengthVal (w);
+   }
+   core::Requisition *req = getRequisitionWithoutOOF ();
+   int w2 = req->width - boxDiffWidth ();
+   return w2 > 0 ? w2 : 0;
+}
+
+int Textblock::getContainingBlockHeight ()
+{
+   /* Return the content height of this Textblock. */
+   int h = getStyle()->height;
+   if (core::style::isAbsLength (h)) {
+      return core::style::absLengthVal (h);
+   }
+   core::Requisition *req = getRequisitionWithoutOOF ();
+   int h2 = req->ascent + req->descent - boxDiffHeight ();
+   return h2 > 0 ? h2 : 0;
 }
 
 int Textblock::getGeneratorX (int oofmIndex)

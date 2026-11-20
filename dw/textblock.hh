@@ -966,6 +966,8 @@ public:
    int getGeneratorY (int oofmIndex);
    int getGeneratorWidth ();
    int getGeneratorHeight ();
+   int getContainingBlockWidth ();
+   int getContainingBlockHeight ();
    int resolveRelativeLength (core::style::Length length,
                               int containingBlockWidth,
                               int containingBlockHeight,

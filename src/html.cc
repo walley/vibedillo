@@ -2421,11 +2421,6 @@ static void Html_tag_content_img(DilloHtml *html, const char *tag, int tagsize)
    if (!Image)
       return;
 
-   fprintf (stderr, "IMG STYLE pos=%d left=%d right=%d top=%d bottom=%d\n",
-             html->style ()->position, html->style ()->left,
-             html->style ()->right, html->style ()->top,
-             html->style ()->bottom);
-
    usemap_url = NULL;
    if ((attrbuf = a_Html_get_attr(html, tag, tagsize, "usemap")))
       /* TODO: usemap URLs outside of the document are not used. */
