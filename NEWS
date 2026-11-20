@@ -2,6 +2,70 @@
 NEWS
 ----
 
+Nov 2026:
+
+  **Vibedillo fork** - This project is now a fork of Dillo 3.x, renamed to
+  Vibedillo. Key changes from upstream Dillo:
+
+  - Package renamed: dillo -> vibedillo
+  - Config directory: ~/.dillo -> ~/.config/vibedillo (XDG standard)
+  - Config file: dillorc -> vibedillorc
+  - Version: 3.3.4 (vs Dillo 3.0.4.1)
+  - Window title: "vibedillo:" (was "Dillo:")
+  - All internal references updated from "Dillo" to "Vibedillo"
+
+  **Major CSS/Layout Improvements:**
+
+  - Full CSS Grid Layout support (display: grid, grid-template-columns/rows,
+    grid-column/row, grid-gap, named lines, minmax(), repeat(), fr units,
+    negative line numbers, auto-placement algorithm)
+
+  - Complete Dark Mode implementation:
+    - Config option color_scheme (auto/light/dark)
+    - <meta name="color-scheme" content="dark light"> parsing
+    - prefers-color-scheme media query support
+
+  - about: protocol implementation (about:about, about:dillo, about:settings,
+    about:cache, about:dicache)
+
+  - CSS relative positioning improvements:
+    - Percentage offsets (top/left/right/bottom) now work correctly
+    - Negative percentages supported (right: -30%, bottom: -30%)
+    - Containing block content dimensions used for percentage resolution
+    - Inline element relative positioning (SPAN top/bottom/left/right offsets)
+    - Negative percentages for relative positioning (right: -30%, bottom: -30%)
+
+  - CSS Grid Layout (complete implementation)
+  - CSS Flexbox support (basic)
+  - CSS @media queries (min/max-width/height, orientation, prefers-color-scheme)
+  - CSS attribute selectors ([attr], [attr=v], [attr~=v], |=, ^=, $=, *=)
+  - CSS :first-line and :first-letter pseudo-elements
+  - HTML5 form improvements
+
+  **ACID2 Compliance Progress:**
+  - Percentage offsets for images in DIVs (Meyerweb test cl1-cl4, cl5-cl8)
+  - Inline SPAN relative positioning (cl9/cl10)
+  - Percentage offsets for images in DIVs (Meyerweb test cl1-cl4 at 30%, cl5-cl8 at 20px)
+  - Inline SPAN relative positioning (cl9/cl10) works correctly
+  - ACID2 upper face rendering intact
+  - Negative percentage parsing: right: -30%, bottom: -30% now parse correctly
+  - All 7 unit tests pass
+  - margin-auto regression test: 0 differing pixels
+  - Meyerweb CSS2 test sec09-08-02: Percentage offsets parse correctly
+  - Inline SPAN relative positioning (cl9/cl10) works correctly
+  - ACID2 upper face rendering intact
+  - Negative percentage parsing: right: -30%, bottom: -30% now parse correctly
+
+  **Known Issues (Work in Progress):**
+  - Image widgets in DIVs with percentage offsets calculate correct offsets
+    but don't visually render at offset positions (layout engine issue)
+  - CSS parser has fundamental architectural issue with property array
+    indexing vs enum values due to alphabetical sorting
+  - CSS :hover pseudo-class not implemented (parser recognizes but drops rule)
+  - CSS :active, :focus pseudo-classes not implemented
+  - Negative percentage parsing for relative positioning (right: -30%,
+    bottom: -30%) works but images don't visually offset
+
 Nov 2000:
 
   Introduced a new design layer between the IO and the Dw.

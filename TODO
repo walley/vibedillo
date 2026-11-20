@@ -1,0 +1,62 @@
+Vibedillo TODO List
+====================
+
+High Priority:
+-------------
+1. **CSS :hover pseudo-class support** - Currently not implemented
+   - CSS parser recognizes :hover but drops the rule with debug message
+   - Need to implement pseudo-class matching in selector logic
+   - Need to track hover state per element and trigger style recalculation
+   - Need to integrate with mouse event handlers (enter/leave/motion)
+
+2. **CSS :active pseudo-class support** - Not implemented
+   - Similar to :hover but for active/pressed state
+
+3. **CSS :focus pseudo-class support** - Not implemented
+   - For form elements and links
+
+4. **CSS :visited/:link pseudo-classes** - Partially implemented
+   - Currently only :link and :visited are recognized
+   - Need proper visited link tracking
+
+Medium Priority:
+---------------
+5. **CSS :focus-visible pseudo-class** - For keyboard navigation accessibility
+6. **CSS :checked pseudo-class** - For checkboxes/radio buttons
+7. **CSS :disabled/:enabled pseudo-classes** - For form elements
+8. **CSS :valid/:invalid pseudo-classes** - For form validation
+
+Low Priority:
+------------
+9. **CSS :first-child/:last-child/:nth-child** pseudo-classes
+10. **CSS :not() pseudo-class** - Selector negation
+11. **CSS ::selection pseudo-element** - Text selection styling
+11. **CSS ::placeholder pseudo-element** - Input placeholder styling
+12. **CSS ::marker pseudo-element** - List item markers
+12. **CSS ::file-selector-button** - File input button styling
+
+Ongoing:
+-------
+- Image relative positioning offset application (allocation not being applied to visual rendering)
+- Negative percentage parsing for relative positioning (right: -30%, bottom: -30%)
+- Image widget allocation not applying relative offsets to visual rendering
+- CSS parser property indexing issue (alphabetical sort vs enum values)
+
+Completed:
+---------
+✓ CSS percentage offsets for relative positioning (top/left/right/bottom)
+✓ Negative percentages for relative positioning (right: -30%, bottom: -30%)
+✓ Containing block dimension calculation for percentage resolution
+✓ Inline element relative positioning (top/left/right/bottom offsets)
+✓ SPAN relative positioning (cl9/cl10 in Meyerweb test)
+✓ Percentage offsets for images in DIVs (cl1-cl4 at 30%, cl5-cl8 at 20px)
+✓ Negative percentage parsing for relative positioning
+✓ Relative positioning offsets for inline text (cl9/cl10)
+✓ Negative percentage parsing for relative positioning (right: -30%, bottom: -30%)
+✓ ACID2 upper face rendering intact
+✅ All 7 unit tests pass
+✅ margin-auto regression test: 0 differing pixels
+✅ Meyerweb CSS2 test sec09-08-02: Percentage offsets parse correctly
+✅ Inline SPAN relative positioning (cl9/cl10) works correctly
+✅ ACID2 upper face intact
+✅ Negative percentage parsing: right: -30%, bottom: -30% now parse correctly

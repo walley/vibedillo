@@ -1707,6 +1707,10 @@ bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
                // By returning false, the whole CssRule will be dropped.
                // \todo adapt this when supporting :hover, :active...
                return false;
+            if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "hover") == 0) {
+               fprintf(stderr, "CSS PARSER: :hover pseudo-class encountered (not yet supported)\n");
+               fflush(stderr);
+            }
             break;
          case '[':
             // Attribute selector: [attr], [attr=v], [attr~=v], [attr|=v],
