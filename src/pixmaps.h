@@ -1578,6 +1578,53 @@ static const char *const mini_ok_xpm[] = {
 "            @  "
 };
 
+/* XPM - Sun icon (light mode) */
+static const char *const mini_sun_xpm[] = {
+"16 16 3 1",
+"       c None",
+".      c #FFD700",
+"+      c #FFA500",
+"                ",
+"       .        ",
+"      ...       ",
+"     .+...+     ",
+"    . . . .     ",
+"   .  .+.  .    ",
+"  .   ...   .   ",
+"     . . .      ",
+"    .     .     ",
+"   .  . .  .    ",
+"  .   ...   .   ",
+"    . . . .     ",
+"     .+...+     ",
+"      ...       ",
+"       .        ",
+"                "};
+
+/* XPM - Moon icon (dark mode) */
+static const char *const mini_moon_xpm[] = {
+"16 16 3 1",
+"       c None",
+".      c #FFFFFF",
+"+      c #CCCCCC",
+"                ",
+"       .        ",
+"      ..        ",
+"     ...        ",
+"    ....        ",
+"   .....        ",
+"  . . . .       ",
+" . + + + .      ",
+" . + + + .      ",
+" . + + + .      ",
+"  . . . .       ",
+"   .....        ",
+"    ....        ",
+"     ...        ",
+"      ..        ",
+"       .        ",
+"                "};
+
 #if 0
 
 /* XPM */

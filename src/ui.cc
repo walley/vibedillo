@@ -47,7 +47,8 @@ struct iconset {
    Fl_Image *ImgMeterOK, *ImgMeterBug,
             *ImgHome, *ImgReload, *ImgSave, *ImgBook, *ImgTools,
             *ImgClear,*ImgSearch, *ImgHelp, *ImgLeft, *ImgLeftIn,
-            *ImgRight, *ImgRightIn, *ImgStop, *ImgStopIn;
+            *ImgRight, *ImgRightIn, *ImgStop, *ImgStopIn,
+            *ImgSun, *ImgMoon;
 };
 
 static struct iconset standard_icons = {
@@ -67,6 +68,8 @@ static struct iconset standard_icons = {
    NULL,
    new Fl_Pixmap(stop_xpm),
    NULL,
+   new Fl_Pixmap(mini_sun_xpm),
+   new Fl_Pixmap(mini_moon_xpm),
 };
 
 static struct iconset small_icons = {
@@ -86,6 +89,8 @@ static struct iconset small_icons = {
    NULL,
    new Fl_Pixmap(stop_s_xpm),
    NULL,
+   standard_icons.ImgSun,
+   standard_icons.ImgMoon,
 };
 
 
@@ -686,12 +691,20 @@ void UI::make_status_bar(int ww, int wh)
    StatusBar->box(FL_NO_BOX);
 
     // Status box
-    StatusOutput = new Fl_Output(0, wh-sh, ww-bm_w, sh);
+    StatusOutput = new Fl_Output(0, wh-sh, ww-bm_w*2, sh);
     StatusOutput->value("https://walley.org/");
     StatusOutput->labelsize(8);
     StatusOutput->box(FL_THIN_DOWN_BOX);
     StatusOutput->clear_visible_focus();
     StatusOutput->color(FL_BACKGROUND_COLOR);
+
+    // Theme indicator (sun/moon)
+    ThemeButton = new CustButton(ww-bm_w*2,wh-sh,bm_w,sh);
+    ThemeButton->image(prefs.effective_color_scheme == 1 ? icons->ImgSun : icons->ImgMoon);
+    ThemeButton->box(FL_THIN_DOWN_BOX);
+    ThemeButton->align(FL_ALIGN_INSIDE | FL_ALIGN_TEXT_NEXT_TO_IMAGE);
+    ThemeButton->set_tooltip(prefs.effective_color_scheme == 1 ? "Color scheme: light" : "Color scheme: dark");
+    ThemeButton->clear_visible_focus();
 
     // Bug Meter
     BugMeter = new CustButton(ww-bm_w,wh-sh,bm_w,sh);
