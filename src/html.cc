@@ -1949,21 +1949,18 @@ bgColor = html->styleEngine->backgroundColor ();
 
    /* If no explicit background color is set, check if page prefers dark mode */
    int page_color_scheme = S_TOP(html)->color_scheme;
-   int user_cs = 0;
-   int effective_cs = 0;
-   if (prefs.color_scheme) {
-      if (dStrAsciiCasecmp(prefs.color_scheme, "dark") == 0)
-         user_cs = 2;
-      else if (dStrAsciiCasecmp(prefs.color_scheme, "light") == 0)
-         user_cs = 1;
-   }
-   if (user_cs != 0) {
-      effective_cs = user_cs;
-   } else if (S_TOP(html)->color_scheme != 0) {
-      if (S_TOP(html)->color_scheme & 2)  /* dark is preferred */
-         effective_cs = 2;
-      else if (S_TOP(html)->color_scheme & 1)
-         effective_cs = 1;
+   int effective_cs = prefs.effective_color_scheme;
+
+   /* Fallback to meta tag if not resolved (shouldn't happen, but safe) */
+   if (effective_cs == 0) {
+      if (S_TOP(html)->color_scheme != 0) {
+         if (S_TOP(html)->color_scheme & 2)  /* dark is preferred */
+            effective_cs = 2;
+         else if (S_TOP(html)->color_scheme & 1)
+            effective_cs = 1;
+      } else {
+         effective_cs = 2;  /* default to dark */
+      }
    }
    if (effective_cs == 2) {
       /* Dark mode preferred - use black background */

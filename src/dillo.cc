@@ -533,18 +533,31 @@ int main(int argc, char **argv)
    }
    dLib_show_messages(prefs.show_msg);
 
-   /* Query desktop portal for color scheme preference when set to "auto" */
-   if (prefs.color_scheme && dStrAsciiCasecmp(prefs.color_scheme, "auto") == 0) {
-       printf("Vibedillo: Querying desktop portal...\n");
-       fflush(stdout);
-       prefs.detected_desktop_theme = queryDesktopPortalColorScheme();
-       const char *scheme_str = (prefs.detected_desktop_theme == 1) ? "light" :
-                                (prefs.detected_desktop_theme == 2) ? "dark" :
-                                "no preference (defaulting to light)";
-       printf("Vibedillo: Desktop theme detected via portal: %s\n", scheme_str);
-       fflush(stdout);
+   /* Resolve effective color scheme: user config > desktop portal (if auto) > default (dark) */
+   if (prefs.color_scheme) {
+       if (dStrAsciiCasecmp(prefs.color_scheme, "dark") == 0) {
+           prefs.effective_color_scheme = 2;
+           printf("Vibedillo: Color scheme: dark (user config)\n");
+       } else if (dStrAsciiCasecmp(prefs.color_scheme, "light") == 0) {
+           prefs.effective_color_scheme = 1;
+           printf("Vibedillo: Color scheme: light (user config)\n");
+       } else if (dStrAsciiCasecmp(prefs.color_scheme, "auto") == 0) {
+           printf("Vibedillo: Querying desktop portal...\n");
+           fflush(stdout);
+           prefs.detected_desktop_theme = queryDesktopPortalColorScheme();
+           if (prefs.detected_desktop_theme == 1 || prefs.detected_desktop_theme == 2) {
+               prefs.effective_color_scheme = prefs.detected_desktop_theme;
+               const char *scheme_str = (prefs.detected_desktop_theme == 1) ? "light" : "dark";
+               printf("Vibedillo: Desktop theme detected via portal: %s\n", scheme_str);
+           } else {
+               prefs.effective_color_scheme = 2;  /* default to dark */
+               printf("Vibedillo: No portal preference, defaulting to dark\n");
+           }
+           fflush(stdout);
+       }
    } else {
-       printf("Vibedillo: Not querying portal (color_scheme = '%s')\n", prefs.color_scheme ? prefs.color_scheme : "NULL");
+       prefs.effective_color_scheme = 2;  /* default to dark */
+       printf("Vibedillo: Color scheme: dark (default)\n");
        fflush(stdout);
    }
 

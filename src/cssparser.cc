@@ -972,8 +972,9 @@ bool CssParser::parseColorArg(int32_t *c) {
  * Compute the effective color scheme: 1 = light, 2 = dark.
  * Priority: explicit user config (prefs.color_scheme = dark/light) >
  * desktop portal (when "auto", cached at startup in prefs.detected_desktop_theme) >
+ * Priority: user config (dark/light/auto resolved at startup) >
  * first scheme listed in the page's <meta name="color-scheme"> >
- * default (light). Shared by prefers-color-scheme media queries and
+ * default (dark). Shared by prefers-color-scheme media queries and
  * the light-dark() function.
  */
 int CssParser::effectiveColorScheme(DilloHtml *html) {
@@ -981,22 +982,15 @@ int CssParser::effectiveColorScheme(DilloHtml *html) {
    if (html && html->stack && html->stack->size() > 0)
       cs = html->stack->getRef(html->stack->size() - 1)->color_scheme;
 
-   const char *user_scheme = prefs.color_scheme ? prefs.color_scheme : "auto";
-   if (dStrAsciiCasecmp(user_scheme, "dark") == 0)
-      return 2;
-   if (dStrAsciiCasecmp(user_scheme, "light") == 0)
-      return 1;
+   /* Use pre-resolved effective color scheme from settings */
+   int effective = prefs.effective_color_scheme;
+   if (effective == 1 || effective == 2)
+      return effective;
 
-   /* "auto": use cached desktop portal preference from startup */
-   int portal_cs = prefs.detected_desktop_theme;
-   if (portal_cs == 1 || portal_cs == 2)
-      return portal_cs;
-
-   /* "auto": the first scheme in the meta tag is preferred
-    * (cs bits: 1=light, 2=dark). */
+   /* Fallback: meta tag preference */
    if (cs & 2)
       return 2;
-   return 1;
+   return 2;
 }
 
 bool CssParser::parseValue(CssPropertyName prop,
