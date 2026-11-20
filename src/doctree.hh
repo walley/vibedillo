@@ -66,6 +66,22 @@ class Doctree {
          DoctreeNode *dn = new DoctreeNode ();
          dn->parent = topNode;
          dn->sibling = dn->parent->lastChild;
+         
+         // Handle :first-child pseudo-class
+         DoctreeNode *oldLastChild = dn->parent->lastChild;
+         if (oldLastChild == NULL) {
+            // This is the first child
+            dn->pseudo = "first-child";
+         } else {
+            // There was already a first child - find and unmark it
+            // The first child is the one at the end of the sibling chain (sibling == NULL)
+            DoctreeNode *firstChild = oldLastChild;
+            while (firstChild->sibling != NULL) {
+               firstChild = firstChild->sibling;
+            }
+            firstChild->pseudo = NULL;
+         }
+         
          dn->parent->lastChild = dn;
          dn->num = num++;
          topNode = dn;

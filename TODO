@@ -28,7 +28,7 @@ Medium Priority:
 
 Low Priority:
 ------------
-9. **CSS :first-child/:last-child/:nth-child** pseudo-classes
+9. **CSS :last-child/:nth-child** pseudo-classes (first-child IMPLEMENTED)
 10. **CSS :not() pseudo-class** - Selector negation
 11. **CSS ::selection pseudo-element** - Text selection styling
 11. **CSS ::placeholder pseudo-element** - Input placeholder styling
@@ -44,6 +44,7 @@ Ongoing:
 
 Completed:
 ---------
+✓ CSS :first-child pseudo-class support
 ✓ CSS percentage offsets for relative positioning (top/left/right/bottom)
 ✓ Negative percentages for relative positioning (right: -30%, bottom: -30%)
 ✓ Containing block dimension calculation for percentage resolution

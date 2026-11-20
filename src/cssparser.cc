@@ -1710,6 +1710,9 @@ bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
             if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "hover") == 0) {
                fprintf(stderr, "CSS PARSER: :hover pseudo-class encountered (not yet supported)\n");
                fflush(stderr);
+            } else if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "first-child") == 0) {
+               fprintf(stderr, "CSS PARSER: :first-child pseudo-class encountered (not yet fully supported)\n");
+               fflush(stderr);
             }
             break;
          case '[':
