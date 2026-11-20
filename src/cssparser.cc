@@ -36,8 +36,9 @@ using namespace dw::core::style;
 
 #define DEBUG_LEVEL 10
 
-/* The last three ones are never parsed. */
-#define CSS_NUM_INTERNAL_PROPERTIES 3
+/* The last four ones are never parsed (X_TOOLTIP, X_IMG, CUSTOM, and the
+ * terminator). */
+#define CSS_NUM_INTERNAL_PROPERTIES 4
 #define CSS_NUM_PARSED_PROPERTIES \
    (CSS_PROPERTY_LAST - CSS_NUM_INTERNAL_PROPERTIES)
 
@@ -567,11 +568,35 @@ void CssParser::nextToken()
       }
    }
 
-   // handle negative numbers
+   // handle negative numbers and CSS custom properties (--name)
    if (c == '-') {
       if (i < maxStrLen - 1)
          tval[i++] = c;
       c = getChar();
+      /* CSS custom property: --name starts with two dashes followed by
+       * a letter or underscore. Keep both dashes in the symbol. */
+      if (c == '-' && i < maxStrLen - 1) {
+         tval[i++] = c;
+         c = getChar();
+         if (dIsalpha(c) || c == '_') {
+            /* It's a custom property name like --bg */
+            ttype = CSS_TK_SYMBOL;
+            tval[i] = 0;
+            /* Read the rest of the identifier */
+            while (dIsalnum(c) || c == '_' || c == '-') {
+               if (i < maxStrLen - 1)
+                  tval[i++] = c;
+               c = getChar();
+            }
+            ungetChar();
+            tval[i] = 0;
+            return;
+         }
+         /* Not a custom property, unget the second dash */
+         ungetChar();
+         i--;
+         c = '-';
+      }
    }
 
    if (dIsdigit(c)) {
@@ -1416,6 +1441,69 @@ void CssParser::parseDeclaration(CssPropertyList *props,
 
    if (ttype == CSS_TK_SYMBOL) {
       pi.symbol = tval;
+
+      /* CSS custom property: --name: value */
+      if (tval[0] == '-' && tval[1] == '-') {
+         char *name = dStrdup(tval);
+         nextToken();
+         if (ttype == CSS_TK_CHAR && tval[0] == ':') {
+            nextToken();
+            /* Capture the raw value up to ';' or '}' */
+            Dstr *rawVal = dStr_new("");
+            int parenDepth = 0;
+            while (ttype != CSS_TK_END) {
+               if (ttype == CSS_TK_CHAR && tval[0] == ';' && parenDepth == 0)
+                  break;
+               if (ttype == CSS_TK_CHAR && tval[0] == '}' && parenDepth == 0)
+                  break;
+               if (ttype == CSS_TK_CHAR && tval[0] == '(')
+                  parenDepth++;
+               if (ttype == CSS_TK_CHAR && tval[0] == ')')
+                  parenDepth--;
+               if (ttype == CSS_TK_CHAR && tval[0] == ' ' && rawVal->len > 0 &&
+                   rawVal->str[rawVal->len - 1] != ' ')
+                  dStr_append_c(rawVal, ' ');
+               else if (ttype != CSS_TK_CHAR || tval[0] != ' ')
+                  dStr_append(rawVal, tval);
+               nextToken();
+            }
+            dStrstrip(rawVal->str);
+            weight = parseWeight();
+            /* Append to existing CSS_PROPERTY_CUSTOM entry (all custom
+             * properties share the same name, so set() would overwrite).
+             * Format: "name1\nvalue1\nname2\nvalue2\n..." */
+            CssPropertyList *target = (weight && importantProps) ? importantProps : props;
+            /* Find existing custom property entry */
+            char *existing = NULL;
+            for (int k = 0; k < target->size(); k++) {
+               CssProperty *cp = target->getRef(k);
+               if (cp->name == CSS_PROPERTY_CUSTOM && cp->type == CSS_TYPE_STRING) {
+                  existing = cp->value.strVal;
+                  break;
+               }
+            }
+            Dstr *combined;
+            if (existing) {
+               combined = dStr_new(existing);
+               dStr_append_c(combined, '\n');
+               dStr_append(combined, name);
+               dStr_append_c(combined, '\n');
+               dStr_append(combined, rawVal->str);
+            } else {
+               combined = dStr_new(name);
+               dStr_append_c(combined, '\n');
+               dStr_append(combined, rawVal->str);
+            }
+            dStr_free(rawVal, true);
+            CssPropertyValue cv;
+            cv.strVal = combined->str;
+            dStr_free(combined, false);
+            target->set(CSS_PROPERTY_CUSTOM, CSS_TYPE_STRING, cv);
+            dFree(name);
+         }
+         return;
+      }
+
       pip =
           (CssPropertyInfo *) bsearch(&pi, Css_property_info,
                                       CSS_NUM_PARSED_PROPERTIES,
@@ -1426,7 +1514,43 @@ void CssParser::parseDeclaration(CssPropertyList *props,
          nextToken();
          if (ttype == CSS_TK_CHAR && tval[0] == ':') {
             nextToken();
-            if (tokenMatchesProperty (prop, &type) &&
+            /* Check for var() function - store as unresolved */
+            if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "var") == 0) {
+               Dstr *rawVal = dStr_new("var");
+               int parenDepth = 0;
+               nextToken();
+               while (ttype != CSS_TK_END) {
+                  if (ttype == CSS_TK_CHAR && tval[0] == ';' && parenDepth == 0)
+                     break;
+                  if (ttype == CSS_TK_CHAR && tval[0] == '}' && parenDepth == 0)
+                     break;
+                  if (ttype == CSS_TK_CHAR && tval[0] == '(')
+                     parenDepth++;
+                  if (ttype == CSS_TK_CHAR && tval[0] == ')') {
+                     parenDepth--;
+                     dStr_append(rawVal, tval);
+                     if (parenDepth <= 0) {
+                        nextToken();
+                        break;
+                     }
+                  } else if (ttype == CSS_TK_CHAR && tval[0] == ' ' &&
+                             rawVal->len > 0 &&
+                             rawVal->str[rawVal->len - 1] != ' ' &&
+                             rawVal->str[rawVal->len - 1] != '(')
+                     dStr_append_c(rawVal, ' ');
+                  else if (ttype != CSS_TK_CHAR || tval[0] != ' ')
+                     dStr_append(rawVal, tval);
+                  nextToken();
+               }
+               dStrstrip(rawVal->str);
+               val.strVal = dStrdup(rawVal->str);
+               dStr_free(rawVal, true);
+               weight = parseWeight();
+               if (weight && importantProps)
+                  importantProps->set(prop, CSS_TYPE_VAR, val);
+               else
+                  props->set(prop, CSS_TYPE_VAR, val);
+            } else if (tokenMatchesProperty (prop, &type) &&
                 parseValue(prop, type, &val)) {
                weight = parseWeight();
                if (weight && importantProps)
@@ -1448,7 +1572,43 @@ void CssParser::parseDeclaration(CssPropertyList *props,
             if (ttype == CSS_TK_CHAR && tval[0] == ':') {
                nextToken();
 
-               switch (Css_shorthand_info[sh_index].type) {
+               /* Check for var() in shorthand - store as unresolved */
+               if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "var") == 0) {
+                  Dstr *rawVal = dStr_new("var");
+                  int parenDepth = 0;
+                  nextToken();
+                  while (ttype != CSS_TK_END) {
+                     if (ttype == CSS_TK_CHAR && tval[0] == ';' && parenDepth == 0)
+                        break;
+                     if (ttype == CSS_TK_CHAR && tval[0] == '}' && parenDepth == 0)
+                        break;
+                     if (ttype == CSS_TK_CHAR && tval[0] == '(')
+                        parenDepth++;
+                     if (ttype == CSS_TK_CHAR && tval[0] == ')') {
+                        parenDepth--;
+                        dStr_append(rawVal, tval);
+                        if (parenDepth <= 0) { nextToken(); break; }
+                     } else if (ttype == CSS_TK_CHAR && tval[0] == ' ' &&
+                                rawVal->len > 0 &&
+                                rawVal->str[rawVal->len - 1] != ' ' &&
+                                rawVal->str[rawVal->len - 1] != '(')
+                        dStr_append_c(rawVal, ' ');
+                     else if (ttype != CSS_TK_CHAR || tval[0] != ' ')
+                        dStr_append(rawVal, tval);
+                     nextToken();
+                  }
+                  dStrstrip(rawVal->str);
+                  val.strVal = dStrdup(rawVal->str);
+                  dStr_free(rawVal, true);
+                  weight = parseWeight();
+                  /* Use the shorthand's first property as the name marker */
+                  CssPropertyName markerProp =
+                     Css_shorthand_info[sh_index].properties[0];
+                  if (weight && importantProps)
+                     importantProps->set(markerProp, CSS_TYPE_VAR, val);
+                  else
+                     props->set(markerProp, CSS_TYPE_VAR, val);
+               } else switch (Css_shorthand_info[sh_index].type) {
 
                case CssShorthandInfo::CSS_SHORTHAND_FONT:
                   /* \todo Implement details. */
@@ -2263,7 +2423,9 @@ void CssParser::parseMedia(DilloHtml *html)
 
 const char * CssParser::propertyNameString(CssPropertyName name)
 {
-   return Css_property_info[name].symbol;
+   if (name >= 0 && name < CSS_NUM_PARSED_PROPERTIES)
+      return Css_property_info[name].symbol;
+   return NULL;
 }
 
 void CssParser::ignoreBlock()

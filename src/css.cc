@@ -34,6 +34,7 @@ CssPropertyList::CssPropertyList (const CssPropertyList &p, bool deep) :
          switch (p->type) {
             case CSS_TYPE_STRING:
             case CSS_TYPE_SYMBOL:
+            case CSS_TYPE_VAR:
                p->value.strVal = dStrdup (p->value.strVal);
                break;
             default:
@@ -90,7 +91,8 @@ void CssPropertyList::apply (CssPropertyList *props) {
 
       if (props->ownerOfStrings &&
           (getRef (i)->type == CSS_TYPE_STRING ||
-           getRef (i)->type == CSS_TYPE_SYMBOL))
+           getRef (i)->type == CSS_TYPE_SYMBOL ||
+           getRef (i)->type == CSS_TYPE_VAR))
          value.strVal = dStrdup(value.strVal);
 
       props->set ((CssPropertyName) getRef (i)->name,
@@ -297,9 +299,14 @@ bool CssSimpleSelector::match (const DoctreeNode *n) {
    assert (n);
    if (element != ELEMENT_ANY && element != n->element)
       return false;
-   if (pseudo != NULL &&
-      (n->pseudo == NULL || dStrAsciiCasecmp (pseudo, n->pseudo) != 0))
-      return false;
+   if (pseudo != NULL) {
+      /* :root matches the root element (html) */
+      if (dStrAsciiCasecmp (pseudo, "root") == 0) {
+         if (n->element != a_Html_tag_index("html"))
+            return false;
+      } else if (n->pseudo == NULL || dStrAsciiCasecmp (pseudo, n->pseudo) != 0)
+         return false;
+   }
    if (id != NULL && (n->id == NULL || dStrAsciiCasecmp (id, n->id) != 0))
       return false;
    for (int i = 0; i < klass.size (); i++) {

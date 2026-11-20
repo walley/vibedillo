@@ -116,7 +116,7 @@ StyleEngine::~StyleEngine () {
 
 void StyleEngine::stackPush () {
    static const Node emptyNode = {
-      NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL
+      NULL, NULL, NULL, NULL, NULL, NULL, false, false, NULL, NULL
    };
 
    stack->setSize (stack->size () + 1, emptyNode);
@@ -128,6 +128,11 @@ void StyleEngine::stackPop () {
    delete n->styleAttrProperties;
    delete n->styleAttrPropertiesImportant;
    delete n->nonCssProperties;
+   if (n->cssVars) {
+      for (int i = 0; i < n->cssVars->size(); i++)
+         dStr_free(n->cssVars->get(i), true);
+      delete n->cssVars;
+   }
    if (n->style)
       n->style->unref ();
    if (n->wordStyle)
@@ -374,6 +379,10 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
    for (int j = 0; j < props->size (); j++) {
       CssProperty *p = props->getRef (j);
 
+      /* Skip unresolved CSS variables and custom property definitions */
+      if (p->type == CSS_TYPE_VAR || p->name == CSS_PROPERTY_CUSTOM)
+         continue;
+
       switch (p->name) {
          case CSS_PROPERTY_FONT_FAMILY:
             // Check font names in comma separated list.
@@ -540,6 +549,10 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
 
    for (int j = 0; j < props->size (); j++) {
       CssProperty *p = props->getRef (j);
+
+      /* Skip unresolved CSS variables and custom property definitions */
+      if (p->type == CSS_TYPE_VAR || p->name == CSS_PROPERTY_CUSTOM)
+         continue;
 
       switch (p->name) {
          /* \todo missing cases */
@@ -1075,6 +1088,160 @@ Style * StyleEngine::backgroundStyle (BrowserWindow *bw) {
  * HTML elements and the nonCssProperties that have been set.
  * This method is private. Call style() to get a current style object.
  */
+/**
+ * \brief Resolve CSS var() references in a property list using custom
+ *        properties collected from the element stack.
+ */
+void StyleEngine::resolveCssVariables (int i, CssPropertyList *props) {
+   /* Build the complete variable map: inherited from parent + current */
+   Dstr *allVars = dStr_new("");
+
+   /* Inherit from parent's cssVars */
+   if (i > 0) {
+      Node *parent = stack->getRef(i - 1);
+      if (parent->cssVars) {
+         for (int k = 0; k < parent->cssVars->size(); k++) {
+            dStr_append(allVars, parent->cssVars->get(k)->str);
+            dStr_append_c(allVars, '\n');
+         }
+      }
+   }
+
+   /* Collect custom properties from the current merged props */
+   for (int j = 0; j < props->size (); j++) {
+      CssProperty *p = props->getRef (j);
+      if (p->name == CSS_PROPERTY_CUSTOM && p->type == CSS_TYPE_STRING) {
+         dStr_append(allVars, p->value.strVal);
+         dStr_append_c(allVars, '\n');
+      }
+   }
+
+   /* Store for inheritance by children */
+   Node *node = stack->getRef(i);
+   if (node->cssVars) {
+      for (int k = 0; k < node->cssVars->size(); k++)
+         dStr_free(node->cssVars->get(k), true);
+      delete node->cssVars;
+   }
+   node->cssVars = new lout::misc::SimpleVector<Dstr *>(1);
+   node->cssVars->increase();
+   node->cssVars->set(0, dStr_new(allVars->str));
+
+   /* Parse "name1\nvalue1\nname2\nvalue2\n..." into lookup arrays */
+   lout::misc::SimpleVector<Dstr *> varNames(4);
+   lout::misc::SimpleVector<Dstr *> varValues(4);
+   {
+      const char *pt = allVars->str;
+      while (*pt) {
+         const char *nl1 = strchr(pt, '\n');
+         if (!nl1) break;
+         const char *nl2 = strchr(nl1 + 1, '\n');
+         if (!nl2) nl2 = pt + strlen(pt);
+         int nameLen = nl1 - pt;
+         int valLen = nl2 - (nl1 + 1);
+         if (nameLen > 0) {
+            Dstr *nm = dStr_new("");
+            dStr_append_l(nm, pt, nameLen);
+            Dstr *vl = dStr_new("");
+            dStr_append_l(vl, nl1 + 1, valLen);
+            varNames.increase();
+            varNames.set(varNames.size() - 1, nm);
+            varValues.increase();
+            varValues.set(varValues.size() - 1, vl);
+         }
+         pt = (*nl2) ? nl2 + 1 : nl2;
+      }
+   }
+   dStr_free(allVars, true);
+
+   /* Now resolve var() references */
+   for (int j = 0; j < props->size (); j++) {
+      CssProperty *p = props->getRef (j);
+      if (p->type == CSS_TYPE_VAR && p->value.strVal) {
+         const char *v = p->value.strVal;
+         if (strncmp(v, "var(", 4) == 0) {
+            const char *start = v + 4;
+            const char *end = strrchr(v, ')');
+            if (end && end > start) {
+               char nameBuf[256];
+               const char *comma = NULL;
+               for (const char *c = start; c < end; c++) {
+                  if (*c == ',') { comma = c; break; }
+               }
+               const char *nameEnd = comma ? comma : end;
+               int nameLen = nameEnd - start;
+               while (nameLen > 0 && (start[nameLen-1] == ' ' || start[nameLen-1] == '\t'))
+                  nameLen--;
+               while (nameLen > 0 && (start[0] == ' ' || start[0] == '\t')) {
+                  start++; nameLen--;
+               }
+               if (nameLen > 0 && nameLen < 256) {
+                  memcpy(nameBuf, start, nameLen);
+                  nameBuf[nameLen] = '\0';
+
+                  const char *resolved = NULL;
+                  for (int k = 0; k < varNames.size(); k++) {
+                     if (strcmp(varNames.get(k)->str, nameBuf) == 0) {
+                        resolved = varValues.get(k)->str;
+                        break;
+                     }
+                  }
+                  if (!resolved && comma) {
+                     const char *fb = comma + 1;
+                     while (*fb == ' ' || *fb == '\t') fb++;
+                     static char fallbackBuf[512];
+                     int fbLen = end - fb;
+                     if (fbLen > 0 && fbLen < 512) {
+                        memcpy(fallbackBuf, fb, fbLen);
+                        fallbackBuf[fbLen] = '\0';
+                        char *e = fallbackBuf + strlen(fallbackBuf);
+                        while (e > fallbackBuf && (e[-1] == ' ' || e[-1] == '\t'))
+                           *--e = '\0';
+                        resolved = fallbackBuf;
+                     }
+                  }
+
+                  if (resolved) {
+                     CssPropertyName propName = (CssPropertyName) p->name;
+                     const char *propStr = CssParser::propertyNameString(propName);
+                     if (propStr) {
+                        /* For shorthand marker, use "background" as the property */
+                        Dstr *decl = dStr_new(propStr);
+                        dStr_append(decl, ": ");
+                        dStr_append(decl, resolved);
+                        CssPropertyList tmpProps(true);
+                        CssPropertyList tmpImportant(true);
+                        CssParser::parseDeclarationBlock(baseUrl, decl->str,
+                                                          (int)decl->len, &tmpProps,
+                                                          &tmpImportant);
+                        dStr_free(decl, true);
+                        /* Find and copy the resolved property */
+                        for (int k = 0; k < tmpProps.size(); k++) {
+                           CssProperty *tp = tmpProps.getRef(k);
+                           if (tp->name == p->name) {
+                              /* Free old string value, take ownership of new */
+                              dFree(p->value.strVal);
+                              p->type = tp->type;
+                              p->value = tp->value;
+                              tp->type = CSS_TYPE_UNUSED; /* prevent double-free */
+                              tp->value.intVal = 0;
+                              break;
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   for (int k = 0; k < varNames.size(); k++) {
+      dStr_free(varNames.get(k), true);
+      dStr_free(varValues.get(k), true);
+   }
+}
+
 Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
    CssPropertyList props, *styleAttrProperties, *styleAttrPropertiesImportant;
    CssPropertyList *nonCssProperties;
@@ -1101,6 +1268,9 @@ Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
    cssContext->apply (&props, doctree, stack->getRef(i)->doctreeNode,
                       styleAttrProperties, styleAttrPropertiesImportant,
                       nonCssProperties);
+
+   // resolve CSS var() references using custom properties
+   resolveCssVariables (i, &props);
 
    // apply style
    apply (i, &attrs, &props, bw);

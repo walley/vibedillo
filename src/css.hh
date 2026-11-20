@@ -65,6 +65,8 @@ typedef enum {
    CSS_TYPE_GRID_VALUE,         /**< Raw value up to ';' or '}' (used for
                                    grid track lists / placements, which contain
                                    brackets and parentheses), as string. */
+   CSS_TYPE_VAR,                /**< Unresolved var() reference, stored as
+                                   string. Resolved at apply time. */
    CSS_TYPE_UNUSED              /**< Not yet used. Will itself get unused some
                                    day. */
 } CssValueType;
@@ -258,6 +260,9 @@ typedef enum {
    PROPERTY_X_LANG,
    PROPERTY_X_IMG,
    PROPERTY_X_TOOLTIP,
+   CSS_PROPERTY_CUSTOM,  /**< CSS custom property (--*); name stored in
+                              the string value, value follows after a
+                              separator. */
    CSS_PROPERTY_LAST
 } CssPropertyName;
 
@@ -324,6 +329,7 @@ class CssProperty {
             case CSS_TYPE_SYMBOL:
             case CSS_TYPE_URI:
             case CSS_TYPE_GRID_VALUE:
+            case CSS_TYPE_VAR:
                dFree (value.strVal);
                break;
             case CSS_TYPE_BACKGROUND_POSITION:

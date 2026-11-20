@@ -41,6 +41,7 @@ class StyleEngine {
          bool inheritBackgroundColor;
          bool displayNone;
          DoctreeNode *doctreeNode;
+         lout::misc::SimpleVector<Dstr *> *cssVars;  /**< inherited custom properties */
       };
 
       dw::core::Layout *layout;
@@ -74,6 +75,7 @@ class StyleEngine {
                   dw::core::style::Font *referenceFont = NULL);
       void computeBorderWidth (int *dest, CssProperty *p,
                                dw::core::style::Font *font);
+      void resolveCssVariables (int i, CssPropertyList *props);
 
    public:
       static void init ();
