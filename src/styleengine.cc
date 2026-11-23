@@ -631,6 +631,13 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
             computeValue (&attrs->hBorderSpacing, p->value.lenVal,attrs->font);
             computeValue (&attrs->vBorderSpacing, p->value.lenVal,attrs->font);
             break;
+          case CSS_PROPERTY_BORDER_RADIUS: {
+             int r = 0;
+             computeValue (&r, p->value.lenVal, attrs->font);
+             if (r < 0) r = 0;
+             attrs->borderRadius.setVal (r);
+             break;
+          }
          case CSS_PROPERTY_BOTTOM:
             computeLength (&attrs->bottom, p->value.lenVal, attrs->font);
             break;
