@@ -26,6 +26,8 @@
 #include "core.hh"
 #include "../lout/msg.h"
 
+// Forward declaration
+
 using namespace lout;
 
 namespace dw {
@@ -84,7 +86,7 @@ void StyleAttrs::initValues ()
    marginLeftAuto = marginRightAuto = false;
    borderWidth.setVal (0);
    padding.setVal (0);
-   borderRadius.setVal (0);
+   for (int i = 0; i < 8; i++) borderRadius[i] = 0;
    borderCollapse = BORDER_MODEL_SEPARATE;
    setBorderColor (NULL);
    setBorderStyle (BORDER_NONE);
@@ -131,7 +133,7 @@ void StyleAttrs::resetValues ()
    marginLeftAuto = marginRightAuto = false;
    borderWidth.setVal (0);
    padding.setVal (0);
-   borderRadius.setVal (0);
+   for (int i = 0; i < 8; i++) borderRadius[i] = 0;
    setBorderColor (NULL);
    setBorderStyle (BORDER_NONE);
    hBorderSpacing = 0;
@@ -204,7 +206,7 @@ bool StyleAttrs::equals (object::Object *other) {
        marginRightAuto == otherAttrs->marginRightAuto &&
        borderWidth.equals (&otherAttrs->borderWidth) &&
        padding.equals (&otherAttrs->padding) &&
-       borderRadius.equals (&otherAttrs->borderRadius) &&
+       memcmp(borderRadius, otherAttrs->borderRadius, sizeof(borderRadius)) == 0 &&
        borderCollapse == otherAttrs->borderCollapse &&
        borderColor.top == otherAttrs->borderColor.top &&
        borderColor.right == otherAttrs->borderColor.right &&
@@ -279,7 +281,8 @@ int StyleAttrs::hashValue () {
       (marginRightAuto ? 2 : 0) +
       borderWidth.hashValue () +
       padding.hashValue () +
-      borderRadius.hashValue () +
+      borderRadius[0] + borderRadius[1] + borderRadius[2] + borderRadius[3] +
+      borderRadius[4] + borderRadius[5] + borderRadius[6] + borderRadius[7] +
       borderCollapse +
       (intptr_t) borderColor.top +
       (intptr_t) borderColor.right +
@@ -416,7 +419,7 @@ void Style::copyAttrs (StyleAttrs *attrs)
    marginRightAuto = attrs->marginRightAuto;
    borderWidth = attrs->borderWidth;
    padding = attrs->padding;
-   borderRadius = attrs->borderRadius;
+   memcpy(borderRadius, attrs->borderRadius, sizeof(borderRadius));
    borderCollapse = attrs->borderCollapse;
    borderColor = attrs->borderColor;
    borderStyle = attrs->borderStyle;
@@ -1230,21 +1233,34 @@ static void drawRoundedRect (View *view, Color *color,
    if (r > h / 2) r = h / 2;
 
    /* Draw the central rectangles */
-   view->drawRectangle (color, shading, true, x + r, y, w - 2 * r, h);
-   view->drawRectangle (color, shading, true, x, y + r, r, h - 2 * r);
-   view->drawRectangle (color, shading, true, x + w - r, y + r, r, h - 2 * r);
+    /* Draw the central rectangles (avoiding corners) */
+    /* Center */
+    view->drawRectangle (color, shading, true, x + r, y + r, w - 2 * r, h - 2 * r);
+    /* Top edge */
+    view->drawRectangle (color, shading, true, x + r, y, w - 2 * r, r);
+    /* Bottom edge */
+    view->drawRectangle (color, shading, true, x + r, y + h - r, w - 2 * r, r);
+    /* Left edge */
+    view->drawRectangle (color, shading, true, x, y + r, r, h - 2 * r);
+    /* Right edge */
+    view->drawRectangle (color, shading, true, x + w - r, y + r, r, h - 2 * r);
 
-   /* Draw the four corner arcs (filled pies).
-    * FLTK angles: 0=3 o'clock, 90=12 o'clock, going counterclockwise. */
-   int d = 2 * r;
-   /* Top-left corner: center at (x+r, y+r), arc from 180 to 270 */
-   view->drawArc (color, shading, true, x + r, y + r, d, d, 180, 270);
-   /* Top-right corner: center at (x+w-r-1, y+r), arc from 270 to 360 */
-   view->drawArc (color, shading, true, x + w - r - 1, y + r, d, d, 270, 360);
-   /* Bottom-left corner: center at (x+r, y+h-r-1), arc from 90 to 180 */
-   view->drawArc (color, shading, true, x + r, y + h - r - 1, d, d, 90, 180);
-   /* Bottom-right corner: center at (x+w-r-1, y+h-r-1), arc from 0 to 90 */
-   view->drawArc (color, shading, true, x + w - r - 1, y + h - r - 1, d, d, 0, 90);
+    /* Draw the four corner arcs (filled pies).
+     * FLTK angles: 0=3 o'clock, 90=12 o'clock, going counterclockwise.
+     * drawArc takes center coordinates and diameter. */
+    int d = 2 * r;
+    /* Top-left corner: center at (x+r, y+r), arc from 90 to 180 */
+
+    view->drawArc (color, shading, true, x + r, y + r, d, d, 90, 180);
+    /* Top-right corner: center at (x+w-r, y+r), arc from 0 to 90 */
+
+    view->drawArc (color, shading, true, x + w - r, y + r, d, d, 0, 90);
+    /* Bottom-left corner: center at (x+r, y+h-r), arc from 180 to 270 */
+
+    view->drawArc (color, shading, true, x + r, y + h - r, d, d, 180, 270);
+    /* Bottom-right corner: center at (x+w-r, y+h-r), arc from 270 to 360 */
+
+    view->drawArc (color, shading, true, x + w - r, y + h - r, d, d, 270, 360);
 }
 
 /**
@@ -1255,6 +1271,17 @@ static void drawRoundedRect (View *view, Color *color,
  * "area" is the area to be drawn, "x", "y", "width" and "height"
  * define the box itself. All are given in canvas coordinates.
  */
+
+static int resolveRadius(dw::core::style::Length l, int boxW, int boxH, bool horizontal)
+{
+   if (isAbsLength(l))
+      return absLengthVal(l);
+   if (isPerLength(l)) {
+      double pct = perLengthVal_useThisOnlyForDebugging(l);
+      return (int)(pct * (horizontal ? boxW : boxH));
+   }
+
+}
 void drawBorder (View *view, Layout *layout, Rectangle *area,
                  int x, int y, int width, int height,
                  Style *style, bool inverse)
@@ -1280,14 +1307,21 @@ void drawBorder (View *view, Layout *layout, Rectangle *area,
       normal = inverse ? Color::SHADING_INVERSE : Color::SHADING_NORMAL;
    */
 
-   /* If border-radius is set, draw rounded border using arcs + lines */
-   int radius = style->borderRadius.top;
-   if (radius > 0 && style->hasBorder()) {
-      int bw = xb2 - xb1 + 1;
-      int bh = yb2 - yb1 + 1;
-      if (radius > bw / 2) radius = bw / 2;
-      if (radius > bh / 2) radius = bh / 2;
-      int d = 2 * radius;
+
+    /* If border-radius is set, draw rounded border using arcs + lines */
+    int bw = xb2 - xb1 + 1;
+    int bh = yb2 - yb1 + 1;
+    /* Horizontal radius from borderRadius[0], vertical from [1] */
+
+    int radiusH = resolveRadius(style->borderRadius[0], bw, bh, true);
+    int radiusV = resolveRadius(style->borderRadius[1], bw, bh, false);
+    if (radiusH < 0) radiusH = 0;
+    if (radiusV < 0) radiusV = 0;
+    int radius = radiusH < radiusV ? radiusH : radiusV;
+    if (radius > 0 && style->hasBorder()) {
+       if (radius > bw / 2) radius = bw / 2;
+       if (radius > bh / 2) radius = bh / 2;
+       int d = 2 * radius;
 
       Color *bc = style->borderColor.top;
       if (bc) {
@@ -1383,9 +1417,17 @@ void drawBackground (View *view, Layout *layout, Rectangle *area,
          {
             Color::Shading sh = inverse ?
                Color::SHADING_INVERSE : Color::SHADING_NORMAL;
-            int radius = style->borderRadius.top;
-            if (radius > 0)
-               drawRoundedRect (view, bgColor, sh,
+             int radiusH = resolveRadius(style->borderRadius[0],
+                                        intersection.width, intersection.height, true);
+             int radiusV = resolveRadius(style->borderRadius[1],
+                                        intersection.width, intersection.height, false);
+             if (radiusH < 0) radiusH = 0;
+             if (radiusV < 0) radiusV = 0;
+             int radius = radiusH < radiusV ? radiusH : radiusV;
+             if (radius < 0) radius = 0;
+ 
+             if (radius > 0)
+                drawRoundedRect (view, bgColor, sh,
                                 intersection.x, intersection.y,
                                 intersection.width, intersection.height, radius);
             else

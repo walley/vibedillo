@@ -587,7 +587,9 @@ public:
    Length minWidth, maxWidth, minHeight, maxHeight;
 
    Box margin, borderWidth, padding;
-   Box borderRadius; /* CSS border-radius (4 corners, px values) */
+   /* CSS border-radius: 4 corners as Length (supports px and %).
+    * Order: [tl_h, tl_v, tr_h, tr_v, br_h, br_v, bl_h, bl_v] */
+   Length borderRadius[8];
    /* Whether margin-left/right were given as "auto" (the computed margin
     * value itself is 0 then; the remaining space is determined during
     * layout, e.g. to center block-level boxes). */

@@ -364,6 +364,78 @@ void StyleEngine::postprocessAttrs (dw::core::style::StyleAttrs *attrs) {
       attrs->borderWidth.right = 0;
 }
 
+/*
+ * Parse a border-radius string like "10px 40px 40px 10px" or
+ * "10px 40px / 20px 30px" into the borderRadius[8] array.
+ * CSS corner order: top-left, top-right, bottom-right, bottom-left.
+ * Values follow the standard 1-4 value expansion:
+ *   1 value:  all corners same
+ *   2 values: [tl+br, tr+bl]
+ *   3 values: [tl, tr+bl, br]
+ *   4 values: [tl, tr, br, bl]
+ */
+static void parseBorderRadiusString(StyleAttrs *attrs, const char *str)
+{
+   if (!str) return;
+
+   /* Parse horizontal values (before "/") and vertical (after "/") */
+   CssLength hVals[4], vVals[4];
+   int nH = 0, nV = 0;
+   const char *p = str;
+
+   auto parseLen = [](const char *&s, CssLength *out) -> bool {
+      while (*s == ' ') s++;
+      if (!*s || *s == '/') return false;
+      char *end;
+      float v = strtof(s, &end);
+      if (end == s) return false;
+      s = end;
+      if (*s == '%') { out->type = CSS_LENGTH_TYPE_PERCENTAGE; out->f = v / 100.0f; s++; }
+      else { out->type = CSS_LENGTH_TYPE_PX; out->i = (int)(v + 0.5f); while (*s == 'p' || *s == 'x') s++; }
+      return true;
+   };
+
+   while (nH < 4 && parseLen(p, &hVals[nH])) nH++;
+   if (*p == '/') {
+      p++;
+      while (nV < 4 && parseLen(p, &vVals[nV])) nV++;
+   }
+   if (nH == 0) return;
+   if (nV == 0) { nV = nH; memcpy(vVals, hVals, sizeof(hVals)); }
+
+   /* Expand 1-4 values to 4 corners: tl, tr, br, bl */
+   CssLength h[4], v[4];
+   switch (nH) {
+      case 1: h[0]=h[1]=h[2]=h[3]=hVals[0]; break;
+      case 2: h[0]=h[2]=hVals[0]; h[1]=h[3]=hVals[1]; break;
+      case 3: h[0]=hVals[0]; h[1]=h[3]=hVals[1]; h[2]=hVals[2]; break;
+      default: memcpy(h, hVals, sizeof(h)); break;
+   }
+   switch (nV) {
+      case 1: v[0]=v[1]=v[2]=v[3]=vVals[0]; break;
+      case 2: v[0]=v[2]=vVals[0]; v[1]=v[3]=vVals[1]; break;
+      case 3: v[0]=vVals[0]; v[1]=v[3]=vVals[1]; v[2]=vVals[2]; break;
+      default: memcpy(v, vVals, sizeof(v)); break;
+   }
+
+   /* Store: [tl_h, tl_v, tr_h, tr_v, br_h, br_v, bl_h, bl_v] */
+   Length corners[8];
+   for (int i = 0; i < 4; i++) {
+      Length lh, lv;
+      if (h[i].type == CSS_LENGTH_TYPE_PERCENTAGE)
+         lh = createPerLength(h[i].f);
+      else
+         lh = createAbsLength(h[i].i);
+      if (v[i].type == CSS_LENGTH_TYPE_PERCENTAGE)
+         lv = createPerLength(v[i].f);
+      else
+         lv = createAbsLength(v[i].i);
+      corners[i*2] = lh;
+      corners[i*2+1] = lv;
+   }
+   memcpy(attrs->borderRadius, corners, sizeof(corners));
+}
+
 /**
  * \brief Make changes to StyleAttrs attrs according to CssPropertyList props.
  */
@@ -551,11 +623,15 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
    for (int j = 0; j < props->size (); j++) {
       CssProperty *p = props->getRef (j);
 
-      /* Skip unresolved CSS variables and custom property definitions */
-      if (p->type == CSS_TYPE_VAR || p->name == CSS_PROPERTY_CUSTOM)
-         continue;
+             /* Skip unresolved CSS variables and custom property definitions,
+        * except border-radius multi-value strings */
+       if (p->type == CSS_TYPE_VAR || p->name == CSS_PROPERTY_CUSTOM) {
+          if (p->name == CSS_PROPERTY_BORDER_RADIUS && p->value.strVal)
+             parseBorderRadiusString(attrs, p->value.strVal);
+          continue;
+       }
 
-      switch (p->name) {
+       switch (p->name) {
          /* \todo missing cases */
          case CSS_PROPERTY_BACKGROUND_ATTACHMENT:
             attrs->backgroundAttachment =
@@ -632,10 +708,17 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
             computeValue (&attrs->vBorderSpacing, p->value.lenVal,attrs->font);
             break;
           case CSS_PROPERTY_BORDER_RADIUS: {
-             int r = 0;
-             computeValue (&r, p->value.lenVal, attrs->font);
-             if (r < 0) r = 0;
-             attrs->borderRadius.setVal (r);
+             /* Can be a single CssLength or a CSS_TYPE_VAR string with
+              * multiple values: "10px 40px 40px 10px" or "10px / 20px".
+              * Layout: borderRadius[8] = [tl_h, tl_v, tr_h, tr_v,
+              *                            br_h, br_v, bl_h, bl_v] */
+             if (p->type == CSS_TYPE_VAR && p->value.strVal) {
+                parseBorderRadiusString(attrs, p->value.strVal);
+             } else {
+                for (int k = 0; k < 8; k++)
+                   computeLength (&attrs->borderRadius[k], p->value.lenVal,
+                                  attrs->font);
+             }
              break;
           }
          case CSS_PROPERTY_BOTTOM:
