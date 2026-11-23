@@ -1572,7 +1572,9 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                   CssPropertyValue extraVal;
                   CssValueType extraType;
                   char buf[64];
-                  const char *unit = (type == CSS_TYPE_LENGTH_PERCENTAGE) ? "%" : "px";
+                  /* Use actual parsed length type (val.lenVal.type) to determine unit */
+                  bool firstIsPct = (val.lenVal.type == CSS_LENGTH_TYPE_PERCENTAGE);
+                  const char *unit = firstIsPct ? "%" : "px";
                   snprintf(buf, sizeof(buf), "%g%s", CSS_LENGTH_VALUE(val.lenVal), unit);
                   dStr_append(rawVal, buf);
                   int nvals = 1;
@@ -1581,7 +1583,8 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                         break;
                      if (!parseValue(CSS_PROPERTY_BORDER_RADIUS, extraType, &extraVal))
                         break;
-                     const char *u = (extraType == CSS_TYPE_LENGTH_PERCENTAGE) ? "%" : "px";
+                      bool extraIsPct = (extraVal.lenVal.type == CSS_LENGTH_TYPE_PERCENTAGE);
+                      const char *u = extraIsPct ? "%" : "px";
                      snprintf(buf, sizeof(buf), " %g%s", CSS_LENGTH_VALUE(extraVal.lenVal), u);
                      dStr_append(rawVal, buf);
                      nvals++;
@@ -1596,9 +1599,11 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                            break;
                         if (!parseValue(CSS_PROPERTY_BORDER_RADIUS, extraType, &extraVal))
                            break;
-                        const char *u = (extraType == CSS_TYPE_LENGTH_PERCENTAGE) ? "%" : "px";
+                         bool extraIsPct = (extraVal.lenVal.type == CSS_LENGTH_TYPE_PERCENTAGE);
+                         const char *u = extraIsPct ? "%" : "px";
                         if (nvvals > 0) dStr_append_c(rawVal, ' ');
-                        snprintf(buf, sizeof(buf), "%g%s", CSS_LENGTH_VALUE(extraVal.lenVal), u);
+                         float extraV = extraIsPct ? CSS_LENGTH_VALUE(extraVal.lenVal) : (float)absLengthVal(extraVal.lenVal.i);
+                         snprintf(buf, sizeof(buf), "%g%s", extraV, u);
                         dStr_append(rawVal, buf);
                         nvvals++;
                      }

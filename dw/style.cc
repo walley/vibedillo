@@ -1335,27 +1335,32 @@ void drawBorder (View *view, Layout *layout, Rectangle *area,
     int radius_bl = bl_h < bl_v ? bl_h : bl_v;
 
     if ((radius_tl > 0 || radius_tr > 0 || radius_br > 0 || radius_bl > 0) && style->hasBorder()) {
-       /* Clamp to box dimensions */
-       if (radius_tl > bw / 2) radius_tl = bw / 2; if (radius_tl > bh / 2) radius_tl = bh / 2;
-       if (radius_tr > bw / 2) radius_tr = bw / 2; if (radius_tr > bh / 2) radius_tr = bh / 2;
-       if (radius_br > bw / 2) radius_br = bw / 2; if (radius_br > bh / 2) radius_br = bh / 2;
-       if (radius_bl > bw / 2) radius_bl = bw / 2; if (radius_bl > bh / 2) radius_bl = bh / 2;
+       /* Clamp horizontal radii to bw/2, vertical radii to bh/2 */
+       if (tl_h > bw / 2) tl_h = bw / 2; if (tl_v > bh / 2) tl_v = bh / 2;
+       if (tr_h > bw / 2) tr_h = bw / 2; if (tr_v > bh / 2) tr_v = bh / 2;
+       if (br_h > bw / 2) br_h = bw / 2; if (br_v > bh / 2) br_v = bh / 2;
+       if (bl_h > bw / 2) bl_h = bw / 2; if (bl_v > bh / 2) bl_v = bh / 2;
+       /* Recompute min radii after clamping */
+       radius_tl = tl_h < tl_v ? tl_h : tl_v;
+       radius_tr = tr_h < tr_v ? tr_h : tr_v;
+       radius_br = br_h < br_v ? br_h : br_v;
+       radius_bl = bl_h < bl_v ? bl_h : bl_v;
 
        Color *bc = style->borderColor.top;
        if (bc) {
-          Color::Shading sh = Color::SHADING_NORMAL;
-          /* Top edge */
+                    Color::Shading sh = Color::SHADING_NORMAL;
+          /* Top edge - use horizontal radii (tl_h, tr_h) */
           if (style->borderWidth.top > 0)
-             view->drawLine(bc, sh, xb1 + radius_tl, yb1, xb2 - radius_tr, yb1);
-          /* Bottom edge */
+             view->drawLine(bc, sh, xb1 + tl_h, yb1, xb2 - tr_h, yb1);
+          /* Bottom edge - use horizontal radii (bl_h, br_h) */
           if (style->borderWidth.bottom > 0)
-             view->drawLine(bc, sh, xb1 + radius_bl, yb2, xb2 - radius_br, yb2);
-          /* Left edge */
+             view->drawLine(bc, sh, xb1 + bl_h, yb2, xb2 - br_h, yb2);
+          /* Left edge - use vertical radii (tl_v, bl_v) */
           if (style->borderWidth.left > 0)
-             view->drawLine(bc, sh, xb1, yb1 + radius_tl, xb1, yb2 - radius_bl);
-          /* Right edge */
+             view->drawLine(bc, sh, xb1, yb1 + tl_v, xb1, yb2 - bl_v);
+          /* Right edge - use vertical radii (tr_v, br_v) */
           if (style->borderWidth.right > 0)
-             view->drawLine(bc, sh, xb2, yb1 + radius_tr, xb2, yb2 - radius_br);
+             view->drawLine(bc, sh, xb2, yb1 + tr_v, xb2, yb2 - br_v);
           /* Corner arcs - use full horizontal/vertical radii */
           int d_tl = 2 * tl_h;
           int d_tr = 2 * tr_h;
