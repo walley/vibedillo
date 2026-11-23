@@ -196,6 +196,7 @@ public:
 
    void copySelection(const char *text, int destination);
 
+    core::style::Color *getSelectionColor ();
    core::ui::ResourceFactory *getResourceFactory ();
 
    void attachResource (ui::FltkResource *resource);

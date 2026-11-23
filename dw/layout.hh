@@ -438,6 +438,12 @@ public:
       platform->copySelection(text, destination);
    }
 
+    inline style::Color *getSelectionColor ()
+    {
+       return platform->getSelectionColor ();
+    }
+
+
    inline void copyCurrentSelection(int destination)
    {
       selectionState.copy(destination);

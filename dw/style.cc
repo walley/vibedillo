@@ -1220,48 +1220,50 @@ static void drawBorderRight(View *view, Style *style,
  * \brief Draw a filled rounded rectangle (used for backgrounds with
  *    border-radius).
  */
+/**
+ * rief Draw a filled rounded rectangle (used for backgrounds with
+ *    border-radius). Supports elliptical corners with separate
+ *    horizontal and vertical radii.
+ */
 static void drawRoundedRect (View *view, Color *color,
-                             Color::Shading shading,
-                             int x, int y, int w, int h, int r)
+                            Color::Shading shading,
+                            int x, int y, int w, int h, int r_h, int r_v)
 {
-   if (r <= 0 || w <= 0 || h <= 0) {
+   if ((r_h <= 0 || r_v <= 0) || w <= 0 || h <= 0) {
       view->drawRectangle (color, shading, true, x, y, w, h);
       return;
    }
-   /* Clamp radius to half the smaller dimension */
-   if (r > w / 2) r = w / 2;
-   if (r > h / 2) r = h / 2;
+   /* Clamp radii to half the corresponding dimension */
+   if (r_h > w / 2) r_h = w / 2;
+   if (r_v > h / 2) r_v = h / 2;
 
-   /* Draw the central rectangles */
-    /* Draw the central rectangles (avoiding corners) */
-    /* Center */
-    view->drawRectangle (color, shading, true, x + r, y + r, w - 2 * r, h - 2 * r);
-    /* Top edge */
-    view->drawRectangle (color, shading, true, x + r, y, w - 2 * r, r);
-    /* Bottom edge */
-    view->drawRectangle (color, shading, true, x + r, y + h - r, w - 2 * r, r);
-    /* Left edge */
-    view->drawRectangle (color, shading, true, x, y + r, r, h - 2 * r);
-    /* Right edge */
-    view->drawRectangle (color, shading, true, x + w - r, y + r, r, h - 2 * r);
+   /* Draw the central rectangles (avoiding corners) */
+   /* Center */
+   view->drawRectangle (color, shading, true, x + r_h, y + r_v, w - 2 * r_h, h - 2 * r_v);
+   /* Top edge */
+   view->drawRectangle (color, shading, true, x + r_h, y, w - 2 * r_h, r_v);
+   /* Bottom edge */
+   view->drawRectangle (color, shading, true, x + r_h, y + h - r_v, w - 2 * r_h, r_v);
+   /* Left edge */
+   view->drawRectangle (color, shading, true, x, y + r_v, r_h, h - 2 * r_v);
+   /* Right edge */
+   view->drawRectangle (color, shading, true, x + w - r_h, y + r_v, r_h, h - 2 * r_v);
 
-    /* Draw the four corner arcs (filled pies).
-     * FLTK angles: 0=3 o'clock, 90=12 o'clock, going counterclockwise.
-     * drawArc takes center coordinates and diameter. */
-    int d = 2 * r;
-    /* Top-left corner: center at (x+r, y+r), arc from 90 to 180 */
-
-    view->drawArc (color, shading, true, x + r, y + r, d, d, 90, 180);
-    /* Top-right corner: center at (x+w-r, y+r), arc from 0 to 90 */
-
-    view->drawArc (color, shading, true, x + w - r, y + r, d, d, 0, 90);
-    /* Bottom-left corner: center at (x+r, y+h-r), arc from 180 to 270 */
-
-    view->drawArc (color, shading, true, x + r, y + h - r, d, d, 180, 270);
-    /* Bottom-right corner: center at (x+w-r, y+h-r), arc from 270 to 360 */
-
-    view->drawArc (color, shading, true, x + w - r, y + h - r, d, d, 270, 360);
+   /* Draw the four corner arcs (filled pies).
+    * FLTK angles: 0=3 o'clock, 90=12 o'clock, going counterclockwise.
+    * drawArc takes center coordinates and diameter. */
+   int d_h = 2 * r_h;
+   int d_v = 2 * r_v;
+   /* Top-left corner: center at (x+r_h, y+r_v), arc from 90 to 180 */
+   view->drawArc (color, shading, true, x + r_h, y + r_v, d_h, d_v, 90, 180);
+   /* Top-right corner: center at (x+w-r_h, y+r_v), arc from 0 to 90 */
+   view->drawArc (color, shading, true, x + w - r_h, y + r_v, d_h, d_v, 0, 90);
+   /* Bottom-left corner: center at (x+r_h, y+h-r_v), arc from 180 to 270 */
+   view->drawArc (color, shading, true, x + r_h, y + h - r_v, d_h, d_v, 180, 270);
+   /* Bottom-right corner: center at (x+w-r_h, y+h-r_v), arc from 270 to 360 */
+   view->drawArc (color, shading, true, x + w - r_h, y + h - r_v, d_h, d_v, 270, 360);
 }
+
 
 /**
  * \brief Draw the border of a region in window, according to style.
@@ -1448,28 +1450,23 @@ void drawBackground (View *view, Layout *layout, Rectangle *area,
       bgArea.height = height;
 
       if (area->intersectsWith (&bgArea, &intersection)) {
-         if (hasBgColor)
-         {
-            Color::Shading sh = inverse ?
-               Color::SHADING_INVERSE : Color::SHADING_NORMAL;
-             int radiusH = resolveRadius(style->borderRadius[0],
-                                        intersection.width, intersection.height, true);
-             int radiusV = resolveRadius(style->borderRadius[1],
-                                        intersection.width, intersection.height, false);
-             if (radiusH < 0) radiusH = 0;
-             if (radiusV < 0) radiusV = 0;
-             int radius = radiusH < radiusV ? radiusH : radiusV;
-             if (radius < 0) radius = 0;
- 
-             if (radius > 0)
-                drawRoundedRect (view, bgColor, sh,
-                                intersection.x, intersection.y,
-                                intersection.width, intersection.height, radius);
-            else
-               view->drawRectangle (bgColor, sh, true,
-                                    intersection.x, intersection.y,
-                                    intersection.width, intersection.height);
-         }
+          if (hasBgColor)
+          {
+             Color::Shading sh = inverse ?
+                Color::SHADING_INVERSE : Color::SHADING_NORMAL;
+              int radiusH = resolveRadius(style->borderRadius[0], width, height, true);
+              int radiusV = resolveRadius(style->borderRadius[1], width, height, false);
+              if (radiusH < 0) radiusH = 0;
+              if (radiusV < 0) radiusV = 0;
+              if (radiusH > 0 || radiusV > 0)
+                 drawRoundedRect (view, bgColor, sh,
+                                 intersection.x, intersection.y,
+                                 intersection.width, intersection.height, radiusH, radiusV);
+             else
+                view->drawRectangle (bgColor, sh, true,
+                                     intersection.x, intersection.y,
+                                     intersection.width, intersection.height);
+          }
 
          if (hasBgImage)
             drawBackgroundImage (view, style->backgroundImage,

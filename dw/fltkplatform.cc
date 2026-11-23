@@ -712,6 +712,15 @@ void FltkPlatform::copySelection(const char *text, int destination)
    Fl::copy(text, strlen(text), destination);
 }
 
+core::style::Color *FltkPlatform::getSelectionColor ()
+{
+   Fl_Color fl_col = Fl::get_color(FL_SELECTION_COLOR);
+   unsigned char r, g, b;
+   Fl::get_color(fl_col, r, g, b);
+   int rgb = (r << 16) | (g << 8) | b;
+   return createColor(rgb);
+}
+
 core::Imgbuf *FltkPlatform::createImgbuf (core::Imgbuf::Type type,
                                           int width, int height, double gamma)
 {

@@ -183,6 +183,13 @@ public:
    /**
     * ...
     */
+
+    /**
+     * \brief Get the system selection color as a Color object.
+     * Used for text selection highlighting.
+     */
+    virtual style::Color *getSelectionColor () = 0;
+
    virtual ui::ResourceFactory *getResourceFactory () = 0;
 };
 

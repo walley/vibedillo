@@ -1488,30 +1488,35 @@ void Textblock::drawWord0 (int wordIndex1, int wordIndex2,
                                lastCharIdx - firstCharIdx, style,
                                isStartTotal && firstCharIdx == 0,
                                isEndTotal && text[lastCharIdx] == 0);
-         if (width > 0) {
-            /* Highlight text */
-            core::style::Color *wordBgColor;
+          if (width > 0) {
+             /* Highlight text */
+             core::style::Color *wordBgColor;
 
-            if (!(wordBgColor =  style->backgroundColor))
-               wordBgColor = getBgColor();
+             if (!(wordBgColor =  style->backgroundColor))
+                wordBgColor = getBgColor();
 
-            /* Draw background for highlighted text. */
-            view->drawRectangle (
-               wordBgColor, core::style::Color::SHADING_INVERSE, true, xStart,
-               yWorldBase - style->font->ascent, width,
-               style->font->ascent + style->font->descent);
+             /* Get selection color for highlight */
+             core::style::Color *selColor = layout->getSelectionColor ();
+             if (!selColor)
+                selColor = layout->createColor (0x191970); /* fallback: default ui_selection_color */
 
-            /* Highlight the text. */
-            drawText (view, style, core::style::Color::SHADING_INVERSE, xStart,
-                      yWorldBase, text, firstCharIdx,
-                      lastCharIdx - firstCharIdx,
-                      isStartTotal && firstCharIdx == 0,
-                      isEndTotal && lastCharIdx == wordLen);
+             /* Draw background for highlighted text using selection color. */
+             view->drawRectangle (
+                selColor, core::style::Color::SHADING_NORMAL, true, xStart,
+                yWorldBase - style->font->ascent, width,
+                style->font->ascent + style->font->descent);
 
-            if (style->textDecoration)
-               decorateText(view, style, core::style::Color::SHADING_INVERSE,
-                            xStart, yWorldBase, width);
-         }
+             /* Highlight the text in white. */
+             drawText (view, style, core::style::Color::SHADING_NORMAL, xStart,
+                       yWorldBase, text, firstCharIdx,
+                       lastCharIdx - firstCharIdx,
+                       isStartTotal && firstCharIdx == 0,
+                       isEndTotal && lastCharIdx == wordLen);
+
+             if (style->textDecoration)
+                decorateText(view, style, core::style::Color::SHADING_NORMAL,
+                             xStart, yWorldBase, width);
+          }
       }
    }
 }
@@ -1555,9 +1560,9 @@ void Textblock::drawSpace(int wordIndex, core::View *view,
          style->font->ascent + style->font->descent);
    }
    if (style->textDecoration) {
-      core::style::Color::Shading shading = highlight ?
-         core::style::Color::SHADING_INVERSE :
-         core::style::Color::SHADING_NORMAL;
+       core::style::Color::Shading shading = highlight ?
+          core::style::Color::SHADING_NORMAL :
+          core::style::Color::SHADING_NORMAL;
 
       decorateText(view, style, shading, xWorld, yWorldBase, word->effSpace);
    }
