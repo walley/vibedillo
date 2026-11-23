@@ -14,6 +14,7 @@
 #include "msg.h"
 #include "prefs.h"
 #include "misc.h"
+#include "colors.h"
 #include "html_common.hh"
 #include "styleengine.hh"
 #include "web.hh"
@@ -1202,6 +1203,47 @@ void StyleEngine::resolveCssVariables (int i, CssPropertyList *props) {
                   }
 
                   if (resolved) {
+                     /* Handle linear-gradient on background-color:
+                      * extract a solid color from the gradient stops. */
+                     if (p->name == CSS_PROPERTY_BACKGROUND_COLOR &&
+                         strstr(resolved, "gradient(")) {
+                        bool gradientResolved = false;
+                        const char *lp = strchr(resolved, '(');
+                        if (lp) {
+                           const char *comma = strchr(lp + 1, ',');
+                           if (comma) {
+                              const char *p2 = comma + 1;
+                              while (*p2 && !gradientResolved) {
+                                 while (*p2 == ' ' || *p2 == '\t') p2++;
+                                 if (!*p2 || *p2 == ')') break;
+                                 const char *endStop = strchr(p2, ',');
+                                 const char *closeParen = strchr(p2, ')');
+                                 if (!endStop || (closeParen && closeParen < endStop))
+                                    endStop = closeParen;
+                                 if (!endStop) endStop = p2 + strlen(p2);
+                                 int len = endStop - p2;
+                                 while (len > 0 && (p2[len-1] == ' ' || p2[len-1] == '\t'))
+                                    len--;
+                                 if (len > 0 && len < 256) {
+                                    char colorBuf[256];
+                                    memcpy(colorBuf, p2, len);
+                                    colorBuf[len] = '\0';
+                                    if (dStrAsciiCasecmp(colorBuf, "transparent") != 0) {
+                                       int err = 1;
+                                       int32_t col = a_Color_parse(colorBuf, -1, &err);
+                                       if (col != -1) {
+                                          p->type = CSS_TYPE_COLOR;
+                                          p->value.intVal = col;
+                                          gradientResolved = true;
+                                       }
+                                    }
+                                 }
+                                 p2 = endStop + 1;
+                              }
+                           }
+                        }
+                        continue; /* gradient handled or skipped */
+                     }
                      CssPropertyName propName = (CssPropertyName) p->name;
                      const char *propStr = CssParser::propertyNameString(propName);
                      if (propStr) {

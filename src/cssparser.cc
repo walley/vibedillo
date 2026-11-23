@@ -189,6 +189,7 @@ const CssPropertyInfo Css_property_info[CSS_PROPERTY_LAST] = {
     Css_border_style_enum_vals},
    {"border-left-width", {CSS_TYPE_ENUM, CSS_TYPE_LENGTH, CSS_TYPE_UNUSED},
     Css_border_width_enum_vals},
+   {"border-radius", {CSS_TYPE_LENGTH_PERCENTAGE, CSS_TYPE_UNUSED}, NULL},
    {"border-right-color", {CSS_TYPE_ENUM, CSS_TYPE_COLOR, CSS_TYPE_UNUSED},
     Css_border_color_enum_vals},
    {"border-right-style", {CSS_TYPE_ENUM, CSS_TYPE_UNUSED},
@@ -1608,6 +1609,43 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                      importantProps->set(markerProp, CSS_TYPE_VAR, val);
                   else
                      props->set(markerProp, CSS_TYPE_VAR, val);
+               } else if (ttype == CSS_TK_SYMBOL &&
+                          (dStrAsciiCasecmp(tval, "linear-gradient") == 0 ||
+                           dStrAsciiCasecmp(tval, "radial-gradient") == 0 ||
+                           dStrAsciiCasecmp(tval, "repeating-linear-gradient") == 0)) {
+                  /* Capture gradient as raw value on background-color.
+                   * Resolved to a solid color at style computation time. */
+                  Dstr *rawVal = dStr_new(tval);
+                  int parenDepth = 0;
+                  nextToken();
+                  while (ttype != CSS_TK_END) {
+                     if (ttype == CSS_TK_CHAR && tval[0] == ';' && parenDepth == 0)
+                        break;
+                     if (ttype == CSS_TK_CHAR && tval[0] == '}' && parenDepth == 0)
+                        break;
+                     if (ttype == CSS_TK_CHAR && tval[0] == '(')
+                        parenDepth++;
+                     if (ttype == CSS_TK_CHAR && tval[0] == ')') {
+                        parenDepth--;
+                        dStr_append(rawVal, tval);
+                        if (parenDepth <= 0) { nextToken(); break; }
+                     } else if (ttype == CSS_TK_CHAR && tval[0] == ' ' &&
+                                rawVal->len > 0 &&
+                                rawVal->str[rawVal->len - 1] != ' ' &&
+                                rawVal->str[rawVal->len - 1] != '(')
+                        dStr_append_c(rawVal, ' ');
+                     else if (ttype != CSS_TK_CHAR || tval[0] != ' ')
+                        dStr_append(rawVal, tval);
+                     nextToken();
+                  }
+                  dStrstrip(rawVal->str);
+                  val.strVal = dStrdup(rawVal->str);
+                  dStr_free(rawVal, true);
+                  weight = parseWeight();
+                  if (weight && importantProps)
+                     importantProps->set(CSS_PROPERTY_BACKGROUND_COLOR, CSS_TYPE_VAR, val);
+                  else
+                     props->set(CSS_PROPERTY_BACKGROUND_COLOR, CSS_TYPE_VAR, val);
                } else switch (Css_shorthand_info[sh_index].type) {
 
                case CssShorthandInfo::CSS_SHORTHAND_FONT:
@@ -1697,25 +1735,68 @@ void CssParser::parseDeclaration(CssPropertyList *props,
 
                case CssShorthandInfo::CSS_SHORTHAND_BORDER:
                   do {
-                     for (found = false, i = 0;
-                          !found && i < 3;
-                          i++)
-                        if (tokenMatchesProperty(Css_shorthand_info[sh_index].
-                                                 properties[i], &type)) {
-                           found = true;
-                           if (parseValue(Css_shorthand_info[sh_index]
-                                          .properties[i], type, &val)) {
-                              weight = parseWeight();
-                              for (j = 0; j < 4; j++)
-                                 if (weight && importantProps)
-                                    importantProps->
-                                       set(Css_shorthand_info[sh_index].
-                                          properties[j * 3 + i], type, val);
-                                 else
-                                    props->set(Css_shorthand_info[sh_index].
-                                       properties[j * 3 + i], type, val);
-                           }
+                     /* Check for var() first - store as unresolved color */
+                     if (ttype == CSS_TK_SYMBOL &&
+                         dStrAsciiCasecmp(tval, "var") == 0) {
+                        Dstr *rawVal = dStr_new("var");
+                        int parenDepth = 0;
+                        nextToken();
+                        while (ttype != CSS_TK_END) {
+                           if (ttype == CSS_TK_CHAR && tval[0] == ';' && parenDepth == 0)
+                              break;
+                           if (ttype == CSS_TK_CHAR && tval[0] == '}' && parenDepth == 0)
+                              break;
+                           if (ttype == CSS_TK_CHAR && tval[0] == '(')
+                              parenDepth++;
+                           if (ttype == CSS_TK_CHAR && tval[0] == ')') {
+                              parenDepth--;
+                              dStr_append(rawVal, tval);
+                              if (parenDepth <= 0) { nextToken(); break; }
+                           } else if (ttype == CSS_TK_CHAR && tval[0] == ' ' &&
+                                      rawVal->len > 0 &&
+                                      rawVal->str[rawVal->len - 1] != ' ' &&
+                                      rawVal->str[rawVal->len - 1] != '(')
+                              dStr_append_c(rawVal, ' ');
+                           else if (ttype != CSS_TK_CHAR || tval[0] != ' ')
+                              dStr_append(rawVal, tval);
+                           nextToken();
                         }
+                        dStrstrip(rawVal->str);
+                        weight = parseWeight();
+                        /* Set var() as color (index 2) for all 4 sides.
+                         * Each set() stores the pointer, so dStrdup per side. */
+                        for (j = 0; j < 4; j++) {
+                           val.strVal = dStrdup(rawVal->str);
+                           if (weight && importantProps)
+                              importantProps->set(Css_shorthand_info[sh_index].
+                                         properties[j * 3 + 2], CSS_TYPE_VAR, val);
+                           else
+                              props->set(Css_shorthand_info[sh_index].
+                                         properties[j * 3 + 2], CSS_TYPE_VAR, val);
+                        }
+                        dStr_free(rawVal, true);
+                        found = true;
+                     } else {
+                        for (found = false, i = 0;
+                             !found && i < 3;
+                             i++)
+                           if (tokenMatchesProperty(Css_shorthand_info[sh_index].
+                                                    properties[i], &type)) {
+                              found = true;
+                              if (parseValue(Css_shorthand_info[sh_index]
+                                             .properties[i], type, &val)) {
+                                 weight = parseWeight();
+                                 for (j = 0; j < 4; j++)
+                                    if (weight && importantProps)
+                                       importantProps->
+                                          set(Css_shorthand_info[sh_index].
+                                             properties[j * 3 + i], type, val);
+                                    else
+                                       props->set(Css_shorthand_info[sh_index].
+                                             properties[j * 3 + i], type, val);
+                              }
+                           }
+                     }
                   } while (found);
                   break;
                }
