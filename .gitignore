@@ -49,3 +49,5 @@ tags
 /test/shapes
 /test/trie
 /test/unicode-test
+*.log
+test/unit/containers
