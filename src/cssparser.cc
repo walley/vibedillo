@@ -2034,7 +2034,7 @@ void CssParser::parseRuleset()
    CssPropertyList *props, *importantProps;
    CssSelector *selector;
 
-   printf("DEBUG parseRuleset: origin=%d\n", origin); fflush(stdout);
+   DBG("DEBUG parseRuleset: origin=%d\n", origin);
 
    list = new lout::misc::SimpleVector < CssSelector * >(1);
 
@@ -2469,7 +2469,7 @@ void CssParser::parseMedia(DilloHtml *html)
 
    nextToken();
 
-   printf("DEBUG parseMedia: starting\n"); fflush(stdout);
+   DBG("DEBUG parseMedia: starting\n");
 
    /* parse a comma-separated list of media queries */
    if (!parseMediaList (html, &mediaIsSelected)) {
@@ -2485,10 +2485,10 @@ void CssParser::parseMedia(DilloHtml *html)
    }
 
    /* parse/ignore the block as required */
-   printf("DEBUG parseMedia: mediaIsSelected=%d, ttype=%d, tval=%s\n", mediaIsSelected, ttype, tval ? tval : "NULL"); fflush(stdout);
+   DBG("DEBUG parseMedia: mediaIsSelected=%d, ttype=%d, tval=%s\n", mediaIsSelected, ttype, tval ? tval : "NULL");
    if (mediaIsSelected) {
       nextToken();
-      printf("DEBUG parseMedia: after nextToken, ttype=%d, tval=%s\n", ttype, tval ? tval : "NULL"); fflush(stdout);
+      DBG("DEBUG parseMedia: after nextToken, ttype=%d, tval=%s\n", ttype, tval ? tval : "NULL");
       while (ttype != CSS_TK_END) {
          parseRuleset();
          if (ttype == CSS_TK_CHAR && tval[0] == '}') {
@@ -2497,7 +2497,7 @@ void CssParser::parseMedia(DilloHtml *html)
          }
       }
    } else {
-      printf("DEBUG parseMedia: ignoring block\n"); fflush(stdout);
+      DBG("DEBUG parseMedia: ignoring block\n");
       ignoreBlock();
    }
 }

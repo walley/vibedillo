@@ -12,6 +12,7 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "prefs.h"
 
@@ -35,6 +36,7 @@
  * Global Data
  *---------------------------------------------------------------------------*/
 DilloPrefs prefs;
+int vibedillo_debug_enabled = 0;
 
 /**
  * Sets the default settings.
@@ -110,7 +112,7 @@ void a_Prefs_init(void)
    prefs.show_forw = TRUE;
    prefs.show_help = TRUE;
    prefs.show_home = TRUE;
-   prefs.show_msg = TRUE;
+   prefs.show_msg = (getenv("VIBEDILLO_DEBUG") != NULL);
    prefs.show_progress_box = TRUE;
    prefs.show_quit_dialog = FALSE;
    prefs.show_reload = TRUE;

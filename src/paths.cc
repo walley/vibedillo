@@ -38,28 +38,28 @@ void Paths::init(void)
    oldWorkingDir = dGetcwd();
    rc = chdir("/tmp");
    if (rc == -1) {
-      printf("paths: Error changing directory to /tmp: %s\n",
+      DBG("paths: Error changing directory to /tmp: %s\n",
           dStrerror(errno));
    }
 
    char *home = dGethomedir();
-   printf("paths: init: home dir = '%s'\n", home ? home : "(null)");
+   DBG("paths: init: home dir = '%s'\n", home ? home : "(null)");
    path = dStrconcat(home, "/.config/vibedillo", NULL);
-   printf("paths: init: checking dir '%s'\n", path);
+   DBG("paths: init: checking dir '%s'\n", path);
    if (stat(path, &st) == -1) {
       if (errno == ENOENT) {
-         printf("paths: Creating directory '%s/'\n", path);
+         DBG("paths: Creating directory '%s/'\n", path);
          if (mkdir(path, 0700) < 0) {
-            printf("paths: Error creating directory %s: %s\n",
+            DBG("paths: Error creating directory %s: %s\n",
                 path, dStrerror(errno));
          } else {
-            printf("paths: Directory created successfully\n");
+            DBG("paths: Directory created successfully\n");
          }
       } else {
          printf("Dillo: error reading %s: %s\n", path, dStrerror(errno));
       }
    } else {
-      printf("paths: Directory already exists\n");
+      DBG("paths: Directory already exists\n");
    }
 
    dFree(path);

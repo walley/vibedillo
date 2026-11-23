@@ -110,6 +110,7 @@ static int queryDesktopPortalColorScheme() {
 static volatile sig_atomic_t sig_reload = 0;
 static volatile sig_atomic_t sig_exit = 0;
 static volatile sig_atomic_t sig_screenshot = 0;
+extern int vibedillo_debug_enabled;
 
 /**
  * Command line options structure
@@ -201,6 +202,11 @@ static void handler_usr2(int signum)
    sig_screenshot = 1;
 }
 
+static void handler_term(int signum)
+{
+   sig_exit = 1;
+}
+
 /**
  * Establish SIGCHLD handler
  */
@@ -228,6 +234,15 @@ static void est_sigchld(void)
    if (signal(SIGUSR2, handler_usr2) == SIG_ERR) {
       perror("signal failed");
       exit(1);
+   }
+
+   /* In debug mode (VIBEDILLO_DEBUG env var set), SIGTERM triggers
+    * clean exit via sig_exit for testing purposes. */
+   if (vibedillo_debug_enabled) {
+      if (signal(SIGTERM, handler_term) == SIG_ERR) {
+         perror("signal failed");
+         exit(1);
+      }
    }
 }
 
@@ -465,6 +480,9 @@ int main(int argc, char **argv)
 
    srand((uint_t)(time(0) ^ getpid()));
 
+   /* Enable debug output if VIBEDILLO_DEBUG env var is set */
+   vibedillo_debug_enabled = (getenv("VIBEDILLO_DEBUG") != NULL);
+
    // Some OSes exit dillo without this (not GNU/Linux).
    signal(SIGPIPE, SIG_IGN);
    // Establish our custom SIGCHLD handler
@@ -536,29 +554,21 @@ int main(int argc, char **argv)
    if (prefs.color_scheme) {
        if (dStrAsciiCasecmp(prefs.color_scheme, "dark") == 0) {
            prefs.effective_color_scheme = 2;
-           printf("Vibedillo: Color scheme: dark (user config)\n");
-       } else if (dStrAsciiCasecmp(prefs.color_scheme, "light") == 0) {
+           DBG("Vibedillo: Color scheme: dark (user config)\n");} else if (dStrAsciiCasecmp(prefs.color_scheme, "light") == 0) {
            prefs.effective_color_scheme = 1;
-           printf("Vibedillo: Color scheme: light (user config)\n");
-       } else if (dStrAsciiCasecmp(prefs.color_scheme, "auto") == 0) {
-           printf("Vibedillo: Querying desktop portal...\n");
-           fflush(stdout);
-           prefs.detected_desktop_theme = queryDesktopPortalColorScheme();
+           DBG("Vibedillo: Color scheme: light (user config)\n");} else if (dStrAsciiCasecmp(prefs.color_scheme, "auto") == 0) {
+           DBG("Vibedillo: Querying desktop portal...\n");prefs.detected_desktop_theme = queryDesktopPortalColorScheme();
            if (prefs.detected_desktop_theme == 1 || prefs.detected_desktop_theme == 2) {
                prefs.effective_color_scheme = prefs.detected_desktop_theme;
                const char *scheme_str = (prefs.detected_desktop_theme == 1) ? "light" : "dark";
-               printf("Vibedillo: Desktop theme detected via portal: %s\n", scheme_str);
-           } else {
+               DBG("Vibedillo: Desktop theme detected via portal: %s\n", scheme_str);} else {
                prefs.effective_color_scheme = 2;  /* default to dark */
-               printf("Vibedillo: No portal preference, defaulting to dark\n");
-           }
+               DBG("Vibedillo: No portal preference, defaulting to dark\n");}
            fflush(stdout);
        }
    } else {
        prefs.effective_color_scheme = 2;  /* default to dark */
-       printf("Vibedillo: Color scheme: dark (default)\n");
-       fflush(stdout);
-   }
+       DBG("Vibedillo: Color scheme: dark (default)\n");}
 
    // initialize internal modules
    a_Dpi_init();
