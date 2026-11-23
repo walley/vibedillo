@@ -1,0 +1,25 @@
+===============================================
+   vibedillo 3.3.4: test/unit/test-suite.log
+===============================================
+
+# TOTAL: 7
+# PASS:  7
+# SKIP:  0
+# XFAIL: 0
+# FAIL:  0
+# XPASS: 0
+# ERROR: 0
+
+System information (uname -a): Linux 6.12.96+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.96-1 (2026-07-20) x86_64
+Distribution information (/etc/os-release):
+PRETTY_NAME="Devuan GNU/Linux 6 (excalibur)"
+NAME="Devuan GNU/Linux"
+VERSION_ID="6"
+VERSION="6 (excalibur)"
+VERSION_CODENAME="excalibur"
+ID=devuan
+ID_LIKE=debian
+HOME_URL="https://www.devuan.org/"
+
+.. contents:: :depth: 2
+

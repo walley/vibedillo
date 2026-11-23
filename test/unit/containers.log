@@ -1,0 +1,60 @@
+--- testHashSet ---
+{ two, three, one }
+--- testHashTable ---
+{ two => 2, three => 3, one => 1 }
+{ two => 5, three => 6, one => 4 }
+--- testVector (1) ---
+{ one, two, three }
+{ two, three, one }
+{ one, three, two }
+--- testVector (2) ---
+{ one }
+{ one, two }
+{ one, three, two }
+{ five, one, three, two }
+{ five, one, six, three, two }
+{ five, four, one, six, three, two }
+mustExist = false
+   'alpha' -> 0
+   'five' -> 0
+   'five-var' -> 1
+   'four' -> 1
+   'four-var' -> 2
+   'one' -> 2
+   'one-var' -> 3
+   'six' -> 3
+   'six-var' -> 4
+   'three' -> 4
+   'three-var' -> 5
+   'two' -> 5
+   'two-var' -> 6
+mustExist = true
+   'alpha' -> -1
+   'five' -> 0
+   'five-var' -> -1
+   'four' -> 1
+   'four-var' -> -1
+   'one' -> 2
+   'one-var' -> -1
+   'six' -> 3
+   'six-var' -> -1
+   'three' -> 4
+   'three-var' -> -1
+   'two' -> 5
+   'two-var' -> -1
+--- testVector (3) ---
+   -> 1
+   -> 2
+   -> 3
+--- testStackAsQueue ---
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+PASS containers (exit status: 0)

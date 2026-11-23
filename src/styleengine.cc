@@ -1215,12 +1215,13 @@ void StyleEngine::resolveCssVariables (int i, CssPropertyList *props) {
                                                           (int)decl->len, &tmpProps,
                                                           &tmpImportant);
                         dStr_free(decl, true);
-                        /* Find and copy the resolved property */
+                        /* Find and copy the resolved property.
+                         * Note: props does not own its strings (they point
+                         * into the CSS rules), so we must NOT free the old
+                         * value here — just overwrite it. */
                         for (int k = 0; k < tmpProps.size(); k++) {
                            CssProperty *tp = tmpProps.getRef(k);
                            if (tp->name == p->name) {
-                              /* Free old string value, take ownership of new */
-                              dFree(p->value.strVal);
                               p->type = tp->type;
                               p->value = tp->value;
                               tp->type = CSS_TYPE_UNUSED; /* prevent double-free */
