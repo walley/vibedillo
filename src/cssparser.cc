@@ -1554,10 +1554,68 @@ void CssParser::parseDeclaration(CssPropertyList *props,
             } else if (tokenMatchesProperty (prop, &type) &&
                 parseValue(prop, type, &val)) {
                weight = parseWeight();
-               if (weight && importantProps)
-                  importantProps->set(prop, type, val);
-               else
-                  props->set(prop, type, val);
+               /* For border-radius, check if there are additional values or "/"
+                * for vertical radii. Only use CSS_TYPE_VAR format in those cases. */
+               bool isMultiRadius = false;
+               if (prop == CSS_PROPERTY_BORDER_RADIUS) {
+                  /* Check if next token is "/" or another length/percentage value */
+                  if (ttype == CSS_TK_CHAR && tval[0] == '/') {
+                     isMultiRadius = true;
+                  } else if (ttype == CSS_TK_DECINT || ttype == CSS_TK_FLOAT ||
+                             ttype == CSS_TK_SYMBOL ||
+                             (ttype == CSS_TK_CHAR && tval[0] == '%')) {
+                     isMultiRadius = true;
+                  }
+               }
+               if (prop == CSS_PROPERTY_BORDER_RADIUS && isMultiRadius) {
+                  Dstr *rawVal = dStr_new("");
+                  CssPropertyValue extraVal;
+                  CssValueType extraType;
+                  char buf[64];
+                  const char *unit = (type == CSS_TYPE_LENGTH_PERCENTAGE) ? "%" : "px";
+                  snprintf(buf, sizeof(buf), "%g%s", CSS_LENGTH_VALUE(val.lenVal), unit);
+                  dStr_append(rawVal, buf);
+                  int nvals = 1;
+                  while (nvals < 4) {
+                     if (!tokenMatchesProperty(CSS_PROPERTY_BORDER_RADIUS, &extraType))
+                        break;
+                     if (!parseValue(CSS_PROPERTY_BORDER_RADIUS, extraType, &extraVal))
+                        break;
+                     const char *u = (extraType == CSS_TYPE_LENGTH_PERCENTAGE) ? "%" : "px";
+                     snprintf(buf, sizeof(buf), " %g%s", CSS_LENGTH_VALUE(extraVal.lenVal), u);
+                     dStr_append(rawVal, buf);
+                     nvals++;
+                  }
+                  /* Check for "/" vertical radii */
+                  if (ttype == CSS_TK_CHAR && tval[0] == '/') {
+                     nextToken();
+                     dStr_append(rawVal, " / ");
+                     int nvvals = 0;
+                     while (nvvals < 4) {
+                        if (!tokenMatchesProperty(CSS_PROPERTY_BORDER_RADIUS, &extraType))
+                           break;
+                        if (!parseValue(CSS_PROPERTY_BORDER_RADIUS, extraType, &extraVal))
+                           break;
+                        const char *u = (extraType == CSS_TYPE_LENGTH_PERCENTAGE) ? "%" : "px";
+                        if (nvvals > 0) dStr_append_c(rawVal, ' ');
+                        snprintf(buf, sizeof(buf), "%g%s", CSS_LENGTH_VALUE(extraVal.lenVal), u);
+                        dStr_append(rawVal, buf);
+                        nvvals++;
+                     }
+                  }
+                  dStrstrip(rawVal->str);
+                  val.strVal = dStrdup(rawVal->str);
+                  dStr_free(rawVal, true);
+                  if (weight && importantProps)
+                     importantProps->set(prop, CSS_TYPE_VAR, val);
+                  else
+                     props->set(prop, CSS_TYPE_VAR, val);
+               } else {
+                  if (weight && importantProps)
+                     importantProps->set(prop, type, val);
+                  else
+                     props->set(prop, type, val);
+               }
             }
          }
       } else {
