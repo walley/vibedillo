@@ -31,6 +31,9 @@
 #include <FL/Fl_Pack.H>
 #include <FL/Fl_Scroll.H>
 #include <FL/names.h>
+#include <FL/fl_draw.H>
+#include <png.h>
+#include <unistd.h>
 
 #include "paths.hh"
 #include "keys.hh"
@@ -974,6 +977,85 @@ void a_UIcmd_reload_all_active()
       if (bw)
          a_UIcmd_reload(bw);
    }
+}
+
+/*
+ * Take a screenshot of the active tab's HTML subwindow and save as PNG.
+ * Called from SIGUSR2 handler in the main loop.
+ */
+void a_UIcmd_screenshot_active(void)
+{
+   BrowserWindow *bw = a_UIcmd_get_first_active_bw();
+   if (!bw) {
+      MSG("screenshot: no active browser window\n");
+      return;
+   }
+   UI *ui = BW2UI(bw);
+   Fl_Group *main = ui->main_group();
+   if (!main) {
+      MSG("screenshot: no main widget\n");
+      return;
+   }
+
+   int w = main->w();
+   int h = main->h();
+   if (w <= 0 || h <= 0) {
+      MSG("screenshot: invalid size %dx%d\n", w, h);
+      return;
+   }
+
+   Fl_Window *win = main->window();
+   if (!win) {
+      MSG("screenshot: no parent window\n");
+      return;
+   }
+   win->make_current();
+   uchar *pixels = fl_read_image(NULL, main->x(), main->y(), w, h, 0);
+   if (!pixels) {
+      MSG("screenshot: fl_read_image failed\n");
+      return;
+   }
+
+   char path[256];
+   snprintf(path, sizeof(path), "/tmp/vibedillo-screenshot-%d.png", (int)getpid());
+   FILE *fp = fopen(path, "wb");
+   if (!fp) {
+      MSG("screenshot: cannot open %s\n", path);
+      free(pixels);
+      return;
+   }
+
+   png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+   if (!png) {
+      fclose(fp);
+      free(pixels);
+      return;
+   }
+   png_infop info = png_create_info_struct(png);
+   if (!info) {
+      png_destroy_write_struct(&png, NULL);
+      fclose(fp);
+      free(pixels);
+      return;
+   }
+   if (setjmp(png_jmpbuf(png))) {
+      png_destroy_write_struct(&png, &info);
+      fclose(fp);
+      free(pixels);
+      return;
+   }
+   png_init_io(png, fp);
+   png_set_IHDR(png, info, w, h, 8, PNG_COLOR_TYPE_RGB,
+                PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
+                PNG_FILTER_TYPE_DEFAULT);
+   png_write_info(png, info);
+   for (int y = 0; y < h; y++)
+      png_write_row(png, pixels + y * w * 3);
+   png_write_end(png, info);
+   png_destroy_write_struct(&png, &info);
+   fclose(fp);
+   free(pixels);
+   MSG("screenshot: saved to %s (%dx%d)\n", path, w, h);
 }
 
 /*

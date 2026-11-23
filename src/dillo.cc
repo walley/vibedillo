@@ -109,6 +109,7 @@ static int queryDesktopPortalColorScheme() {
 
 static volatile sig_atomic_t sig_reload = 0;
 static volatile sig_atomic_t sig_exit = 0;
+static volatile sig_atomic_t sig_screenshot = 0;
 
 /**
  * Command line options structure
@@ -197,7 +198,7 @@ static void handler_usr1(int signum)
 
 static void handler_usr2(int signum)
 {
-   sig_exit = 1;
+   sig_screenshot = 1;
 }
 
 /**
@@ -222,10 +223,8 @@ static void est_sigchld(void)
       exit(1);
    }
 
-   /* For now we use SIGUSR2 to exit cleanly, so we can run the
-    * automatic HTML test and check that there are no leaks. In the
-    * future we should use a better communication mechanism. This
-    * feature is not documented, as it is intended for testing only. */
+   /* SIGUSR2 triggers a screenshot of the current tab's HTML subwindow.
+    * The screenshot is saved to /tmp/vibedillo-screenshot-<pid>.png */
    if (signal(SIGUSR2, handler_usr2) == SIG_ERR) {
       perror("signal failed");
       exit(1);
@@ -683,6 +682,9 @@ int main(int argc, char **argv)
       if (sig_reload) {
          sig_reload = 0;
          a_UIcmd_reload_all_active();
+      } else if (sig_screenshot) {
+         sig_screenshot = 0;
+         a_UIcmd_screenshot_active();
       } else if (sig_exit) {
          sig_exit = 0;
          a_UIcmd_close_all_bw((void *)1);

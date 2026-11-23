@@ -178,6 +178,7 @@ public:
 
    CustTabs *tabs() { return Tabs; }
    void tabs(CustTabs *tabs) { Tabs = tabs; }
+   Fl_Group *main_group() { return Main; }
    bool temporaryPanels() { return PanelTemporary; }
    void temporaryPanels(bool val) { PanelTemporary = val; }
 
