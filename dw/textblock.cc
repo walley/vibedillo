@@ -1500,18 +1500,8 @@ void Textblock::drawWord0 (int wordIndex1, int wordIndex2,
              if (!selColor)
                 selColor = layout->createColor (0x191970); /* fallback: default ui_selection_color */
 
-             /* Draw background for highlighted text using selection color. */
-             view->drawRectangle (
-                selColor, core::style::Color::SHADING_NORMAL, true, xStart,
-                yWorldBase - style->font->ascent, width,
-                style->font->ascent + style->font->descent);
-
-             /* Highlight the text in white. */
-             drawText (view, style, core::style::Color::SHADING_NORMAL, xStart,
-                       yWorldBase, text, firstCharIdx,
-                       lastCharIdx - firstCharIdx,
-                       isStartTotal && firstCharIdx == 0,
-                       isEndTotal && lastCharIdx == wordLen);
+              /* Selection background is now drawn by drawSelectionBackgrounds.
+               * We only draw the highlighted text in white here. */
 
              if (style->textDecoration)
                 decorateText(view, style, core::style::Color::SHADING_NORMAL,
@@ -1548,17 +1538,10 @@ void Textblock::drawSpace(int wordIndex, core::View *view,
          break;
       }
    }
-   if (highlight) {
-      core::style::Color *spaceBgColor;
-
-      if (!(spaceBgColor = style->backgroundColor))
-         spaceBgColor = getBgColor();
-
-      view->drawRectangle (
-         spaceBgColor, core::style::Color::SHADING_INVERSE, true, xWorld,
-         yWorldBase - style->font->ascent, word->effSpace,
-         style->font->ascent + style->font->descent);
-   }
+    if (highlight) {
+       /* Selection background is now drawn by drawSelectionBackgrounds.
+        * We don't draw it here anymore to avoid per-word redraw flicker. */
+    }
    if (style->textDecoration) {
        core::style::Color::Shading shading = highlight ?
           core::style::Color::SHADING_NORMAL :
@@ -1574,6 +1557,137 @@ void Textblock::drawSpace(int wordIndex, core::View *view,
  * - area is used always (ev. set it to event->area)
  * - event is only used when is_expose
  */
+
+/**
+ * rief Draw selection backgrounds for the entire textblock.
+ * Computes the full selection bounds for each highlight layer and draws
+ * a single continuous rectangle per layer to avoid per-word redraw flicker.
+ */
+void Textblock::drawSelectionBackgrounds (core::View *view, core::Rectangle *area)
+{
+   DBG_OBJ_ENTER ("draw", 0, "Textblock::drawSelectionBackgrounds", "..., [%d, %d, %d * %d]",
+                  area->x, area->y, area->width, area->height);
+
+   core::style::Color *selColor = layout->getSelectionColor ();
+   if (!selColor)
+      selColor = layout->createColor (0x191970); /* fallback: default ui_selection_color */
+
+   for (int layer = 0; layer < core::HIGHLIGHT_NUM_LAYERS; layer++) {
+      if (hlStart[layer].index < 0 || hlEnd[layer].index < 0)
+         continue; /* no selection on this layer */
+
+      /* Find the full bounds of the selection for this layer */
+      int minX = INT_MAX, minY = INT_MAX, maxX = INT_MIN, maxY = INT_MIN;
+      bool found = false;
+
+      for (int lineIndex = 0; lineIndex < lines->size (); lineIndex++) {
+         Line *line = lines->getRef (lineIndex);
+         int yWidgetBase = lineYOffsetWidget (line) + line->borderAscent;
+         int yWorldBase = yWidgetBase + allocation.y;
+         int lineTop = yWorldBase - line->borderAscent;
+         int lineBottom = yWorldBase + line->borderDescent;
+
+         /* Track x position as we iterate through words, same as drawLine */
+         int xWidget = line->textOffset;
+
+         for (int wordIndex = line->firstWord; wordIndex <= line->lastWord; wordIndex++) {
+            Word *word = words->getRef (wordIndex);
+            if (word->content.type != core::Content::TEXT &&
+                word->content.type != core::Content::WIDGET_IN_FLOW)
+               continue;
+
+            int wordSize = word->size.width;
+
+            if (wordIndex > hlEnd[layer].index || wordIndex < hlStart[layer].index) {
+               /* Word outside selection, just advance xWidget */
+               xWidget += word->size.width + word->hyphenWidth + word->effSpace;
+               continue;
+            }
+
+            int wordStartIdx = 0, wordEndIdx = 0;
+
+            if (wordIndex == hlStart[layer].index && wordIndex == hlEnd[layer].index) {
+               /* Selection starts and ends in this word */
+               if (word->content.type == core::Content::TEXT) {
+                  Word *w = words->getRef (wordIndex);
+                  int startChar = (wordIndex == hlStart[layer].index) ? hlStart[layer].nChar : 0;
+                  int endChar = (wordIndex == hlEnd[layer].index) ? hlEnd[layer].nChar : strlen(w->content.text);
+                  if (startChar < endChar) {
+                     /* Compute x bounds for this word segment */
+                     int xWorld = allocation.x + xWidget;
+                     int startX = xWorld + textWidth(w->content.text, 0, startChar, words->getRef(wordIndex)->style, true, false);
+                     int endX = xWorld + textWidth(w->content.text, 0, endChar, words->getRef(wordIndex)->style, true, false);
+                     if (startX < endX) {
+                        minX = std::min(minX, startX);
+                        maxX = std::max(maxX, endX);
+                        minY = std::min(minY, lineTop);
+                        maxY = std::max(maxY, lineBottom);
+                        found = true;
+                     }
+                  }
+               }
+            } else if (wordIndex == hlStart[layer].index) {
+               /* Selection starts in this word */
+               if (word->content.type == core::Content::TEXT) {
+                  Word *w = words->getRef (wordIndex);
+                  int startChar = hlStart[layer].nChar;
+                  int xWorld = allocation.x + xWidget;
+                  int startX = xWorld + textWidth(w->content.text, 0, startChar, words->getRef(wordIndex)->style, true, false);
+                  int endX = xWorld + w->size.width;
+                  minX = std::min(minX, startX);
+                  maxX = std::max(maxX, endX);
+                  minY = std::min(minY, lineTop);
+                  maxY = std::max(maxY, lineBottom);
+                  found = true;
+               }
+            } else if (wordIndex == hlEnd[layer].index) {
+               /* Selection ends in this word */
+               if (word->content.type == core::Content::TEXT) {
+                  Word *w = words->getRef (wordIndex);
+                  int endChar = hlEnd[layer].nChar;
+                  int xWorld = allocation.x + xWidget;
+                  int startX = xWorld;
+                  int endX = xWorld + textWidth(w->content.text, 0, endChar, words->getRef(wordIndex)->style, true, false);
+                  minX = std::min(minX, startX);
+                  maxX = std::max(maxX, endX);
+                  minY = std::min(minY, lineTop);
+                  maxY = std::max(maxY, lineBottom);
+                  found = true;
+               }
+            } else {
+               /* Word fully within selection */
+               int xWorld = allocation.x + xWidget;
+               minX = std::min(minX, xWorld);
+               maxX = std::max(maxX, xWorld + word->size.width);
+               minY = std::min(minY, lineTop);
+               maxY = std::max(maxY, lineBottom);
+               found = true;
+            }
+
+            /* Advance xWidget for next word */
+            xWidget += word->size.width + word->hyphenWidth + word->effSpace;
+         }
+      }
+
+      if (found) {
+         /* Clamp to area */
+         if (minX < area->x) minX = area->x;
+         if (maxX > area->x + area->width) maxX = area->x + area->width;
+         if (minY < area->y) minY = area->y;
+         if (maxY > area->y + area->height) maxY = area->y + area->height;
+
+         if (minX < maxX && minY < maxY) {
+            view->drawRectangle (
+               selColor, core::style::Color::SHADING_NORMAL, true,
+               minX, minY, maxX - minX, maxY - minY);
+         }
+      }
+   }
+
+   DBG_OBJ_LEAVE ();
+}
+
+
 void Textblock::drawLine (Line *line, core::View *view, core::Rectangle *area,
                           core::DrawingContext *context)
 {
@@ -1890,6 +2004,9 @@ void Textblock::drawLevel (core::View *view, core::Rectangle *area,
       break;
 
    case SL_IN_FLOW:
+       /* Draw selection backgrounds first (single continuous rectangles per layer) */
+       drawSelectionBackgrounds (view, area);
+
       for (int lineIndex = findLineIndexWhenAllocated (area->y);
            lineIndex < lines->size (); lineIndex++) {
          Line *line = lines->getRef (lineIndex);

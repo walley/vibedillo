@@ -684,7 +684,8 @@ protected:
    void drawSpace (int wordIndex, core::View *view, core::Rectangle *area,
                    int xWidget, int yWidgetBase);
    void drawLine (Line *line, core::View *view, core::Rectangle *area,
-                  core::DrawingContext *context);
+                   core::DrawingContext *context);
+    void drawSelectionBackgrounds (core::View *view, core::Rectangle *area);
 
    int findLineIndex (int y);
    int findLineIndexWhenNotAllocated (int y);
