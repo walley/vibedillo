@@ -75,6 +75,9 @@ void a_UIcmd_image_popup(void *vbw, const DilloUrl *url, bool_t loaded_img,
 void a_UIcmd_form_popup(void *vbw, const DilloUrl *url, void *vform,
                         bool_t showing_hiddens);
 void a_UIcmd_file_popup(void *vbw, void *v_wid);
+void a_UIcmd_edit_popup(void *vbw, void *v_wid);
+void a_UIcmd_print(void *vbw);
+void a_UIcmd_select_all(void *vbw);
 void a_UIcmd_copy_urlstr(BrowserWindow *bw, const char *urlstr, int destination);
 void a_UIcmd_view_page_source(BrowserWindow *bw, const DilloUrl *url);
 void a_UIcmd_view_page_bugs(void *vbw);

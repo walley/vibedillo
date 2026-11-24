@@ -77,6 +77,8 @@ static void filemenu_cb(Fl_Widget*, void *data)
       a_UIcmd_open_file(popup_bw);
    } else if (strcmp((char*)data, "ou") == 0) {
       a_UIcmd_focus_location(popup_bw);
+   } else if (strcmp((char*)data, "pr") == 0) {
+      a_UIcmd_print(popup_bw);
    } else if (strcmp((char*)data, "cw") == 0) {
       a_Timeout_add(0.0, a_UIcmd_close_bw, popup_bw);
    } else if (strcmp((char*)data, "ed") == 0) {
@@ -714,6 +716,8 @@ void a_Menu_file_popup(BrowserWindow *bw, void *v_wid)
        (void*)"of",0,0,0,0,0},
       {"Open URL...", Keys::getShortcut(KEYS_GOTO), filemenu_cb,
        (void*)"ou",0,0,0,0,0},
+      {"Print...", 0, filemenu_cb,
+       (void*)"pr", FL_MENU_DIVIDER,0,0,0,0},
       {"Close", Keys::getShortcut(KEYS_CLOSE_TAB), filemenu_cb,
        (void*)"cw", FL_MENU_DIVIDER,0,0,0,0},
       {"Exit Dillo", Keys::getShortcut(KEYS_CLOSE_ALL), filemenu_cb,
@@ -728,6 +732,39 @@ void a_Menu_file_popup(BrowserWindow *bw, void *v_wid)
    popup_url = NULL;
 
    //pm->label(wid->visible() ? NULL : "File");
+   a_Timeout_add(0.0, Menu_simple_popup_cb, (void*)pm);
+}
+
+/**
+ * Edit popup menu (construction & popup)
+ */
+static void editmenu_cb(Fl_Widget*, void *data)
+{
+   if (strcmp((char*)data, "copy") == 0) {
+      a_UIcmd_copy(popup_bw);
+   } else if (strcmp((char*)data, "selall") == 0) {
+      a_UIcmd_select_all(popup_bw);
+   }
+}
+
+void a_Menu_edit_popup(BrowserWindow *bw, void *v_wid)
+{
+   Fl_Widget *wid = (Fl_Widget*)v_wid;
+
+   static Fl_Menu_Item pm[] = {
+      {"Copy", FL_CTRL + 'c', editmenu_cb,
+       (void*)"copy",0,0,0,0,0},
+      {"Select all", FL_CTRL + 'a', editmenu_cb,
+       (void*)"selall",0,0,0,0,0},
+      {0,0,0,0,0,0,0,0,0}
+   };
+
+   popup_bw = bw;
+   popup_x = wid->x();
+   popup_y = wid->y() + wid->h();
+   a_Url_free(popup_url);
+   popup_url = NULL;
+
    a_Timeout_add(0.0, Menu_simple_popup_cb, (void*)pm);
 }
 

@@ -1454,6 +1454,33 @@ void a_UIcmd_file_popup(void *vbw, void *v_wid)
 }
 
 /*
+ * Pop up the edit menu
+ */
+void a_UIcmd_edit_popup(void *vbw, void *v_wid)
+{
+   a_Menu_edit_popup((BrowserWindow*)vbw, v_wid);
+}
+
+/*
+ * Print the current page (opens the FLTK print dialog)
+ */
+void a_UIcmd_print(void *vbw)
+{
+   BrowserWindow *bw = (BrowserWindow*)vbw;
+   a_UIcmd_set_msg(bw, "Print dialog not yet implemented");
+   /* TODO: integrate Fl_Printer to render the page */
+}
+
+/*
+ * Select all text on the current page
+ */
+void a_UIcmd_select_all(void *vbw)
+{
+   BrowserWindow *bw = (BrowserWindow*)vbw;
+   a_UIcmd_set_msg(bw, "Select all not yet implemented");
+}
+
+/*
  * Copy url string to paste buffer.
  *
  * For destination use: 0=primary, 1=clipboard, 2=both

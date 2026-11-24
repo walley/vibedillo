@@ -125,7 +125,8 @@ class UI : public CustGroupVertical {
 
    CustGroupVertical *TopGroup;
    CustButton *Back, *Forw, *Home, *Reload, *Save, *Stop, *Bookmarks,
-              *Tools, *Clear, *Search, *Help, *BugMeter, *FileButton, *ThemeButton;
+              *Tools, *Clear, *Search, *Help, *BugMeter, *FileButton, *EditButton,
+              *ThemeButton;
    CustGroupHorizontal *LocBar, *NavBar, *StatusBar;
    Fl_Input *Location;
    CustProgressBox *PProg, *IProg;
@@ -147,6 +148,7 @@ class UI : public CustGroupVertical {
    void make_progress_bars(int wide, int thin_up);
    void make_menubar(int x, int y, int w, int h);
    void make_filemenu_button();
+   void make_editmenu_button();
    void make_panel(int ww);
    void make_status_bar(int ww, int wh);
 

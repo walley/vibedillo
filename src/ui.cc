@@ -324,6 +324,17 @@ static void filemenu_cb(Fl_Widget *wid, void *)
 }
 
 /**
+ * Callback for the Edit menu button.
+ */
+static void editmenu_cb(Fl_Widget *wid, void *)
+{
+   int b = Fl::event_button();
+   if (b == FL_LEFT_MOUSE || b == FL_RIGHT_MOUSE) {
+      a_UIcmd_edit_popup(a_UIcmd_get_bw_by_widget(wid), wid);
+   }
+}
+
+/**
  * Callback for the location's clear-button.
  */
 static void clear_cb(Fl_Widget *w, void *data)
@@ -517,17 +528,9 @@ void UI::make_location(int ww)
 {
    CustButton *b;
 
-    b = Clear = (CustButton*) new CustPasteButton(p_xpos,0,16,lh,0);
-    b->image(icons->ImgClear);
-    b->callback(clear_cb, this);
-    b->clear_visible_focus();
-    b->box(FL_THIN_UP_BOX);
-    b->set_tooltip("Clear the URL box.\nMiddle-click to paste a URL.");
-    p_xpos += b->w();
-
-    LocationGroup = new Fl_Group(p_xpos,0,ww-p_xpos-32,lh,0);
+    LocationGroup = new Fl_Group(p_xpos,0,ww-p_xpos-48,lh,0);
     LocationGroup->begin();
-     CustInput *i = new CustInput(p_xpos,0,ww-p_xpos-32,lh,0);
+     CustInput *i = new CustInput(p_xpos,0,ww-p_xpos-48,lh,0);
      Location = i;
      i->when(FL_WHEN_ENTER_KEY);
      i->callback(location_cb, this);
@@ -536,6 +539,14 @@ void UI::make_location(int ww)
      p_xpos += i->w();
     LocationGroup->box(FL_THIN_UP_BOX);   // or FL_FLAT_BOX
     LocationGroup->end();
+
+    b = Clear = (CustButton*) new CustPasteButton(p_xpos,0,16,lh,0);
+    b->image(icons->ImgClear);
+    b->callback(clear_cb, this);
+    b->clear_visible_focus();
+    b->box(FL_THIN_UP_BOX);
+    b->set_tooltip("Clear the URL box.\nMiddle-click to paste a URL.");
+    p_xpos += b->w();
 
     Search = b = new CustButton(p_xpos,0,16,lh,0);
     b->image(icons->ImgSearch);
@@ -600,6 +611,29 @@ void UI::make_filemenu_button()
       btn->hide();
 }
 
+/**
+ * Create the "Edit" menu button (next to File).
+ */
+void UI::make_editmenu_button()
+{
+   CustButton *btn;
+   int w = 0, h = 0, padding;
+
+   EditButton = btn = new CustButton(p_xpos,0,bw,bh,"W");
+   btn->labeltype(FL_FREE_LABELTYPE);
+   btn->measure_label(w, h);
+   padding = w;
+   btn->copy_label("&Edit");
+   btn->measure_label(w,h);
+   h = (PanelSize == P_tiny) ? bh : lh;
+   btn->size(w+padding, h);
+   p_xpos += btn->w();
+   btn->box(FL_THIN_UP_BOX);
+   btn->callback(editmenu_cb, this);
+   btn->set_tooltip("Edit menu");
+   btn->clear_visible_focus();
+}
+
 
 /**
  * Create the control panel
@@ -640,6 +674,7 @@ void UI::make_panel(int ww)
       NavBar->begin();
        make_toolbar(ww,bh);
        make_filemenu_button();
+       make_editmenu_button();
        make_location(ww);
        NavBar->resizable(LocationGroup);
        make_progress_bars(0,1);
@@ -654,6 +689,7 @@ void UI::make_panel(int ww)
        LocBar->begin();
         p_xpos = 0;
         make_filemenu_button();
+        make_editmenu_button();
         make_location(ww);
         LocBar->resizable(LocationGroup);
        LocBar->end();
