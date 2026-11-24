@@ -57,3 +57,4 @@ src/vibedilloc
 /test/unicode-test
 *.log
 test/unit/containers
+test/unit/*
