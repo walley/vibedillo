@@ -4809,6 +4809,20 @@ static void Html_display_flex_item(DilloHtml *html)
  * tables are generated when a row/cell appears outside any table context.
  *---------------------------------------------------------------------------*/
 
+/* Find the enclosing dw::Table by walking up the stack from the parent.
+ * Handles table > row-group > row > cell nesting (phase 3). */
+static dw::Table *Html_css_find_table(DilloHtml *html, int fromIndex)
+{
+   for (int i = fromIndex; i >= 0; i--) {
+      DilloHtmlState *st = html->stack->getRef(i);
+      if (st->table &&
+          (st->css_table_role == CSS_TABLE_CONTAINER ||
+           st->css_table_role == CSS_TABLE_ROW))
+         return (dw::Table*) st->table;
+   }
+   return NULL;
+}
+
 /* display: table — create a dw::Table as a block-level widget. */
 static void Html_display_css_table(DilloHtml *html)
 {
@@ -4827,15 +4841,30 @@ static void Html_display_css_table(DilloHtml *html)
    S_TOP(html)->table = (Widget*) table;
 }
 
-/* display: table-row — start a new row on the parent table. If the parent
- * is not a table container, wrap in an anonymous table first (phase 2). */
+/* display: table-row-group / header-group / footer-group — pass-through
+ * container. Rows and cells inside will find the table by walking up
+ * the stack (phase 3). */
+static void Html_display_css_table_row_group(DilloHtml *html)
+{
+   S_TOP(html)->css_table_role = CSS_TABLE_ROW_GROUP;
+}
+
+/* display: table-row — start a new row on the enclosing table. If no
+ * table is found, wrap in an anonymous table first (phase 2). */
 static void Html_display_css_table_row(DilloHtml *html)
 {
    DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
+   dw::Table *table = Html_css_find_table(html, html->stack->size() - 2);
 
-   if (parent->css_table_role == CSS_TABLE_CONTAINER && parent->table) {
-      dw::Table *table = (dw::Table*) parent->table;
-      parent->css_anon_row_open = false;
+   if (table) {
+      /* Reset anon-row tracking on the nearest table container */
+      for (int i = html->stack->size() - 2; i >= 0; i--) {
+         DilloHtmlState *st = html->stack->getRef(i);
+         if (st->css_table_role == CSS_TABLE_CONTAINER) {
+            st->css_anon_row_open = false;
+            break;
+         }
+      }
       table->addRow(html->style());
       S_TOP(html)->css_table_role = CSS_TABLE_ROW;
       return;
@@ -4844,7 +4873,7 @@ static void Html_display_css_table_row(DilloHtml *html)
    /* Phase 2: anonymous table wrapper. Create a dw::Table, add a row,
     * and mark this element as both container and row. */
    HT2TB(html)->addParbreak(0, html->wordStyle());
-   dw::Table *table = new dw::Table(prefs.limit_text_width);
+   table = new dw::Table(prefs.limit_text_width);
    StyleAttrs tattrs = *(html->style());
    tattrs.display = DISPLAY_BLOCK;
    Style *tstyle = Style::create(&tattrs);
@@ -4863,28 +4892,23 @@ static void Html_display_css_table_row(DilloHtml *html)
  * cells share one anonymous row (phase 2). */
 static void Html_display_css_table_cell(DilloHtml *html)
 {
-   DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
+   int parentIdx = html->stack->size() - 2;
+   DilloHtmlState *parent = html->stack->getRef(parentIdx);
    dw::Table *table = NULL;
+   bool needAnonRow = false;
 
    if (parent->css_table_role == CSS_TABLE_ROW) {
-      /* Look for the table: either the grandparent is a container, or
-       * the parent row itself carries an anonymous table. */
-      if (parent->table) {
-         table = (dw::Table*) parent->table;
-      } else {
-         DilloHtmlState *grandparent =
-            html->stack->getRef(html->stack->size() - 3);
-         if (grandparent->css_table_role == CSS_TABLE_CONTAINER)
-            table = (dw::Table*) grandparent->table;
-      }
+      /* Row carries the table (explicit or anonymous) */
+      table = Html_css_find_table(html, parentIdx);
    } else if (parent->css_table_role == CSS_TABLE_CONTAINER && parent->table) {
       /* Phase 2: cell directly inside table — generate anonymous row.
        * Consecutive cells share the same anonymous row. */
       table = (dw::Table*) parent->table;
-      if (!parent->css_anon_row_open) {
-         table->addRow(NULL);
-         parent->css_anon_row_open = true;
-      }
+      needAnonRow = true;
+   } else if (parent->css_table_role == CSS_TABLE_ROW_GROUP) {
+      /* Phase 3: cell inside row-group (no row) — find table, anon row */
+      table = Html_css_find_table(html, parentIdx);
+      needAnonRow = true;
    } else {
       /* Phase 2: cell outside any table — generate anonymous table + row. */
       HT2TB(html)->addParbreak(0, html->wordStyle());
@@ -4902,6 +4926,21 @@ static void Html_display_css_table_cell(DilloHtml *html)
 
    if (!table)
       return;
+
+   if (needAnonRow) {
+      /* Find the nearest container to track anon-row state */
+      for (int i = parentIdx; i >= 0; i--) {
+         DilloHtmlState *st = html->stack->getRef(i);
+         if (st->css_table_role == CSS_TABLE_CONTAINER ||
+             st->css_table_role == CSS_TABLE_ROW_GROUP) {
+            if (!st->css_anon_row_open) {
+               table->addRow(NULL);
+               st->css_anon_row_open = true;
+            }
+            break;
+         }
+      }
+   }
 
    SimpleTableCell *cell = new SimpleTableCell(prefs.limit_text_width);
    StyleAttrs cattrs = *(html->style());
@@ -5064,10 +5103,11 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
          bool flex_parent = parent_st->flex_container;
          bool grid_parent = parent_st->grid_container;
          DisplayType disp = html->style ()->display;
-         /* Phase 2: when a non-cell child appears inside a CSS table
-          * container, close the anonymous row so the next cell starts
-          * a new one. */
-         if (parent_st->css_table_role == CSS_TABLE_CONTAINER &&
+         /* Phase 2/3: when a non-cell child appears inside a CSS table
+          * container or row-group, close the anonymous row so the next
+          * cell starts a new one. */
+         if ((parent_st->css_table_role == CSS_TABLE_CONTAINER ||
+              parent_st->css_table_role == CSS_TABLE_ROW_GROUP) &&
              disp != DISPLAY_TABLE_CELL)
             parent_st->css_anon_row_open = false;
          /* Block-level children of a grid container become grid items */
@@ -5117,8 +5157,22 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
                Html_display_grid_container(html);
                break;
             case DISPLAY_INLINE_TABLE:
+               /* Phase 3: inline-table — create dw::Table but add it as
+                * inline-block so it flows with surrounding inline content */
+               {
+                  dw::Table *table = new dw::Table(prefs.limit_text_width);
+                  StyleAttrs tattrs = *(html->style());
+                  tattrs.display = DISPLAY_INLINE_BLOCK;
+                  Style *tstyle = Style::create(&tattrs);
+                  HT2TB(html)->addWidget(table, tstyle);
+                  HT2TB(html)->addBreakOption(html->style(), false);
+                  tstyle->unref();
+                  S_TOP(html)->css_table_role = CSS_TABLE_CONTAINER;
+                  S_TOP(html)->css_anon_row_open = false;
+                  S_TOP(html)->table = (Widget*) table;
+               }
+               break;
             case DISPLAY_RUN_IN:
-               /* No true inline-table layout engine, render as block */
                Html_display_block(html);
                break;
             case DISPLAY_CONTENTS:
@@ -5139,8 +5193,9 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
             case DISPLAY_TABLE_ROW_GROUP:
             case DISPLAY_TABLE_HEADER_GROUP:
             case DISPLAY_TABLE_FOOTER_GROUP:
-               /* Row groups render as block for now (phase 3) */
-               Html_display_block(html);
+               /* Phase 3: row groups are pass-through containers;
+                * rows/cells inside find the table via stack walk */
+               Html_display_css_table_row_group(html);
                break;
             default:
                break;

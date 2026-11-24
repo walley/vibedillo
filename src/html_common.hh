@@ -84,6 +84,7 @@ typedef enum {
 typedef enum {
    CSS_TABLE_NONE,       /**< not a CSS table element */
    CSS_TABLE_CONTAINER,  /**< display: table */
+   CSS_TABLE_ROW_GROUP,  /**< display: table-row-group / header-group / footer-group */
    CSS_TABLE_ROW,        /**< display: table-row */
    CSS_TABLE_CELL        /**< display: table-cell */
 } CssTableRole;
