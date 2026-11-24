@@ -310,8 +310,12 @@ void StyleEngine::endElement (int element) {
 }
 
 void StyleEngine::preprocessAttrs (dw::core::style::StyleAttrs *attrs) {
-   /* workaround for styling of inline elements */
-   if (stack->getRef (stack->size () - 2)->inheritBackgroundColor) {
+   /* workaround for styling of inline elements; only for inline parents
+    * (block parents draw their own background via the widget box) */
+   if (stack->size () >= 2 &&
+       stack->getRef (stack->size () - 2)->style &&
+       stack->getRef (stack->size () - 2)->style->display == DISPLAY_INLINE &&
+       stack->getRef (stack->size () - 2)->inheritBackgroundColor) {
       attrs->backgroundColor =
          stack->getRef (stack->size () - 2)->style->backgroundColor;
       attrs->backgroundImage =
@@ -1420,7 +1424,12 @@ Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
    StyleAttrs attrs = *s;
    attrs.resetValues ();
 
-   if (stack->getRef (stack->size() - 1)->inheritBackgroundColor) {
+   /* Only inherit background for inline elements. Block-level elements
+    * (e.g. <pre>) draw their own background via the widget box; text inside
+    * them must remain transparent so the element background shows through,
+    * matching Firefox/Chrome behavior. */
+   if (s->display == DISPLAY_INLINE &&
+       stack->getRef (stack->size() - 1)->inheritBackgroundColor) {
       attrs.backgroundColor = s->backgroundColor;
       attrs.backgroundImage = s->backgroundImage;
       attrs.backgroundRepeat = s->backgroundRepeat;
