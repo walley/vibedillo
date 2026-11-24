@@ -18,6 +18,7 @@ missing
 tags
 /src/commit.h
 /src/dillo
+/src/vibedillo
 /doc/dillo.1
 /dpi/[^/]*\.dpi
 /dpid/dpid
