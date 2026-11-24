@@ -67,6 +67,9 @@ typedef enum {
                                    brackets and parentheses), as string. */
    CSS_TYPE_VAR,                /**< Unresolved var() reference, stored as
                                    string. Resolved at apply time. */
+   CSS_TYPE_INHERIT,            /**< The 'inherit' keyword. apply() skips
+                                   the property so the parent's inherited
+                                   value is kept. */
    CSS_TYPE_UNUSED              /**< Not yet used. Will itself get unused some
                                    day. */
 } CssValueType;

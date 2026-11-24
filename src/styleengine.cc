@@ -456,8 +456,11 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
    for (int j = 0; j < props->size (); j++) {
       CssProperty *p = props->getRef (j);
 
-      /* Skip unresolved CSS variables and custom property definitions */
-      if (p->type == CSS_TYPE_VAR || p->name == CSS_PROPERTY_CUSTOM)
+      /* Skip unresolved CSS variables, custom property definitions, and
+       * the 'inherit' keyword (which means: keep the parent's value that
+       * is already in attrs from the cascade) */
+      if (p->type == CSS_TYPE_VAR || p->type == CSS_TYPE_INHERIT ||
+          p->name == CSS_PROPERTY_CUSTOM)
          continue;
 
       switch (p->name) {

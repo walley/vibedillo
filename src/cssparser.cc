@@ -1551,6 +1551,17 @@ void CssParser::parseDeclaration(CssPropertyList *props,
                   importantProps->set(prop, CSS_TYPE_VAR, val);
                else
                   props->set(prop, CSS_TYPE_VAR, val);
+            } else if (ttype == CSS_TK_SYMBOL &&
+                       dStrAsciiCasecmp(tval, "inherit") == 0) {
+               /* 'inherit' keyword: store with CSS_TYPE_INHERIT so apply()
+                * skips it and keeps the parent's inherited value. */
+               val.intVal = 0;
+               nextToken();
+               weight = parseWeight();
+               if (weight && importantProps)
+                  importantProps->set(prop, CSS_TYPE_INHERIT, val);
+               else
+                  props->set(prop, CSS_TYPE_INHERIT, val);
             } else if (tokenMatchesProperty (prop, &type) &&
                 parseValue(prop, type, &val)) {
                weight = parseWeight();
