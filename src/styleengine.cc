@@ -1417,6 +1417,19 @@ Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
 
    postprocessAttrs (&attrs);
 
+   /* Fallback: display:table-cell behaves as inline-block unless inside
+    * a real table row. This handles horizontal menus using
+    * display:table + display:table-cell (CSS tables are not fully
+    * implemented for non-table elements). */
+   if (attrs.display == DISPLAY_TABLE_CELL && i > 0) {
+      DisplayType parentDisplay = stack->getRef (i - 1)->style->display;
+      if (parentDisplay != DISPLAY_TABLE_ROW &&
+          parentDisplay != DISPLAY_TABLE_ROW_GROUP &&
+          parentDisplay != DISPLAY_TABLE_HEADER_GROUP &&
+          parentDisplay != DISPLAY_TABLE_FOOTER_GROUP)
+         attrs.display = DISPLAY_INLINE_BLOCK;
+   }
+
    stack->getRef (i)->style = Style::create (&attrs);
 
    return stack->getRef (i)->style;
