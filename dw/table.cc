@@ -197,8 +197,29 @@ void Table::sizeAllocateImpl (core::Allocation *allocation)
 
             children->get(n)->cell.widget->sizeRequest (&childRequisition);
 
+            int rowHeight = cumHeight->get (row + children->get(n)->cell.rowspan)
+               - cumHeight->get (row) - getStyle()->vBorderSpacing;
+            int cellY = cumHeight->get (row) + offy;
+
+            /* Phase 4: vertical-align in table cells */
+            core::style::VAlignType va =
+               children->get(n)->cell.widget->getStyle()->valign;
+            int availHeight = rowHeight - childRequisition.ascent
+               - childRequisition.descent;
+            if (availHeight < 0) availHeight = 0;
+            switch (va) {
+               case core::style::VALIGN_MIDDLE:
+                  cellY += availHeight / 2;
+                  break;
+               case core::style::VALIGN_BOTTOM:
+                  cellY += availHeight;
+                  break;
+               default: /* VALIGN_TOP, VALIGN_BASELINE, etc. — top */
+                  break;
+            }
+
             childAllocation.x = x;
-            childAllocation.y = cumHeight->get (row) + offy;
+            childAllocation.y = cellY;
             childAllocation.width = width;
             childAllocation.ascent = childRequisition.ascent;
             childAllocation.descent =

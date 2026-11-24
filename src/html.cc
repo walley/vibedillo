@@ -4946,6 +4946,29 @@ static void Html_display_css_table_cell(DilloHtml *html)
    StyleAttrs cattrs = *(html->style());
    cattrs.display = DISPLAY_BLOCK;
    cattrs.margin.setVal(0); /* table cells have no margins */
+
+   /* Phase 4: border-collapse: collapse — mimic collapsing model by
+    * zeroing left/top cell borders and border-spacing, putting the
+    * border on right/bottom and on the table itself. */
+   if (cattrs.borderCollapse == BORDER_MODEL_COLLAPSE) {
+      int bw = cattrs.borderWidth.top;
+      cattrs.borderWidth.left = 0;
+      cattrs.borderWidth.top = 0;
+      cattrs.borderWidth.right = bw;
+      cattrs.borderWidth.bottom = bw;
+      cattrs.hBorderSpacing = 0;
+      cattrs.vBorderSpacing = 0;
+
+      /* Also set the table style to collapsing model */
+      StyleAttrs tattrs = *(table->getStyle());
+      tattrs.hBorderSpacing = 0;
+      tattrs.vBorderSpacing = 0;
+      tattrs.padding.setVal(0);
+      Style *tstyle = Style::create(&tattrs);
+      table->setStyle(tstyle);
+      tstyle->unref();
+   }
+
    Style *cstyle = Style::create(&cattrs);
    cell->setStyle(cstyle);
    cstyle->unref();
