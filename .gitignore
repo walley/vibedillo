@@ -16,9 +16,14 @@ install-sh
 stamp-h1
 missing
 tags
-/src/commit.h
-/src/dillo
-/src/vibedillo
+
+src/commit.h
+src/dillo
+src/dilloc
+src/vibedillo
+src/vibedillo
+src/vibedilloc
+
 /doc/dillo.1
 /dpi/[^/]*\.dpi
 /dpid/dpid
