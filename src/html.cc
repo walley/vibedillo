@@ -1452,6 +1452,7 @@ static void Html_push_tag(DilloHtml *html, int tag_idx)
     html->stack->getRef(n_items)->flex_container = false;
     html->stack->getRef(n_items)->grid_container = false;
     html->stack->getRef(n_items)->css_table_role = CSS_TABLE_NONE;
+    html->stack->getRef(n_items)->css_anon_row_open = false;
    html->dw = S_TOP(html)->textblock;
 }
 
@@ -4798,11 +4799,14 @@ static void Html_display_flex_item(DilloHtml *html)
 }
 
 /*-----------------------------------------------------------------------------
- * CSS table support, phase 1 (display: table / table-row / table-cell)
+ * CSS table support, phase 2 (display: table / table-row / table-cell +
+ * anonymous box generation)
  *
  * A display:table element becomes a dw::Table widget. Its display:table-row
  * children call addRow(), and display:table-cell children become cells via
- * addCell(). Anonymous rows are NOT generated yet (phase 2).
+ * addCell(). Anonymous table-rows are generated when cells appear directly
+ * inside a table (consecutive cells share one anonymous row). Anonymous
+ * tables are generated when a row/cell appears outside any table context.
  *---------------------------------------------------------------------------*/
 
 /* display: table — create a dw::Table as a block-level widget. */
@@ -4819,37 +4823,81 @@ static void Html_display_css_table(DilloHtml *html)
    tstyle->unref();
 
    S_TOP(html)->css_table_role = CSS_TABLE_CONTAINER;
+   S_TOP(html)->css_anon_row_open = false;
    S_TOP(html)->table = (Widget*) table;
 }
 
-/* display: table-row inside a CSS table container — start a new row. */
+/* display: table-row — start a new row on the parent table. If the parent
+ * is not a table container, wrap in an anonymous table first (phase 2). */
 static void Html_display_css_table_row(DilloHtml *html)
 {
    DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
-   if (parent->css_table_role != CSS_TABLE_CONTAINER || !parent->table)
+
+   if (parent->css_table_role == CSS_TABLE_CONTAINER && parent->table) {
+      dw::Table *table = (dw::Table*) parent->table;
+      parent->css_anon_row_open = false;
+      table->addRow(html->style());
+      S_TOP(html)->css_table_role = CSS_TABLE_ROW;
       return;
+   }
 
-   dw::Table *table = (dw::Table*) parent->table;
+   /* Phase 2: anonymous table wrapper. Create a dw::Table, add a row,
+    * and mark this element as both container and row. */
+   HT2TB(html)->addParbreak(0, html->wordStyle());
+   dw::Table *table = new dw::Table(prefs.limit_text_width);
+   StyleAttrs tattrs = *(html->style());
+   tattrs.display = DISPLAY_BLOCK;
+   Style *tstyle = Style::create(&tattrs);
+   HT2TB(html)->addWidget(table, tstyle);
+   HT2TB(html)->addParbreak(0, html->wordStyle());
+   tstyle->unref();
+
    table->addRow(html->style());
-
    S_TOP(html)->css_table_role = CSS_TABLE_ROW;
+   /* Also act as the table container for our cell children */
+   S_TOP(html)->table = (Widget*) table;
 }
 
-/* display: table-cell inside a CSS table row — add a cell to the table. */
+/* display: table-cell — add a cell to the containing table. If the parent
+ * is a table (not a row), generate an anonymous row first; consecutive
+ * cells share one anonymous row (phase 2). */
 static void Html_display_css_table_cell(DilloHtml *html)
 {
    DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
    dw::Table *table = NULL;
 
    if (parent->css_table_role == CSS_TABLE_ROW) {
-      DilloHtmlState *grandparent =
-         html->stack->getRef(html->stack->size() - 3);
-      if (grandparent->css_table_role == CSS_TABLE_CONTAINER)
-         table = (dw::Table*) grandparent->table;
-   } else if (parent->css_table_role == CSS_TABLE_CONTAINER) {
-      /* cell directly inside table (no row) — use the table directly;
-       * dw::Table handles cells without explicit rows */
+      /* Look for the table: either the grandparent is a container, or
+       * the parent row itself carries an anonymous table. */
+      if (parent->table) {
+         table = (dw::Table*) parent->table;
+      } else {
+         DilloHtmlState *grandparent =
+            html->stack->getRef(html->stack->size() - 3);
+         if (grandparent->css_table_role == CSS_TABLE_CONTAINER)
+            table = (dw::Table*) grandparent->table;
+      }
+   } else if (parent->css_table_role == CSS_TABLE_CONTAINER && parent->table) {
+      /* Phase 2: cell directly inside table — generate anonymous row.
+       * Consecutive cells share the same anonymous row. */
       table = (dw::Table*) parent->table;
+      if (!parent->css_anon_row_open) {
+         table->addRow(NULL);
+         parent->css_anon_row_open = true;
+      }
+   } else {
+      /* Phase 2: cell outside any table — generate anonymous table + row. */
+      HT2TB(html)->addParbreak(0, html->wordStyle());
+      table = new dw::Table(prefs.limit_text_width);
+      StyleAttrs tattrs = *(html->style());
+      tattrs.display = DISPLAY_BLOCK;
+      Style *tstyle = Style::create(&tattrs);
+      HT2TB(html)->addWidget(table, tstyle);
+      HT2TB(html)->addParbreak(0, html->wordStyle());
+      tstyle->unref();
+      table->addRow(NULL);
+      /* Store the table on this element so children can find it */
+      S_TOP(html)->table = (Widget*) table;
    }
 
    if (!table)
@@ -5011,11 +5059,17 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
       Tags[ni].open (html, tag, tagsize);
 
       if (! S_TOP(html)->display_none) {
-         bool flex_parent =
-            html->stack->getRef(html->stack->size()-2)->flex_container;
-         bool grid_parent =
-            html->stack->getRef(html->stack->size()-2)->grid_container;
+         DilloHtmlState *parent_st =
+            html->stack->getRef(html->stack->size()-2);
+         bool flex_parent = parent_st->flex_container;
+         bool grid_parent = parent_st->grid_container;
          DisplayType disp = html->style ()->display;
+         /* Phase 2: when a non-cell child appears inside a CSS table
+          * container, close the anonymous row so the next cell starts
+          * a new one. */
+         if (parent_st->css_table_role == CSS_TABLE_CONTAINER &&
+             disp != DISPLAY_TABLE_CELL)
+            parent_st->css_anon_row_open = false;
          /* Block-level children of a grid container become grid items */
          bool grid_item = grid_parent &&
             (disp == DISPLAY_BLOCK || disp == DISPLAY_LIST_ITEM ||

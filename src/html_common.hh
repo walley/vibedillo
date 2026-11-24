@@ -145,6 +145,10 @@ typedef struct {
    /** CSS table role of this element (display: table/row/cell), phase 1 */
    CssTableRole css_table_role;
 
+   /** True when an anonymous table-row has been opened for direct
+    *  table-cell children of this table container (phase 2) */
+   bool css_anon_row_open;
+
    /** Column tracks of the grid container (parsed grid-template-columns) */
    lout::misc::SimpleVector<dw::core::style::GridTrack> *grid_col_tracks;
    /** Row tracks of the grid container (parsed grid-template-rows) */
