@@ -80,6 +80,14 @@ typedef enum {
    DILLO_HTML_TABLE_BORDER_COLLAPSE
 } DilloHtmlTableBorderMode;
 
+/** CSS table display role of the current element (display: table/row/cell) */
+typedef enum {
+   CSS_TABLE_NONE,       /**< not a CSS table element */
+   CSS_TABLE_CONTAINER,  /**< display: table */
+   CSS_TABLE_ROW,        /**< display: table-row */
+   CSS_TABLE_CELL        /**< display: table-cell */
+} CssTableRole;
+
 typedef enum {
    HTML_LIST_NONE,
    HTML_LIST_UNORDERED,
@@ -133,6 +141,10 @@ typedef struct {
 
    /** True if current element is a CSS grid container (display: grid) */
    bool grid_container;
+
+   /** CSS table role of this element (display: table/row/cell), phase 1 */
+   CssTableRole css_table_role;
+
    /** Column tracks of the grid container (parsed grid-template-columns) */
    lout::misc::SimpleVector<dw::core::style::GridTrack> *grid_col_tracks;
    /** Row tracks of the grid container (parsed grid-template-rows) */

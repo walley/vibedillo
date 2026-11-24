@@ -1418,12 +1418,13 @@ Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
    postprocessAttrs (&attrs);
 
    /* Fallback: display:table-cell behaves as inline-block unless inside
-    * a real table row. This handles horizontal menus using
-    * display:table + display:table-cell (CSS tables are not fully
-    * implemented for non-table elements). */
+    * a table context (display:table, table-row, or row-group). When the
+    * parent is a CSS table container or row, keep table-cell so html.cc
+    * can add it to the dw::Table. */
    if (attrs.display == DISPLAY_TABLE_CELL && i > 0) {
       DisplayType parentDisplay = stack->getRef (i - 1)->style->display;
-      if (parentDisplay != DISPLAY_TABLE_ROW &&
+      if (parentDisplay != DISPLAY_TABLE &&
+          parentDisplay != DISPLAY_TABLE_ROW &&
           parentDisplay != DISPLAY_TABLE_ROW_GROUP &&
           parentDisplay != DISPLAY_TABLE_HEADER_GROUP &&
           parentDisplay != DISPLAY_TABLE_FOOTER_GROUP)

@@ -1451,6 +1451,7 @@ static void Html_push_tag(DilloHtml *html, int tag_idx)
    html->stack->getRef(n_items)->tag_idx = tag_idx;
     html->stack->getRef(n_items)->flex_container = false;
     html->stack->getRef(n_items)->grid_container = false;
+    html->stack->getRef(n_items)->css_table_role = CSS_TABLE_NONE;
    html->dw = S_TOP(html)->textblock;
 }
 
@@ -4796,6 +4797,77 @@ static void Html_display_flex_item(DilloHtml *html)
    style->unref ();
 }
 
+/*-----------------------------------------------------------------------------
+ * CSS table support, phase 1 (display: table / table-row / table-cell)
+ *
+ * A display:table element becomes a dw::Table widget. Its display:table-row
+ * children call addRow(), and display:table-cell children become cells via
+ * addCell(). Anonymous rows are NOT generated yet (phase 2).
+ *---------------------------------------------------------------------------*/
+
+/* display: table — create a dw::Table as a block-level widget. */
+static void Html_display_css_table(DilloHtml *html)
+{
+   HT2TB(html)->addParbreak(0, html->wordStyle());
+   dw::Table *table = new dw::Table(prefs.limit_text_width);
+
+   StyleAttrs tattrs = *(html->style());
+   tattrs.display = DISPLAY_BLOCK;
+   Style *tstyle = Style::create(&tattrs);
+   HT2TB(html)->addWidget(table, tstyle);
+   HT2TB(html)->addParbreak(0, html->wordStyle());
+   tstyle->unref();
+
+   S_TOP(html)->css_table_role = CSS_TABLE_CONTAINER;
+   S_TOP(html)->table = (Widget*) table;
+}
+
+/* display: table-row inside a CSS table container — start a new row. */
+static void Html_display_css_table_row(DilloHtml *html)
+{
+   DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
+   if (parent->css_table_role != CSS_TABLE_CONTAINER || !parent->table)
+      return;
+
+   dw::Table *table = (dw::Table*) parent->table;
+   table->addRow(html->style());
+
+   S_TOP(html)->css_table_role = CSS_TABLE_ROW;
+}
+
+/* display: table-cell inside a CSS table row — add a cell to the table. */
+static void Html_display_css_table_cell(DilloHtml *html)
+{
+   DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
+   dw::Table *table = NULL;
+
+   if (parent->css_table_role == CSS_TABLE_ROW) {
+      DilloHtmlState *grandparent =
+         html->stack->getRef(html->stack->size() - 3);
+      if (grandparent->css_table_role == CSS_TABLE_CONTAINER)
+         table = (dw::Table*) grandparent->table;
+   } else if (parent->css_table_role == CSS_TABLE_CONTAINER) {
+      /* cell directly inside table (no row) — use the table directly;
+       * dw::Table handles cells without explicit rows */
+      table = (dw::Table*) parent->table;
+   }
+
+   if (!table)
+      return;
+
+   SimpleTableCell *cell = new SimpleTableCell(prefs.limit_text_width);
+   StyleAttrs cattrs = *(html->style());
+   cattrs.display = DISPLAY_BLOCK;
+   cattrs.margin.setVal(0); /* table cells have no margins */
+   Style *cstyle = Style::create(&cattrs);
+   cell->setStyle(cstyle);
+   cstyle->unref();
+
+   table->addCell(cell, 1, 1);
+   S_TOP(html)->textblock = html->dw = cell;
+   S_TOP(html)->css_table_role = CSS_TABLE_CELL;
+}
+
 static void Html_display_listitem(DilloHtml *html)
 {
    Style *style = html->style ();
@@ -4999,10 +5071,21 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
                /* Element disappears; children render directly */
                break;
             case DISPLAY_TABLE:
+               /* CSS table: create a dw::Table widget */
+               Html_display_css_table(html);
+               break;
+            case DISPLAY_TABLE_ROW:
+               /* CSS table row: addRow() on parent table */
+               Html_display_css_table_row(html);
+               break;
+            case DISPLAY_TABLE_CELL:
+               /* CSS table cell: addCell() on grandparent table */
+               Html_display_css_table_cell(html);
+               break;
             case DISPLAY_TABLE_ROW_GROUP:
             case DISPLAY_TABLE_HEADER_GROUP:
             case DISPLAY_TABLE_FOOTER_GROUP:
-               /* Table containers render as block */
+               /* Row groups render as block for now (phase 3) */
                Html_display_block(html);
                break;
             default:
