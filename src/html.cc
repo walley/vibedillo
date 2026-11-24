@@ -5012,13 +5012,36 @@ static void Html_display_css_table_cell(DilloHtml *html)
    S_TOP(html)->css_table_role = CSS_TABLE_CELL;
 }
 
-/* display: table-caption — render as a block in the parent textblock,
- * BEFORE the deferred table widget is added, so it appears on top. */
+/* display: table-caption — render as a full-width cell in the first row
+ * of the table, so it is constrained to the table width and appears on
+ * top (before other rows). */
 static void Html_display_css_table_caption(DilloHtml *html)
 {
-   /* The table is still deferred; render caption as a normal block in
-    * the parent textblock. It will appear before the table. */
-   Html_display_block(html);
+   int parentIdx = html->stack->size() - 2;
+   dw::Table *table = Html_css_find_table(html, parentIdx);
+
+   if (!table) {
+      Html_display_block(html);
+      return;
+   }
+
+   /* Flush the deferred table widget so it renders in the parent */
+   Html_css_flush_deferred_table(html, parentIdx);
+
+   /* Add a row and put the caption in a cell spanning all columns */
+   table->addRow(NULL);
+
+   SimpleTableCell *cell = new SimpleTableCell(prefs.limit_text_width);
+   StyleAttrs cattrs = *(html->style());
+   cattrs.display = DISPLAY_BLOCK;
+   cattrs.margin.setVal(0);
+   Style *cstyle = Style::create(&cattrs);
+   cell->setStyle(cstyle);
+   cstyle->unref();
+
+   /* Large colspan so it spans the full table width */
+   table->addCell(cell, 999, 1);
+   S_TOP(html)->textblock = html->dw = cell;
 }
 
 /* display: table-column / table-column-group — no visual rendering,
