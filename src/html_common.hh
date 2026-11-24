@@ -150,6 +150,10 @@ typedef struct {
     *  table-cell children of this table container (phase 2) */
    bool css_anon_row_open;
 
+   /** True when the dw::Table widget has not yet been added to the parent
+    *  textblock (deferred so table-caption can render before it) */
+   bool css_table_deferred;
+
    /** Column tracks of the grid container (parsed grid-template-columns) */
    lout::misc::SimpleVector<dw::core::style::GridTrack> *grid_col_tracks;
    /** Row tracks of the grid container (parsed grid-template-rows) */

@@ -1453,6 +1453,7 @@ static void Html_push_tag(DilloHtml *html, int tag_idx)
     html->stack->getRef(n_items)->grid_container = false;
     html->stack->getRef(n_items)->css_table_role = CSS_TABLE_NONE;
     html->stack->getRef(n_items)->css_anon_row_open = false;
+    html->stack->getRef(n_items)->css_table_deferred = false;
    html->dw = S_TOP(html)->textblock;
 }
 
@@ -1466,6 +1467,9 @@ static void Html_force_push_tag(DilloHtml *html, int tag_idx)
    Html_push_tag(html, tag_idx);
 }
 
+/* Forward declaration: flush a deferred CSS table widget */
+static void Html_css_flush_deferred_table(DilloHtml *html, int fromIndex);
+
 /**
  * Pop the top tag in the stack
  */
@@ -1474,6 +1478,11 @@ static void Html_real_pop_tag(DilloHtml *html)
    bool hand_over_break;
 
    Html_add_generated_content (html, "after");
+   /* If this element was a deferred CSS table with no rows added,
+    * flush the table widget now so it still renders. */
+   if (S_TOP(html)->css_table_role == CSS_TABLE_CONTAINER &&
+       S_TOP(html)->css_table_deferred && S_TOP(html)->table)
+      Html_css_flush_deferred_table(html, html->stack->size() - 1);
    html->styleEngine->endElement (S_TOP(html)->tag_idx);
    hand_over_break = S_TOP(html)->hand_over_break;
    html->stack->setSize (html->stack->size() - 1);
@@ -4823,21 +4832,43 @@ static dw::Table *Html_css_find_table(DilloHtml *html, int fromIndex)
    return NULL;
 }
 
-/* display: table — create a dw::Table as a block-level widget. */
+/* If the nearest CSS table container has a deferred dw::Table (not yet
+ * added to the parent textblock), add it now. This ensures captions
+ * rendered before the first row appear above the table. */
+static void Html_css_flush_deferred_table(DilloHtml *html, int fromIndex)
+{
+   for (int i = fromIndex; i >= 0; i--) {
+      DilloHtmlState *st = html->stack->getRef(i);
+      if (st->css_table_role == CSS_TABLE_CONTAINER && st->table &&
+          st->css_table_deferred) {
+         dw::Table *table = (dw::Table*) st->table;
+         HT2TB(html)->addParbreak(0, html->wordStyle());
+         Style *tstyle = table->getStyle();
+         tstyle->ref();
+         HT2TB(html)->addWidget(table, tstyle);
+         HT2TB(html)->addParbreak(0, html->wordStyle());
+         tstyle->unref();
+         st->css_table_deferred = false;
+         return;
+      }
+   }
+}
+
+/* display: table — create a dw::Table widget, but defer adding it to the
+ * parent textblock so that a table-caption can render before it. */
 static void Html_display_css_table(DilloHtml *html)
 {
-   HT2TB(html)->addParbreak(0, html->wordStyle());
    dw::Table *table = new dw::Table(prefs.limit_text_width);
 
    StyleAttrs tattrs = *(html->style());
    tattrs.display = DISPLAY_BLOCK;
    Style *tstyle = Style::create(&tattrs);
-   HT2TB(html)->addWidget(table, tstyle);
-   HT2TB(html)->addParbreak(0, html->wordStyle());
+   table->setStyle(tstyle);
    tstyle->unref();
 
    S_TOP(html)->css_table_role = CSS_TABLE_CONTAINER;
    S_TOP(html)->css_anon_row_open = false;
+   S_TOP(html)->css_table_deferred = true;
    S_TOP(html)->table = (Widget*) table;
 }
 
@@ -4846,6 +4877,7 @@ static void Html_display_css_table(DilloHtml *html)
  * the stack (phase 3). */
 static void Html_display_css_table_row_group(DilloHtml *html)
 {
+   Html_css_flush_deferred_table(html, html->stack->size() - 2);
    S_TOP(html)->css_table_role = CSS_TABLE_ROW_GROUP;
 }
 
@@ -4854,6 +4886,7 @@ static void Html_display_css_table_row_group(DilloHtml *html)
 static void Html_display_css_table_row(DilloHtml *html)
 {
    DilloHtmlState *parent = html->stack->getRef(html->stack->size() - 2);
+   Html_css_flush_deferred_table(html, html->stack->size() - 2);
    dw::Table *table = Html_css_find_table(html, html->stack->size() - 2);
 
    if (table) {
@@ -4894,6 +4927,7 @@ static void Html_display_css_table_cell(DilloHtml *html)
 {
    int parentIdx = html->stack->size() - 2;
    DilloHtmlState *parent = html->stack->getRef(parentIdx);
+   Html_css_flush_deferred_table(html, parentIdx);
    dw::Table *table = NULL;
    bool needAnonRow = false;
 
@@ -4976,6 +5010,22 @@ static void Html_display_css_table_cell(DilloHtml *html)
    table->addCell(cell, 1, 1);
    S_TOP(html)->textblock = html->dw = cell;
    S_TOP(html)->css_table_role = CSS_TABLE_CELL;
+}
+
+/* display: table-caption — render as a block in the parent textblock,
+ * BEFORE the deferred table widget is added, so it appears on top. */
+static void Html_display_css_table_caption(DilloHtml *html)
+{
+   /* The table is still deferred; render caption as a normal block in
+    * the parent textblock. It will appear before the table. */
+   Html_display_block(html);
+}
+
+/* display: table-column / table-column-group — no visual rendering,
+ * just skip (column widths are not yet supported from these elements). */
+static void Html_display_css_table_column(DilloHtml *html)
+{
+   S_TOP(html)->display_none = true;
 }
 
 static void Html_display_listitem(DilloHtml *html)
@@ -5219,6 +5269,15 @@ static void Html_process_tag(DilloHtml *html, char *tag, int tagsize)
                /* Phase 3: row groups are pass-through containers;
                 * rows/cells inside find the table via stack walk */
                Html_display_css_table_row_group(html);
+               break;
+            case DISPLAY_TABLE_CAPTION:
+               /* table-caption renders as block before the (deferred) table */
+               Html_display_css_table_caption(html);
+               break;
+            case DISPLAY_TABLE_COLUMN:
+            case DISPLAY_TABLE_COLUMN_GROUP:
+               /* Columns have no visual box; skip content */
+               Html_display_css_table_column(html);
                break;
             default:
                break;

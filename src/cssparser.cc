@@ -88,7 +88,8 @@ static const char *const Css_display_enum_vals[] = {
    "block", "inline", "inline-block", "list-item", "none", "table",
    "table-row-group", "table-header-group", "table-footer-group", "table-row",
    "table-cell", "flex", "contents", "inline-flex", "grid", "inline-grid",
-   "inline-table", "run-in", NULL
+   "inline-table", "run-in", "table-caption", "table-column",
+   "table-column-group", NULL
 };
 
 static const char *const Css_float_enum_vals[] = {
