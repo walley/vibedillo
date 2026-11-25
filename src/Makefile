@@ -110,20 +110,21 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sysconfdir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_vibedillo_OBJECTS = dillo.$(OBJEXT) version.$(OBJEXT) \
 	paths.$(OBJEXT) tipwin.$(OBJEXT) ui.$(OBJEXT) uicmd.$(OBJEXT) \
-	bw.$(OBJEXT) cookies.$(OBJEXT) cookies_store.$(OBJEXT) actions.$(OBJEXT) \
-	hsts.$(OBJEXT) auth.$(OBJEXT) md5.$(OBJEXT) digest.$(OBJEXT) \
-	colors.$(OBJEXT) misc.$(OBJEXT) history.$(OBJEXT) \
-	prefs.$(OBJEXT) prefsparser.$(OBJEXT) keys.$(OBJEXT) \
-	url.$(OBJEXT) bitvec.$(OBJEXT) klist.$(OBJEXT) chain.$(OBJEXT) \
-	utf8.$(OBJEXT) timeout.$(OBJEXT) dialog.$(OBJEXT) \
-	web.$(OBJEXT) nav.$(OBJEXT) cache.$(OBJEXT) decode.$(OBJEXT) \
-	dicache.$(OBJEXT) capi.$(OBJEXT) domain.$(OBJEXT) \
-	css.$(OBJEXT) cssparser.$(OBJEXT) styleengine.$(OBJEXT) \
-	plain.$(OBJEXT) html.$(OBJEXT) form.$(OBJEXT) table.$(OBJEXT) \
-	bookmark.$(OBJEXT) bookmarks_store.$(OBJEXT) dns.$(OBJEXT) gif.$(OBJEXT) jpeg.$(OBJEXT) \
-	png.$(OBJEXT) webp.$(OBJEXT) svg.$(OBJEXT) imgbuf.$(OBJEXT) \
-	image.$(OBJEXT) menu.$(OBJEXT) dpiapi.$(OBJEXT) \
-	findbar.$(OBJEXT) xembed.$(OBJEXT)
+	bw.$(OBJEXT) cookies.$(OBJEXT) cookies_store.$(OBJEXT) \
+	actions.$(OBJEXT) hsts.$(OBJEXT) auth.$(OBJEXT) md5.$(OBJEXT) \
+	digest.$(OBJEXT) colors.$(OBJEXT) misc.$(OBJEXT) \
+	history.$(OBJEXT) prefs.$(OBJEXT) prefsparser.$(OBJEXT) \
+	keys.$(OBJEXT) url.$(OBJEXT) bitvec.$(OBJEXT) klist.$(OBJEXT) \
+	chain.$(OBJEXT) utf8.$(OBJEXT) timeout.$(OBJEXT) \
+	dialog.$(OBJEXT) web.$(OBJEXT) nav.$(OBJEXT) cache.$(OBJEXT) \
+	decode.$(OBJEXT) dicache.$(OBJEXT) capi.$(OBJEXT) \
+	domain.$(OBJEXT) css.$(OBJEXT) cssparser.$(OBJEXT) \
+	styleengine.$(OBJEXT) plain.$(OBJEXT) html.$(OBJEXT) \
+	form.$(OBJEXT) table.$(OBJEXT) bookmark.$(OBJEXT) \
+	bookmarks_store.$(OBJEXT) dns.$(OBJEXT) gif.$(OBJEXT) \
+	jpeg.$(OBJEXT) png.$(OBJEXT) webp.$(OBJEXT) svg.$(OBJEXT) \
+	imgbuf.$(OBJEXT) image.$(OBJEXT) menu.$(OBJEXT) \
+	dpiapi.$(OBJEXT) findbar.$(OBJEXT) xembed.$(OBJEXT)
 nodist_vibedillo_OBJECTS =
 vibedillo_OBJECTS = $(am_vibedillo_OBJECTS) \
 	$(nodist_vibedillo_OBJECTS)
@@ -156,9 +157,10 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/actions.Po ./$(DEPDIR)/auth.Po \
 	./$(DEPDIR)/bitvec.Po ./$(DEPDIR)/bookmark.Po \
-	./$(DEPDIR)/bw.Po ./$(DEPDIR)/cache.Po ./$(DEPDIR)/capi.Po \
-	./$(DEPDIR)/chain.Po ./$(DEPDIR)/colors.Po \
-	./$(DEPDIR)/cookies.Po ./$(DEPDIR)/css.Po \
+	./$(DEPDIR)/bookmarks_store.Po ./$(DEPDIR)/bw.Po \
+	./$(DEPDIR)/cache.Po ./$(DEPDIR)/capi.Po ./$(DEPDIR)/chain.Po \
+	./$(DEPDIR)/colors.Po ./$(DEPDIR)/cookies.Po \
+	./$(DEPDIR)/cookies_store.Po ./$(DEPDIR)/css.Po \
 	./$(DEPDIR)/cssparser.Po ./$(DEPDIR)/decode.Po \
 	./$(DEPDIR)/dialog.Po ./$(DEPDIR)/dicache.Po \
 	./$(DEPDIR)/digest.Po ./$(DEPDIR)/dillo.Po \
@@ -326,9 +328,9 @@ ECHO_N = -n
 ECHO_T = 
 ETAGS = etags
 EXEEXT = 
-FLTK_CFLAGS = -I/usr/include/cairo -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1  -I/usr/include/freetype2 -I/usr/include/libpng16  
+FLTK_CFLAGS = -I/usr/include/cairo -I/usr/include -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1
 FLTK_CONFIG = /usr/bin/fltk-config
-FLTK_CXXFLAGS = -I/usr/include/cairo -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1  -I/usr/include/freetype2 -I/usr/include/libpng16  -I/usr/include/cairo -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1  
+FLTK_CXXFLAGS = -I/usr/include/cairo -I/usr/include -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1
 FLTK_LIBS = -lfltk -lX11
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
@@ -429,7 +431,7 @@ target_vendor = pc
 top_build_prefix = ../
 top_builddir = ..
 top_srcdir = ..
-xvfb_ok = no
+xvfb_ok = yes
 xwd_ok = yes
 xwininfo_ok = yes
 AM_CPPFLAGS = \
@@ -440,7 +442,7 @@ AM_CPPFLAGS = \
 	
 
 AM_CFLAGS = -I/usr/include/libpng16
-AM_CXXFLAGS = -I/usr/include/libpng16 -I/usr/include/cairo -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1  -I/usr/include/freetype2 -I/usr/include/libpng16  -I/usr/include/cairo -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1  
+AM_CXXFLAGS = -I/usr/include/libpng16 -I/usr/include/cairo -I/usr/include -I/usr/include/libpng16 -I/usr/include/freetype2 -I/usr/include/pixman-1
 SUBDIRS = IO
 vibedilloc_LDADD = \
 	$(top_builddir)/dlib/libDlib.a
@@ -556,6 +558,8 @@ vibedillo_SOURCES = \
 	table.hh \
 	bookmark.c \
 	bookmark.h \
+	bookmarks_store.c \
+	bookmarks_store.h \
 	dns.c \
 	dns.h \
 	gif.c \
@@ -684,12 +688,14 @@ include ./$(DEPDIR)/actions.Po # am--include-marker
 include ./$(DEPDIR)/auth.Po # am--include-marker
 include ./$(DEPDIR)/bitvec.Po # am--include-marker
 include ./$(DEPDIR)/bookmark.Po # am--include-marker
+include ./$(DEPDIR)/bookmarks_store.Po # am--include-marker
 include ./$(DEPDIR)/bw.Po # am--include-marker
 include ./$(DEPDIR)/cache.Po # am--include-marker
 include ./$(DEPDIR)/capi.Po # am--include-marker
 include ./$(DEPDIR)/chain.Po # am--include-marker
 include ./$(DEPDIR)/colors.Po # am--include-marker
 include ./$(DEPDIR)/cookies.Po # am--include-marker
+include ./$(DEPDIR)/cookies_store.Po # am--include-marker
 include ./$(DEPDIR)/css.Po # am--include-marker
 include ./$(DEPDIR)/cssparser.Po # am--include-marker
 include ./$(DEPDIR)/decode.Po # am--include-marker
@@ -994,12 +1000,14 @@ distclean: distclean-recursive
 	-rm -f ./$(DEPDIR)/auth.Po
 	-rm -f ./$(DEPDIR)/bitvec.Po
 	-rm -f ./$(DEPDIR)/bookmark.Po
+	-rm -f ./$(DEPDIR)/bookmarks_store.Po
 	-rm -f ./$(DEPDIR)/bw.Po
 	-rm -f ./$(DEPDIR)/cache.Po
 	-rm -f ./$(DEPDIR)/capi.Po
 	-rm -f ./$(DEPDIR)/chain.Po
 	-rm -f ./$(DEPDIR)/colors.Po
 	-rm -f ./$(DEPDIR)/cookies.Po
+	-rm -f ./$(DEPDIR)/cookies_store.Po
 	-rm -f ./$(DEPDIR)/css.Po
 	-rm -f ./$(DEPDIR)/cssparser.Po
 	-rm -f ./$(DEPDIR)/decode.Po
@@ -1093,12 +1101,14 @@ maintainer-clean: maintainer-clean-recursive
 	-rm -f ./$(DEPDIR)/auth.Po
 	-rm -f ./$(DEPDIR)/bitvec.Po
 	-rm -f ./$(DEPDIR)/bookmark.Po
+	-rm -f ./$(DEPDIR)/bookmarks_store.Po
 	-rm -f ./$(DEPDIR)/bw.Po
 	-rm -f ./$(DEPDIR)/cache.Po
 	-rm -f ./$(DEPDIR)/capi.Po
 	-rm -f ./$(DEPDIR)/chain.Po
 	-rm -f ./$(DEPDIR)/colors.Po
 	-rm -f ./$(DEPDIR)/cookies.Po
+	-rm -f ./$(DEPDIR)/cookies_store.Po
 	-rm -f ./$(DEPDIR)/css.Po
 	-rm -f ./$(DEPDIR)/cssparser.Po
 	-rm -f ./$(DEPDIR)/decode.Po
