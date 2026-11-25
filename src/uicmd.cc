@@ -136,16 +136,20 @@ class CustTabs : public Fl_Group {
    void update_pack_offset(void);
    void resize(int x, int y, int w, int h) {
       Fl_Group::resize(x,y,w,h);
+      /* CustTabs is the window's resizable, so h is the full window
+       * height here. Lay out menu bar, tab strip and page area. */
       if (MenuBar) MenuBar->resize(x, y, w, menu_h);
-      if (Scroll) Scroll->resize(x, y+menu_h, w-ctl_w, ctab_h);
+      if (Scroll) {
+         Scroll->resize(x, y+menu_h, w-ctl_w, ctab_h);
+         if (Pack) Pack->resize(0, 0, w-ctl_w, tab_h);
+      }
       if (Control) {
          Control->resize(x+w-ctl_w, y+menu_h, ctl_w, ctab_h);
          if (PrevBtn) PrevBtn->resize(x+w-ctl_w, y+menu_h, btn_w, ctab_h);
          if (NextBtn) NextBtn->resize(x+w-ctl_w+btn_w+1, y+menu_h, btn_w, ctab_h);
          if (CloseBtn) CloseBtn->resize(x+w-ctl_w+2*btn_w+2, y+menu_h, btn_w, ctab_h);
       }
-      /* The Wizard is a child of the window and is resized by the window
-       * itself (it keeps its y offset), so don't touch it here. */
+      if (Wizard) Wizard->resize(x, y+menu_h+ctab_h, w, h-menu_h-ctab_h);
       update_pack_offset();
    }
    int get_btn_idx(UI *ui);
@@ -221,12 +225,14 @@ public:
        CloseBtn->hide();
       Control->end();
 
-      box(FL_FLAT_BOX);
-      end();
-
+      /* The wizard (page area) is a child of CustTabs so that one
+       * resize() lays out menu bar + tab strip + page area together. */
       Wizard = new Fl_Wizard(0,menu_h+ctab_h,ww,wh-menu_h-ctab_h);
       Wizard->box(FL_NO_BOX);
       Wizard->end();
+
+      box(FL_FLAT_BOX);
+      end();
    };
    int handle(int e);
    UI *add_new_tab(UI *old_ui, int focus);
@@ -349,8 +355,7 @@ UI *CustTabs::add_new_tab(UI *old_ui, int focus)
    if (num_tabs() == 1) {
       // Show tabbar
       ctab_h = tab_h;
-      Wizard->resize(0,menu_h+ctab_h,Wizard->w(),window()->h()-menu_h-ctab_h);
-      resize(0,0,window()->w(),menu_h+ctab_h);    // tabbar
+      resize(0,0,window()->w(),window()->h());    // relayout: menu+tabbar+wizard
       PrevBtn->show();
       NextBtn->show();
       CloseBtn->show();
@@ -442,8 +447,7 @@ void CustTabs::remove_tab(UI *ui)
       CloseBtn->hide();
       Pack->child(0)->size(0,0);
       Pack->child(0)->hide(); // first tab button
-      resize(0,0,window()->w(),menu_h+ctab_h);    // tabbar
-      Wizard->resize(0,menu_h+ctab_h,Wizard->w(),window()->h()-menu_h-ctab_h);
+      resize(0,0,window()->w(),window()->h());    // relayout: menu+tabbar+wizard
       window()->init_sizes();
       window()->redraw();
    }
@@ -677,7 +681,7 @@ BrowserWindow *a_UIcmd_browser_window_new(int ww, int wh,
    _MSG("new: tabgroups=%p\n", (void *) tg);
 
    win->end();
-   win->resizable(DilloTabs->wizard());
+   win->resizable(DilloTabs);
 
    int focus = 1;
    new_bw = UIcmd_tab_new(DilloTabs, old_ui, focus);
