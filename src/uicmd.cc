@@ -87,6 +87,7 @@ static struct Tabgroup *tabgroups = NULL;
  */
 static BrowserWindow *UIcmd_tab_new(CustTabs *tabs, UI *old_ui, int focus);
 static void close_tab_btn_cb (Fl_Widget *w, void *cb_data);
+static void tab_switch_btn_cb (Fl_Widget *w, void *cb_data);
 static char *UIcmd_make_search_str(const char *str);
 static void UIcmd_set_window_labels(Fl_Window *win, const char *str);
 
@@ -128,7 +129,7 @@ class CustTabs : public Fl_Group {
    Fl_Scroll *Scroll;
    Fl_Pack *Pack;
    Fl_Group *Control;
-   CustButton *CloseBtn;
+   CustButton *PrevBtn, *NextBtn, *CloseBtn;
 
    void update_pack_offset(void);
    void resize(int x, int y, int w, int h)
@@ -155,7 +156,7 @@ public:
       Fl_Group(0,0,ww,th,lbl) {
       Pack = NULL;
       focus_counter = 0;
-      tab_w = 50, tab_h = th, ctab_h = 1, btn_w = 20, ctl_w = 1*btn_w+2;
+      tab_w = 50, tab_h = th, ctab_h = 1, btn_w = 20, ctl_w = 3*btn_w+2;
       resize(0,0,ww,ctab_h);
       /* tab buttons go inside a pack within a scroll */
       Scroll = new Fl_Scroll(0,0,ww-ctl_w,ctab_h);
@@ -170,7 +171,19 @@ public:
 
       /* control buttons go inside a group */
       Control = new Fl_Group(ww-ctl_w,0,ctl_w,ctab_h);
-       CloseBtn = new CustButton(ww-ctl_w+2,0,btn_w,ctab_h, "X");
+       PrevBtn = new CustButton(ww-ctl_w,0,btn_w,ctab_h, "<");
+       PrevBtn->box(FL_THIN_UP_BOX);
+       PrevBtn->clear_visible_focus();
+       PrevBtn->set_tooltip("Switch to previous tab");
+       PrevBtn->callback(tab_switch_btn_cb, this);
+       PrevBtn->hide();
+       NextBtn = new CustButton(ww-ctl_w+btn_w+1,0,btn_w,ctab_h, ">");
+       NextBtn->box(FL_THIN_UP_BOX);
+       NextBtn->clear_visible_focus();
+       NextBtn->set_tooltip("Switch to next tab");
+       NextBtn->callback(tab_switch_btn_cb, this);
+       NextBtn->hide();
+       CloseBtn = new CustButton(ww-ctl_w+2*btn_w+2,0,btn_w,ctab_h, "X");
        CloseBtn->box(FL_THIN_UP_BOX);
        CloseBtn->clear_visible_focus();
        CloseBtn->set_tooltip(prefs.right_click_closes_tab ?
@@ -227,6 +240,22 @@ static void close_tab_btn_cb (Fl_Widget *, void *cb_data)
 
    if (b == FL_LEFT_MOUSE) {
       a_UIcmd_close_bw(a_UIcmd_get_bw_by_widget(tabs->wizard()->value()));
+   }
+}
+
+/**
+ * Callback for the "<" / ">" tab-switch buttons
+ */
+static void tab_switch_btn_cb (Fl_Widget *w, void *cb_data)
+{
+   CustTabs *tabs = (CustTabs*) cb_data;
+   int b = Fl::event_button();
+
+   if (b == FL_LEFT_MOUSE) {
+      if (w->label() && w->label()[0] == '<')
+         tabs->prev_tab();
+      else
+         tabs->next_tab();
    }
 }
 
@@ -293,6 +322,8 @@ UI *CustTabs::add_new_tab(UI *old_ui, int focus)
       ctab_h = tab_h;
       Wizard->resize(0,ctab_h,Wizard->w(),window()->h()-ctab_h);
       resize(0,0,window()->w(),ctab_h);    // tabbar
+      PrevBtn->show();
+      NextBtn->show();
       CloseBtn->show();
       {int w = 0, h; Pack->child(0)->measure_label(w, h);
        Pack->child(0)->size(w+14,ctab_h);}
@@ -377,6 +408,8 @@ void CustTabs::remove_tab(UI *ui)
    if (num_tabs() == 1) {
       // hide tabbar
       ctab_h = 1;
+      PrevBtn->hide();
+      NextBtn->hide();
       CloseBtn->hide();
       Pack->child(0)->size(0,0);
       Pack->child(0)->hide(); // first tab button
