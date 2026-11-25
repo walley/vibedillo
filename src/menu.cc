@@ -28,6 +28,8 @@
 #include "ui.hh" // for (UI *)
 #include "keys.hh"
 #include "timeout.hh"
+#include "nav.h"
+#include "prefs.h"
 
 #include <unistd.h>
 
@@ -698,6 +700,96 @@ void a_Menu_form_popup(BrowserWindow *bw, const DilloUrl *page_url,
    pm[2].label(hiddens_visible ? "Hide hiddens": "Show hiddens");
 
    a_Timeout_add(0.0, Menu_popup_cb, (void*)&form_data);
+}
+
+/**
+ * Callback for the top menu bar. Dispatches on the command string
+ * stored in each item's user_data.
+ */
+static void menubar_cb(Fl_Widget *wid, void *data)
+{
+   BrowserWindow *bw = a_UIcmd_get_bw_by_widget(wid);
+   UI *ui = (UI*)bw->ui;
+   const char *cmd = (const char*)data;
+
+   if (strcmp(cmd, "nt") == 0) {
+      a_UIcmd_open_url_nt(bw, NULL, 1);
+   } else if (strcmp(cmd, "nw") == 0) {
+      a_UIcmd_open_url_nw(bw, NULL);
+   } else if (strcmp(cmd, "of") == 0) {
+      a_UIcmd_open_file(bw);
+   } else if (strcmp(cmd, "ou") == 0) {
+      a_UIcmd_focus_location(bw);
+   } else if (strcmp(cmd, "pr") == 0) {
+      a_UIcmd_print(bw);
+   } else if (strcmp(cmd, "cw") == 0) {
+      a_Timeout_add(0.0, a_UIcmd_close_bw, bw);
+   } else if (strcmp(cmd, "ed") == 0) {
+      a_Timeout_add(0.0, a_UIcmd_close_all_bw, NULL);
+   } else if (strcmp(cmd, "copy") == 0) {
+      a_UIcmd_copy(bw);
+   } else if (strcmp(cmd, "selall") == 0) {
+      a_UIcmd_select_all(bw);
+   } else if (strcmp(cmd, "find") == 0) {
+      a_UIcmd_findbar_toggle(bw, 1);
+   } else if (strcmp(cmd, "vsrc") == 0) {
+      const DilloUrl *url = a_History_get_url(NAV_TOP_UIDX(bw));
+      a_UIcmd_view_page_source(bw, url);
+   } else if (strcmp(cmd, "zin") == 0) {
+      a_UIcmd_zoom_in(bw);
+   } else if (strcmp(cmd, "zout") == 0) {
+      a_UIcmd_zoom_out(bw);
+   } else if (strcmp(cmd, "zreset") == 0) {
+      a_UIcmd_zoom_reset(bw);
+   } else if (strcmp(cmd, "panels") == 0) {
+      a_UIcmd_panels_toggle(bw);
+   } else if (strcmp(cmd, "ps0") == 0) {
+      ui->change_panel(P_tiny, ui->get_smallicons());
+   } else if (strcmp(cmd, "ps1") == 0) {
+      ui->change_panel(P_small, ui->get_smallicons());
+   } else if (strcmp(cmd, "ps2") == 0) {
+      ui->change_panel(P_medium, ui->get_smallicons());
+   } else if (strcmp(cmd, "about") == 0) {
+      a_UIcmd_open_urlstr(bw, "about:about");
+   }
+}
+
+/**
+ * Top menu bar items (File / Edit / View / Help), flat FLTK submenu layout.
+ */
+const Fl_Menu_Item *a_Menu_menubar_items(void)
+{
+   static Fl_Menu_Item items[] = {
+      { "File", 0, 0, 0, FL_SUBMENU },
+      { "New tab", Keys::getShortcut(KEYS_NEW_TAB), menubar_cb, (void*)"nt" },
+      { "New window", Keys::getShortcut(KEYS_NEW_WINDOW), menubar_cb, (void*)"nw", FL_MENU_DIVIDER },
+      { "Open file...", Keys::getShortcut(KEYS_OPEN), menubar_cb, (void*)"of" },
+      { "Open URL...", Keys::getShortcut(KEYS_GOTO), menubar_cb, (void*)"ou" },
+      { "Print...", 0, menubar_cb, (void*)"pr", FL_MENU_DIVIDER },
+      { "Close tab", Keys::getShortcut(KEYS_CLOSE_TAB), menubar_cb, (void*)"cw" },
+      { "Exit", Keys::getShortcut(KEYS_CLOSE_ALL), menubar_cb, (void*)"ed" },
+      { 0 },
+      { "Edit", 0, 0, 0, FL_SUBMENU },
+      { "Copy", Keys::getShortcut(KEYS_COPY), menubar_cb, (void*)"copy" },
+      { "Select all", FL_CTRL + 'a', menubar_cb, (void*)"selall", FL_MENU_DIVIDER },
+      { "Find...", Keys::getShortcut(KEYS_FIND), menubar_cb, (void*)"find" },
+      { "View source", Keys::getShortcut(KEYS_VIEW_SOURCE), menubar_cb, (void*)"vsrc" },
+      { 0 },
+      { "View", 0, 0, 0, FL_SUBMENU },
+      { "Zoom in", Keys::getShortcut(KEYS_ZOOM_IN), menubar_cb, (void*)"zin" },
+      { "Zoom out", Keys::getShortcut(KEYS_ZOOM_OUT), menubar_cb, (void*)"zout" },
+      { "Zoom reset", Keys::getShortcut(KEYS_ZOOM_RESET), menubar_cb, (void*)"zreset", FL_MENU_DIVIDER },
+      { "Toggle panels", Keys::getShortcut(KEYS_HIDE_PANELS), menubar_cb, (void*)"panels", FL_MENU_DIVIDER },
+      { "Panel: tiny", 0, menubar_cb, (void*)"ps0" },
+      { "Panel: small", 0, menubar_cb, (void*)"ps1" },
+      { "Panel: medium", 0, menubar_cb, (void*)"ps2" },
+      { 0 },
+      { "Help", 0, 0, 0, FL_SUBMENU },
+      { "About Vibedillo", 0, menubar_cb, (void*)"about" },
+      { 0 },
+      { 0 }
+   };
+   return items;
 }
 
 /**

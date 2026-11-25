@@ -313,58 +313,6 @@ static void help_cb(Fl_Widget *w, void *)
 }
 
 /**
- * Callback for the top menu bar. Dispatches on the command string
- * stored in each item's user_data.
- */
-static void menubar_cb(Fl_Widget *wid, void *data)
-{
-   BrowserWindow *bw = a_UIcmd_get_bw_by_widget(wid);
-   UI *ui = (UI*)bw->ui;
-   const char *cmd = (const char*)data;
-
-   if (strcmp(cmd, "nt") == 0) {
-      a_UIcmd_open_url_nt(bw, NULL, 1);
-   } else if (strcmp(cmd, "nw") == 0) {
-      a_UIcmd_open_url_nw(bw, NULL);
-   } else if (strcmp(cmd, "of") == 0) {
-      a_UIcmd_open_file(bw);
-   } else if (strcmp(cmd, "ou") == 0) {
-      a_UIcmd_focus_location(bw);
-   } else if (strcmp(cmd, "pr") == 0) {
-      a_UIcmd_print(bw);
-   } else if (strcmp(cmd, "cw") == 0) {
-      a_Timeout_add(0.0, a_UIcmd_close_bw, bw);
-   } else if (strcmp(cmd, "ed") == 0) {
-      a_Timeout_add(0.0, a_UIcmd_close_all_bw, NULL);
-   } else if (strcmp(cmd, "copy") == 0) {
-      a_UIcmd_copy(bw);
-   } else if (strcmp(cmd, "selall") == 0) {
-      a_UIcmd_select_all(bw);
-   } else if (strcmp(cmd, "find") == 0) {
-      a_UIcmd_findbar_toggle(bw, 1);
-   } else if (strcmp(cmd, "vsrc") == 0) {
-      const DilloUrl *url = a_History_get_url(NAV_TOP_UIDX(bw));
-      a_UIcmd_view_page_source(bw, url);
-   } else if (strcmp(cmd, "zin") == 0) {
-      a_UIcmd_zoom_in(bw);
-   } else if (strcmp(cmd, "zout") == 0) {
-      a_UIcmd_zoom_out(bw);
-   } else if (strcmp(cmd, "zreset") == 0) {
-      a_UIcmd_zoom_reset(bw);
-   } else if (strcmp(cmd, "panels") == 0) {
-      a_UIcmd_panels_toggle(bw);
-   } else if (strcmp(cmd, "ps0") == 0) {
-      ui->change_panel(P_tiny, ui->get_smallicons());
-   } else if (strcmp(cmd, "ps1") == 0) {
-      ui->change_panel(P_small, ui->get_smallicons());
-   } else if (strcmp(cmd, "ps2") == 0) {
-      ui->change_panel(P_medium, ui->get_smallicons());
-   } else if (strcmp(cmd, "about") == 0) {
-      a_UIcmd_open_urlstr(bw, "about:about");
-   }
-}
-
-/**
  * Callback for the location's clear-button.
  */
 static void clear_cb(Fl_Widget *w, void *data)
@@ -615,50 +563,6 @@ void UI::make_progress_bars(int wide, int thin_up)
 }
 
 /**
- * Create the real top menu bar (File / Edit / View / Help).
- */
-void UI::make_menu_bar(int ww)
-{
-   static Fl_Menu_Item items[] = {
-      { "File", 0, 0, 0, FL_SUBMENU },
-      { "New tab", Keys::getShortcut(KEYS_NEW_TAB), menubar_cb, (void*)"nt" },
-      { "New window", Keys::getShortcut(KEYS_NEW_WINDOW), menubar_cb, (void*)"nw", FL_MENU_DIVIDER },
-      { "Open file...", Keys::getShortcut(KEYS_OPEN), menubar_cb, (void*)"of" },
-      { "Open URL...", Keys::getShortcut(KEYS_GOTO), menubar_cb, (void*)"ou" },
-      { "Print...", 0, menubar_cb, (void*)"pr", FL_MENU_DIVIDER },
-      { "Close tab", Keys::getShortcut(KEYS_CLOSE_TAB), menubar_cb, (void*)"cw" },
-      { "Exit", Keys::getShortcut(KEYS_CLOSE_ALL), menubar_cb, (void*)"ed" },
-      { 0 },
-      { "Edit", 0, 0, 0, FL_SUBMENU },
-      { "Copy", Keys::getShortcut(KEYS_COPY), menubar_cb, (void*)"copy" },
-      { "Select all", FL_CTRL + 'a', menubar_cb, (void*)"selall", FL_MENU_DIVIDER },
-      { "Find...", Keys::getShortcut(KEYS_FIND), menubar_cb, (void*)"find" },
-      { "View source", Keys::getShortcut(KEYS_VIEW_SOURCE), menubar_cb, (void*)"vsrc" },
-      { 0 },
-      { "View", 0, 0, 0, FL_SUBMENU },
-      { "Zoom in", Keys::getShortcut(KEYS_ZOOM_IN), menubar_cb, (void*)"zin" },
-      { "Zoom out", Keys::getShortcut(KEYS_ZOOM_OUT), menubar_cb, (void*)"zout" },
-      { "Zoom reset", Keys::getShortcut(KEYS_ZOOM_RESET), menubar_cb, (void*)"zreset", FL_MENU_DIVIDER },
-      { "Toggle panels", Keys::getShortcut(KEYS_HIDE_PANELS), menubar_cb, (void*)"panels", FL_MENU_DIVIDER },
-      { "Panel: tiny", 0, menubar_cb, (void*)"ps0" },
-      { "Panel: small", 0, menubar_cb, (void*)"ps1" },
-      { "Panel: medium", 0, menubar_cb, (void*)"ps2" },
-      { 0 },
-      { "Help", 0, 0, 0, FL_SUBMENU },
-      { "About Vibedillo", 0, menubar_cb, (void*)"about" },
-      { 0 },
-      { 0 }
-   };
-
-   MenuBar = new Fl_Menu_Bar(0, 0, ww, 25);
-   MenuBar->textsize(13);
-   MenuBar->copy(items);
-   if (!prefs.show_filemenu)
-      MenuBar->hide();
-}
-
-
-/**
  * Create the control panel
  */
 void UI::make_panel(int ww)
@@ -691,8 +595,6 @@ void UI::make_panel(int ww)
    nh = bh, fh = 28; sh = 20;
 
    current(0);
-   /* The menu bar (if visible) occupies child index 0 of TopGroup */
-   int base = (MenuBar && MenuBar->visible()) ? 1 : 0;
    if (PanelSize == P_tiny) {
       NavBar = new CustGroupHorizontal(0,0,ww,nh);
       NavBar->box(FL_NO_BOX);
@@ -704,7 +606,7 @@ void UI::make_panel(int ww)
       NavBar->box(FL_THIN_UP_FRAME);
       NavBar->end();
       NavBar->rearrange();
-      TopGroup->insert(*NavBar,base);
+      TopGroup->insert(*NavBar,0);
    } else {
        // Location
        LocBar = new CustGroupHorizontal(0,0,ww,lh);
@@ -715,7 +617,7 @@ void UI::make_panel(int ww)
         LocBar->resizable(LocationGroup);
        LocBar->end();
        LocBar->rearrange();
-       TopGroup->insert(*LocBar,base);
+       TopGroup->insert(*LocBar,0);
 
        // Toolbar
        p_ypos = 0;
@@ -734,7 +636,7 @@ void UI::make_panel(int ww)
         }
        NavBar->end();
        NavBar->rearrange();
-       TopGroup->insert(*NavBar,base+1);
+       TopGroup->insert(*NavBar,1);
    }
 }
 
@@ -784,7 +686,6 @@ UI::UI(int x, int y, int ui_w, int ui_h, const char* label, const UI *cur_ui) :
   CustGroupVertical(x, y, ui_w, ui_h, label)
 {
    LocBar = NavBar = StatusBar = NULL;
-   MenuBar = NULL;
 
    Tabs = NULL;
    TopGroup = this;
@@ -805,7 +706,6 @@ UI::UI(int x, int y, int ui_w, int ui_h, const char* label, const UI *cur_ui) :
 
    // Control panel
    TopGroup->begin();
-    make_menu_bar(ui_w);
     make_panel(ui_w);
 
     // Render area
@@ -916,7 +816,8 @@ int UI::handle(int event)
          a_UIcmd_save(a_UIcmd_get_bw_by_widget(this));
          ret = 1;
       } else if (cmd == KEYS_FILE_MENU) {
-         a_UIcmd_file_popup(a_UIcmd_get_bw_by_widget(this), MenuBar);
+         a_UIcmd_file_popup(a_UIcmd_get_bw_by_widget(this),
+                            a_UIcmd_get_menubar(this));
          ret = 1;
       } else if (cmd == KEYS_VIEW_SOURCE) {
          BrowserWindow *bw = a_UIcmd_get_bw_by_widget(this);

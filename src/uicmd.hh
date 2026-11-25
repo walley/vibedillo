@@ -75,6 +75,8 @@ void a_UIcmd_image_popup(void *vbw, const DilloUrl *url, bool_t loaded_img,
 void a_UIcmd_form_popup(void *vbw, const DilloUrl *url, void *vform,
                         bool_t showing_hiddens);
 void a_UIcmd_file_popup(void *vbw, void *v_wid);
+/* Return the window-level menu bar widget for the UI's tab group */
+void *a_UIcmd_get_menubar(void *v_ui);
 void a_UIcmd_edit_popup(void *vbw, void *v_wid);
 void a_UIcmd_print(void *vbw);
 void a_UIcmd_select_all(void *vbw);

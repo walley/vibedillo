@@ -30,6 +30,7 @@
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Pack.H>
 #include <FL/Fl_Scroll.H>
+#include <FL/Fl_Menu_Bar.H>
 #include <FL/names.h>
 #include <FL/fl_draw.H>
 #include <png.h>
@@ -124,7 +125,8 @@ static int btn_cmp(const void *p1, const void *p2)
  */
 class CustTabs : public Fl_Group {
    uint_t focus_counter; // An increasing counter
-   int tab_w, tab_h, ctab_h, btn_w, ctl_w;
+   int tab_w, tab_h, ctab_h, btn_w, ctl_w, menu_h;
+   Fl_Menu_Bar *MenuBar;
    Fl_Wizard *Wizard;
    Fl_Scroll *Scroll;
    Fl_Pack *Pack;
@@ -132,8 +134,19 @@ class CustTabs : public Fl_Group {
    CustButton *PrevBtn, *NextBtn, *CloseBtn;
 
    void update_pack_offset(void);
-   void resize(int x, int y, int w, int h)
-      { Fl_Group::resize(x,y,w,h); update_pack_offset(); }
+   void resize(int x, int y, int w, int h) {
+      Fl_Group::resize(x,y,w,h);
+      if (MenuBar) MenuBar->resize(x, y, w, menu_h);
+      if (Scroll) Scroll->resize(x, y+menu_h, w-ctl_w, ctab_h);
+      if (Control) {
+         Control->resize(x+w-ctl_w, y+menu_h, ctl_w, ctab_h);
+         if (PrevBtn) PrevBtn->resize(x+w-ctl_w, y+menu_h, btn_w, ctab_h);
+         if (NextBtn) NextBtn->resize(x+w-ctl_w+btn_w+1, y+menu_h, btn_w, ctab_h);
+         if (CloseBtn) CloseBtn->resize(x+w-ctl_w+2*btn_w+2, y+menu_h, btn_w, ctab_h);
+      }
+      if (Wizard) Wizard->resize(x, y+menu_h+ctab_h, w, h-menu_h-ctab_h);
+      update_pack_offset();
+   }
    int get_btn_idx(UI *ui);
    void increase_focus_counter() {
       if (focus_counter < UINT_MAX) /* check for overflow */
@@ -155,11 +168,27 @@ public:
    CustTabs (int ww, int wh, int th, const char *lbl=0) :
       Fl_Group(0,0,ww,th,lbl) {
       Pack = NULL;
+      MenuBar = NULL;
+      Scroll = NULL;
+      Control = NULL;
+      Wizard = NULL;
+      PrevBtn = NextBtn = CloseBtn = NULL;
       focus_counter = 0;
       tab_w = 50, tab_h = th, ctab_h = 1, btn_w = 20, ctl_w = 3*btn_w+2;
+      menu_h = 25;
+
+      /* real top menu bar, above the tab strip */
+      MenuBar = new Fl_Menu_Bar(0,0,ww,menu_h);
+      MenuBar->textsize(13);
+      MenuBar->copy(a_Menu_menubar_items());
+      if (!prefs.show_filemenu)
+         MenuBar->hide();
+      else
+         menu_h = MenuBar->h();
+
       resize(0,0,ww,ctab_h);
       /* tab buttons go inside a pack within a scroll */
-      Scroll = new Fl_Scroll(0,0,ww-ctl_w,ctab_h);
+      Scroll = new Fl_Scroll(0,menu_h,ww-ctl_w,ctab_h);
       Scroll->type(0); /* no scrollbars */
       Scroll->box(FL_NO_BOX);
        Pack = new Fl_Pack(0,0,ww-ctl_w,tab_h);
@@ -170,20 +199,20 @@ public:
       resizable(Scroll);
 
       /* control buttons go inside a group */
-      Control = new Fl_Group(ww-ctl_w,0,ctl_w,ctab_h);
-       PrevBtn = new CustButton(ww-ctl_w,0,btn_w,ctab_h, "<");
+      Control = new Fl_Group(ww-ctl_w,menu_h,ctl_w,ctab_h);
+       PrevBtn = new CustButton(ww-ctl_w,menu_h,btn_w,ctab_h, "<");
        PrevBtn->box(FL_THIN_UP_BOX);
        PrevBtn->clear_visible_focus();
        PrevBtn->set_tooltip("Switch to previous tab");
        PrevBtn->callback(tab_switch_btn_cb, this);
        PrevBtn->hide();
-       NextBtn = new CustButton(ww-ctl_w+btn_w+1,0,btn_w,ctab_h, ">");
+       NextBtn = new CustButton(ww-ctl_w+btn_w+1,menu_h,btn_w,ctab_h, ">");
        NextBtn->box(FL_THIN_UP_BOX);
        NextBtn->clear_visible_focus();
        NextBtn->set_tooltip("Switch to next tab");
        NextBtn->callback(tab_switch_btn_cb, this);
        NextBtn->hide();
-       CloseBtn = new CustButton(ww-ctl_w+2*btn_w+2,0,btn_w,ctab_h, "X");
+       CloseBtn = new CustButton(ww-ctl_w+2*btn_w+2,menu_h,btn_w,ctab_h, "X");
        CloseBtn->box(FL_THIN_UP_BOX);
        CloseBtn->clear_visible_focus();
        CloseBtn->set_tooltip(prefs.right_click_closes_tab ?
@@ -196,7 +225,7 @@ public:
       box(FL_FLAT_BOX);
       end();
 
-      Wizard = new Fl_Wizard(0,ctab_h,ww,wh-ctab_h);
+      Wizard = new Fl_Wizard(0,menu_h+ctab_h,ww,wh-menu_h-ctab_h);
       Wizard->box(FL_NO_BOX);
       Wizard->end();
    };
@@ -204,6 +233,7 @@ public:
    UI *add_new_tab(UI *old_ui, int focus);
    void remove_tab(UI *ui);
    Fl_Wizard *wizard(void) { return Wizard; }
+   Fl_Menu_Bar *menu_bar(void) { return MenuBar; }
    int num_tabs() { return (Pack ? Pack->children() : 0); }
    void switch_tab(CustTabButton *cbtn);
    void switch_tab(int index);
@@ -320,7 +350,7 @@ UI *CustTabs::add_new_tab(UI *old_ui, int focus)
    if (num_tabs() == 1) {
       // Show tabbar
       ctab_h = tab_h;
-      Wizard->resize(0,ctab_h,Wizard->w(),window()->h()-ctab_h);
+      Wizard->resize(0,menu_h+ctab_h,Wizard->w(),window()->h()-menu_h-ctab_h);
       resize(0,0,window()->w(),ctab_h);    // tabbar
       PrevBtn->show();
       NextBtn->show();
@@ -414,7 +444,7 @@ void CustTabs::remove_tab(UI *ui)
       Pack->child(0)->size(0,0);
       Pack->child(0)->hide(); // first tab button
       resize(0,0,window()->w(),ctab_h);    // tabbar
-      Wizard->resize(0,ctab_h,Wizard->w(),window()->h()-ctab_h);
+      Wizard->resize(0,menu_h+ctab_h,Wizard->w(),window()->h()-menu_h-ctab_h);
       window()->init_sizes();
       window()->redraw();
    }
@@ -1484,6 +1514,15 @@ void a_UIcmd_form_popup(void *vbw, const DilloUrl *url, void *vform,
 void a_UIcmd_file_popup(void *vbw, void *v_wid)
 {
    a_Menu_file_popup((BrowserWindow*)vbw, v_wid);
+}
+
+/*
+ * Return the window-level menu bar widget for the UI's tab group
+ */
+void *a_UIcmd_get_menubar(void *v_ui)
+{
+   UI *ui = (UI*)v_ui;
+   return ui->tabs() ? (void*)ui->tabs()->menu_bar() : NULL;
 }
 
 /*
