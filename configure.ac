@@ -250,28 +250,20 @@ fltk_version="`$FLTK_CONFIG --version 2>/dev/null`"
 
 dnl Make sure the version is OK
 case $fltk_version in
-  1.3.*)
+  1.3.*|1.4.*)
     AC_MSG_RESULT([yes ($fltk_version)])
     ;;
-  1.4.*|1.5.*)
-    if test "x$enable_experimental_fltk" = "xyes"; then
-      AC_MSG_RESULT([yes ($fltk_version)])
-      AC_MSG_WARN([*** Using experimental FLTK support, expect graphical glitches. ***])
-    else
-      AC_MSG_RESULT([too new ($fltk_version)])
-      AC_MSG_NOTICE([Support for FLTK >= 1.4 is experimental and has known graphical issues])
-      AC_MSG_NOTICE([See: https://walley.org/bug/246/])
-      AC_MSG_NOTICE([Enable it with --enable-experimental-fltk if you are sure])
-      AC_MSG_ERROR([FLTK version $fltk_version not supported yet])
-    fi
+  1.5.*)
+    AC_MSG_RESULT([yes ($fltk_version)])
+    AC_MSG_WARN([*** FLTK 1.5 support is experimental. ***])
     ;;
   ?*)
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(FLTK 1.3 required; version found: $fltk_version)
+    AC_MSG_ERROR(FLTK 1.3 or 1.4 required; version found: $fltk_version)
     ;;
   *)
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(FLTK 1.3 required; fltk-config not found)
+    AC_MSG_ERROR(FLTK 1.3 or 1.4 required; fltk-config not found)
 esac
 
 dnl Only set FLTK_* variables if not set (including to empty)

@@ -54,6 +54,8 @@ vibedillo_SOURCES = \
 	bw.c \
 	cookies.c \
 	cookies.h \
+	cookies_store.c \
+	cookies_store.h \
 	actions.c \
 	actions.h \
 	hsts.c \
@@ -127,6 +129,8 @@ vibedillo_SOURCES = \
 	table.hh \
 	bookmark.c \
 	bookmark.h \
+	bookmarks_store.c \
+	bookmarks_store.h \
 	dns.c \
 	dns.h \
 	gif.c \
