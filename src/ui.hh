@@ -40,7 +40,7 @@ typedef enum {
 
 // Private classes
 class CustProgressBox;
-class CustTabs;
+class CustWindow;
 
 
 // Class definitions ---------------------------------------------------------
@@ -122,7 +122,7 @@ public:
 // UI class definition -------------------------------------------------------
 //
 class UI : public CustGroupVertical {
-   CustTabs *Tabs;
+   CustWindow *Tabs;
 
    CustGroupVertical *TopGroup;
    CustButton *Back, *Forw, *Home, *Reload, *Save, *Stop, *Bookmarks,
@@ -176,8 +176,8 @@ public:
    void findbar_toggle(bool add);
    void panels_toggle();
 
-   CustTabs *tabs() { return Tabs; }
-   void tabs(CustTabs *tabs) { Tabs = tabs; }
+   CustWindow *tabs() { return Tabs; }
+   void tabs(CustWindow *tabs) { Tabs = tabs; }
    Fl_Group *main_group() { return Main; }
    bool temporaryPanels() { return PanelTemporary; }
    void temporaryPanels(bool val) { PanelTemporary = val; }
