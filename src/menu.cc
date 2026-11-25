@@ -708,7 +708,8 @@ void a_Menu_form_popup(BrowserWindow *bw, const DilloUrl *page_url,
  */
 static void menubar_cb(Fl_Widget *wid, void *data)
 {
-   BrowserWindow *bw = a_UIcmd_get_bw_by_widget(wid);
+   /* The menu bar is a child of CustTabs, not of a UI */
+   BrowserWindow *bw = a_UIcmd_get_bw_by_menubar(wid);
    UI *ui = (UI*)bw->ui;
    const char *cmd = (const char*)data;
 

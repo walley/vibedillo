@@ -144,7 +144,8 @@ class CustTabs : public Fl_Group {
          if (NextBtn) NextBtn->resize(x+w-ctl_w+btn_w+1, y+menu_h, btn_w, ctab_h);
          if (CloseBtn) CloseBtn->resize(x+w-ctl_w+2*btn_w+2, y+menu_h, btn_w, ctab_h);
       }
-      if (Wizard) Wizard->resize(x, y+menu_h+ctab_h, w, h-menu_h-ctab_h);
+      /* The Wizard is a child of the window and is resized by the window
+       * itself (it keeps its y offset), so don't touch it here. */
       update_pack_offset();
    }
    int get_btn_idx(UI *ui);
@@ -175,18 +176,16 @@ public:
       PrevBtn = NextBtn = CloseBtn = NULL;
       focus_counter = 0;
       tab_w = 50, tab_h = th, ctab_h = 1, btn_w = 20, ctl_w = 3*btn_w+2;
-      menu_h = 25;
 
       /* real top menu bar, above the tab strip */
+      menu_h = prefs.show_filemenu ? 25 : 0;
       MenuBar = new Fl_Menu_Bar(0,0,ww,menu_h);
       MenuBar->textsize(13);
       MenuBar->copy(a_Menu_menubar_items());
       if (!prefs.show_filemenu)
          MenuBar->hide();
-      else
-         menu_h = MenuBar->h();
 
-      resize(0,0,ww,ctab_h);
+      resize(0,0,ww,menu_h+ctab_h);
       /* tab buttons go inside a pack within a scroll */
       Scroll = new Fl_Scroll(0,menu_h,ww-ctl_w,ctab_h);
       Scroll->type(0); /* no scrollbars */
@@ -351,7 +350,7 @@ UI *CustTabs::add_new_tab(UI *old_ui, int focus)
       // Show tabbar
       ctab_h = tab_h;
       Wizard->resize(0,menu_h+ctab_h,Wizard->w(),window()->h()-menu_h-ctab_h);
-      resize(0,0,window()->w(),ctab_h);    // tabbar
+      resize(0,0,window()->w(),menu_h+ctab_h);    // tabbar
       PrevBtn->show();
       NextBtn->show();
       CloseBtn->show();
@@ -443,7 +442,7 @@ void CustTabs::remove_tab(UI *ui)
       CloseBtn->hide();
       Pack->child(0)->size(0,0);
       Pack->child(0)->hide(); // first tab button
-      resize(0,0,window()->w(),ctab_h);    // tabbar
+      resize(0,0,window()->w(),menu_h+ctab_h);    // tabbar
       Wizard->resize(0,menu_h+ctab_h,Wizard->w(),window()->h()-menu_h-ctab_h);
       window()->init_sizes();
       window()->redraw();
@@ -625,6 +624,20 @@ BrowserWindow *a_UIcmd_get_bw_by_widget(void *v_wid)
       if (((UI*)bw->ui)->contains((Fl_Widget*)v_wid)) {
          return bw;
       }
+   }
+   return NULL;
+}
+
+/*
+ * Given a window-level widget (e.g. the top menu bar, which is a child
+ * of CustTabs, not of a UI), return the bw of the active tab in that
+ * window.
+ */
+BrowserWindow *a_UIcmd_get_bw_by_menubar(void *v_wid)
+{
+   for (struct Tabgroup *tg = tabgroups; tg; tg = tg->next) {
+      if (tg->tabs->contains((Fl_Widget*)v_wid))
+         return a_UIcmd_get_bw_by_widget(tg->tabs->wizard()->value());
    }
    return NULL;
 }

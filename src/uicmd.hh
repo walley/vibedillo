@@ -23,6 +23,7 @@ extern "C" {
 BrowserWindow *a_UIcmd_browser_window_new(int ww, int wh,
                                           uint32_t xid, const void *v_bw);
 BrowserWindow *a_UIcmd_get_bw_by_widget(void *v_wid);
+BrowserWindow *a_UIcmd_get_bw_by_menubar(void *v_wid);
 BrowserWindow *a_UIcmd_get_first_active_bw(void);
 void a_UIcmd_send_event_to_tabs_by_wid(int e, void *v_wid);
 int a_UIcmd_by_name(void *vbw, const char *cmd_name);
