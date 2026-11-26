@@ -569,7 +569,9 @@ static void win_cb (Fl_Widget *w, void *cb_data) {
    CustTabs *tabs = (CustTabs*) cb_data;
    int choice = 1, ntabs = tabs->num_tabs();
 
-   if (Fl::event_key() == FL_Escape) {
+   // Only intercept Escape on keyboard events, not on window close (FL_CLOSE)
+   if ((Fl::event() == FL_KEYBOARD || Fl::event() == FL_SHORTCUT) &&
+       Fl::event_key() == FL_Escape) {
       // Don't let FLTK close a browser window due to unhandled Escape
       // (most likely with modifiers).
       return;
