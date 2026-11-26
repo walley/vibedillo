@@ -570,9 +570,24 @@ static void win_cb (Fl_Widget *w, void *cb_data) {
    int choice = 1, ntabs = tabs->num_tabs();
 
    if (Fl::event_key() == FL_Escape) {
-      // Don't let FLTK close a browser window due to unhandled Escape
-      // (most likely with modifiers).
-      return;
+      // Check if location bar has focus - if so, let it handle Escape
+      Fl_Widget *focused = Fl::focus();
+      BrowserWindow *bw = a_UIcmd_get_bw_by_widget(focused);
+      if (bw) {
+         UI *ui = BW2UI(bw);
+         if (ui && ui->get_location_widget() && ui->get_location_widget() == focused) {
+            // Location bar has focus - let it handle Escape to restore original URL
+            // Don't consume the event here
+         } else {
+            // Don't let FLTK close a browser window due to unhandled Escape
+            // (most likely with modifiers).
+            return;
+         }
+      } else {
+         // Don't let FLTK close a browser window due to unhandled Escape
+         // (most likely with modifiers).
+         return;
+      }
    }
 
    if (prefs.show_quit_dialog && ntabs > 1)

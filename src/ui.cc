@@ -166,7 +166,7 @@ int CustInput::handle(int e)
 {
    int k = Fl::event_key();
 
-   _MSG("CustInput::handle event=%d\n", e);
+   fprintf(stderr, "DBG CustInput::handle event=%d key=%d\n", e, k); fflush(stderr);
 
    // We're only interested in some flags
    unsigned modifier = Fl::event_state() & (FL_SHIFT | FL_CTRL | FL_ALT);
@@ -175,11 +175,74 @@ int CustInput::handle(int e)
    if (e == FL_FOCUS &&
        (k == FL_Up || k == FL_Down || k == FL_Left || k == FL_Right)) {
       return 0;
-   } else if (e == FL_KEYBOARD) {
+   } else if (e == FL_FOCUS) {
+      // Save original URL when location bar gets focus
+      UI *ui = (UI*)this->parent()->parent()->parent();
+      if (ui && !ui->orig_location_text) {
+         ui->orig_location_text = dStrdup(ui->get_location());
+      }
+      return 1;
+   }
+   // Also save original URL on push (click) in case FL_FOCUS doesn't fire
+   else if (e == FL_PUSH) {
+      UI *ui = (UI*)this->parent()->parent()->parent();
+      if (ui && !ui->orig_location_text) {
+         ui->orig_location_text = dStrdup(ui->get_location());
+      }
+      return 1;
+   }
+   // Also check for FL_UNFOCUS to clear orig_location_text
+   else if (e == FL_UNFOCUS) {
+      UI *ui = (UI*)this->parent()->parent()->parent();
+      if (ui && ui->orig_location_text) {
+         free(ui->orig_location_text);
+         ui->orig_location_text = NULL;
+      }
+      return 1;
+   }
+   // Save original URL on first keystroke (printable character) if not already saved
+   else if (k >= 32 && k <= 126 && modifier == 0) {
+      UI *ui = (UI*)this->parent()->parent()->parent();
+      if (ui && !ui->orig_location_text) {
+         ui->orig_location_text = dStrdup(ui->get_location());
+      }
+      return 1;
+   }
+   // Handle Escape key regardless of event type
+   if (k == FL_Escape && modifier == 0) {
+      fprintf(stderr, "DBG Escape: key=FL_Escape\n"); fflush(stderr);
+      // Restore original URL on Escape
+      UI *ui = (UI*)this->parent()->parent()->parent();
+      fprintf(stderr, "DBG Escape: ui=%p orig_text=%p\n", (void*)ui, (void*)(ui ? ui->orig_location_text : NULL)); fflush(stderr);
+      if (ui && ui->orig_location_text) {
+         fprintf(stderr, "DBG Escape: restoring '%s'\n", ui->orig_location_text); fflush(stderr);
+         ui->set_location(ui->orig_location_text);
+         ui->orig_location_text = NULL; // Clear after restoring
+         return 1;
+      }
+      // If no original URL to restore, let parent handle
+      return 0;
+   } else if (e == FL_KEYBOARD || e == FL_SHORTCUT || e == FL_KEYUP) {
+      // Handle Escape key
       if (k == FL_Escape && modifier == 0) {
-         // Let the parent group handle this Esc key
+         // Restore original URL on Escape
+         UI *ui = (UI*)this->parent()->parent()->parent();
+         if (ui && ui->orig_location_text) {
+            ui->set_location(ui->orig_location_text);
+            ui->orig_location_text = NULL; // Clear after restoring
+            return 1;
+         }
+         // If no original URL to restore, let parent handle
          return 0;
-      } else if (modifier == FL_SHIFT) {
+      }
+      // Save original URL on first keystroke (printable character) if not already saved
+      if (k >= 32 && k <= 126 && modifier == 0) {
+         UI *ui = (UI*)this->parent()->parent()->parent();
+         if (ui && !ui->orig_location_text) {
+            ui->orig_location_text = dStrdup(ui->get_location());
+         }
+      }
+      if (modifier == FL_SHIFT) {
          if (k == FL_Left || k == FL_Right) {
             // Let these keys get to the UI
             return 0;
@@ -360,6 +423,12 @@ static void location_cb(Fl_Widget *wid, void *data)
 
    _MSG("location_cb()\n");
    a_UIcmd_open_urlstr(a_UIcmd_get_bw_by_widget(i), i->value());
+
+   // Clear original URL after successful submission
+   if (ui->orig_location_text) {
+      free(ui->orig_location_text);
+      ui->orig_location_text = NULL;
+   }
 
    if (ui->temporaryPanels())
       ui->panels_toggle();
@@ -768,6 +837,7 @@ UI::UI(int x, int y, int ui_w, int ui_h, const char* label, const UI *cur_ui) :
    TopGroup = this;
    TopGroup->box(FL_NO_BOX);
    clear_flag(SHORTCUT_LABEL);
+   orig_location_text = NULL;
 
    PanelTemporary = false;
    if (cur_ui) {
@@ -819,6 +889,10 @@ UI::UI(int x, int y, int ui_w, int ui_h, const char* label, const UI *cur_ui) :
 UI::~UI()
 {
    _MSG("UI::~UI()\n");
+   if (orig_location_text) {
+      free(orig_location_text);
+      orig_location_text = NULL;
+   }
 }
 
 /**
@@ -980,6 +1054,11 @@ void UI::focus_location()
 void UI::focus_main()
 {
    Main->take_focus();
+   // Clear original URL when focus leaves location bar
+   if (orig_location_text) {
+      free(orig_location_text);
+      orig_location_text = NULL;
+   }
 }
 
 /**
