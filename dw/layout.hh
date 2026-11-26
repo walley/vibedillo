@@ -183,6 +183,8 @@ private:
    style::BackgroundRepeat bgRepeat;
    style::BackgroundAttachment bgAttachment;
    style::Length bgPositionX, bgPositionY;
+   style::Length bgSizeX, bgSizeY;
+   int bgSizeKeyword;
 
    style::Cursor cursor;
    int canvasWidth, canvasAscent, canvasDescent;
@@ -469,7 +471,9 @@ public:
    void setBgImage (style::StyleImage *bgImage,
                     style::BackgroundRepeat bgRepeat,
                     style::BackgroundAttachment bgAttachment,
-                    style::Length bgPositionX, style::Length bgPositionY);
+                    style::Length bgPositionX, style::Length bgPositionY,
+                    style::Length bgSizeX, style::Length bgSizeY,
+                    int bgSizeKeyword);
 
    inline style::Color* getBgColor () { return bgColor; }
    inline style::StyleImage* getBgImage () { return bgImage; }

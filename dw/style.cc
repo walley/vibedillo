@@ -74,6 +74,8 @@ void StyleAttrs::initValues ()
    backgroundAttachment = BACKGROUND_ATTACHMENT_SCROLL;
    backgroundPositionX = createPerLength (0);
    backgroundPositionY = createPerLength (0);
+   backgroundSizeX = backgroundSizeY = LENGTH_AUTO;
+   backgroundSizeKeyword = 0;
    width = height = lineHeight = LENGTH_AUTO;
    minWidth = maxWidth = minHeight = maxHeight = LENGTH_AUTO;
    vloat = FLOAT_NONE;
@@ -125,6 +127,8 @@ void StyleAttrs::resetValues ()
    backgroundAttachment = BACKGROUND_ATTACHMENT_SCROLL;
    backgroundPositionX = createPerLength (0);
    backgroundPositionY = createPerLength (0);
+   backgroundSizeX = backgroundSizeY = LENGTH_AUTO;
+   backgroundSizeKeyword = 0;
    width = LENGTH_AUTO;
    height = LENGTH_AUTO;
    minWidth = maxWidth = minHeight = maxHeight = LENGTH_AUTO;
@@ -178,6 +182,9 @@ bool StyleAttrs::equals (object::Object *other) {
        backgroundAttachment == otherAttrs->backgroundAttachment &&
        backgroundPositionX == otherAttrs->backgroundPositionX &&
        backgroundPositionY == otherAttrs->backgroundPositionY &&
+       backgroundSizeX == otherAttrs->backgroundSizeX &&
+       backgroundSizeY == otherAttrs->backgroundSizeY &&
+       backgroundSizeKeyword == otherAttrs->backgroundSizeKeyword &&
        textAlign == otherAttrs->textAlign &&
        valign == otherAttrs->valign &&
        textAlignChar == otherAttrs->textAlignChar &&
@@ -1474,6 +1481,9 @@ void drawBackground (View *view, Layout *layout, Rectangle *area,
                                  style->backgroundAttachment,
                                  style->backgroundPositionX,
                                  style->backgroundPositionY,
+                                 style->backgroundSizeX,
+                                 style->backgroundSizeY,
+                                 style->backgroundSizeKeyword,
                                  intersection.x, intersection.y,
                                  intersection.width, intersection.height,
                                  xRef, yRef, widthRef, heightRef);
@@ -1487,15 +1497,63 @@ void drawBackgroundImage (View *view, StyleImage *backgroundImage,
                           BackgroundAttachment backgroundAttachment,
                           Length backgroundPositionX,
                           Length backgroundPositionY,
+                          Length backgroundSizeX,
+                          Length backgroundSizeY,
+                          int backgroundSizeKeyword,
                           int x, int y, int width, int height,
                           int xRef, int yRef, int widthRef, int heightRef)
 {
-   //printf ("drawBackgroundImage (..., [img: %d, %d], ..., (%d, %d), %d x %d, "
-   //        "(%d, %d), %d x %d)\n", imgWidth, imgHeight, x, y, width, height,
-   //        xRef, yRef, widthRef, heightRef);
-
    bool repeatX, repeatY, doDraw;
    int origX, origY, tileX1, tileX2, tileY1, tileY2;
+
+   Imgbuf *imgbufS = backgroundImage->getImgbufSrc();
+   int imgWidthS = imgbufS->getRootWidth ();
+   int imgHeightS = imgbufS->getRootHeight ();
+
+   /* Apply background-size if specified */
+   int drawW = imgWidthS, drawH = imgHeightS;
+   if (backgroundSizeKeyword == 1) {
+      /* cover: scale to cover the entire area, preserving aspect ratio */
+      float scaleX = (float)widthRef / imgWidthS;
+      float scaleY = (float)heightRef / imgHeightS;
+      float scale = (scaleX > scaleY) ? scaleX : scaleY;
+      drawW = (int)(imgWidthS * scale + 0.5);
+      drawH = (int)(imgHeightS * scale + 0.5);
+   } else if (backgroundSizeKeyword == 2) {
+      /* contain: scale to fit within the area, preserving aspect ratio */
+      float scaleX = (float)widthRef / imgWidthS;
+      float scaleY = (float)heightRef / imgHeightS;
+      float scale = (scaleX < scaleY) ? scaleX : scaleY;
+      drawW = (int)(imgWidthS * scale + 0.5);
+      drawH = (int)(imgHeightS * scale + 0.5);
+   } else {
+      /* Explicit sizes */
+      if (backgroundSizeX != LENGTH_AUTO) {
+         if (isPerLength(backgroundSizeX))
+            drawW = multiplyWithPerLengthRounded(widthRef, backgroundSizeX);
+         else
+            drawW = absLengthVal(backgroundSizeX);
+      }
+      if (backgroundSizeY != LENGTH_AUTO) {
+         if (isPerLength(backgroundSizeY))
+            drawH = multiplyWithPerLengthRounded(heightRef, backgroundSizeY);
+         else
+            drawH = absLengthVal(backgroundSizeY);
+      } else if (backgroundSizeX != LENGTH_AUTO) {
+         /* If only width is given, height scales proportionally */
+         if (imgWidthS > 0)
+            drawH = (int)((float)drawW * imgHeightS / imgWidthS + 0.5);
+      }
+   }
+
+   if (drawW < 1) drawW = 1;
+   if (drawH < 1) drawH = 1;
+
+   /* Use scaled buffer if size differs from natural size */
+   Imgbuf *imgbufUse = imgbufS;
+   bool scaled = (drawW != imgWidthS || drawH != imgHeightS);
+   if (scaled)
+      imgbufUse = imgbufS->getScaledBuf(drawW, drawH);
 
    calcBackgroundRelatedValues (backgroundImage, backgroundRepeat,
                                 backgroundAttachment, backgroundPositionX,
@@ -1504,29 +1562,27 @@ void drawBackgroundImage (View *view, StyleImage *backgroundImage,
                                 &repeatX, &repeatY, &origX, &origY,
                                 &tileX1, &tileX2, &tileY1, &tileY2, &doDraw);
 
-   //printf ("tileX1 = %d, tileX2 = %d, tileY1 = %d, tileY2 = %d\n",
-   //        tileX1, tileX2, tileY1, tileY2);
-
    if (doDraw) {
-      // Drawing is done with the "tiled" buffer, but all calculations
-      // before have been done with the "source" buffer.
-
-      Imgbuf *imgbufS = backgroundImage->getImgbufSrc();
-      int imgWidthS = imgbufS->getRootWidth ();
-      int imgHeightS = imgbufS->getRootHeight ();
-
-      Imgbuf *imgbufT = backgroundImage->getImgbufTiled(repeatX, repeatY);
-      int imgWidthT = imgbufT->getRootWidth ();
-      int imgHeightT = imgbufT->getRootHeight ();
+      Imgbuf *imgbufT;
+      int imgWidthT, imgHeightT;
+      if (scaled) {
+         imgbufT = imgbufUse;
+         imgWidthT = drawW;
+         imgHeightT = drawH;
+      } else {
+         imgbufT = backgroundImage->getImgbufTiled(repeatX, repeatY);
+         imgWidthT = imgbufT->getRootWidth ();
+         imgHeightT = imgbufT->getRootHeight ();
+      }
       int tilesX = backgroundImage->getTilesX (repeatX, repeatY);
       int tilesY = backgroundImage->getTilesY (repeatX, repeatY);
 
       for (int tileX = tileX1; tileX <= tileX2; tileX += tilesX)
          for (int tileY = tileY1; tileY <= tileY2; tileY += tilesY) {
-            int xt = origX + tileX * imgWidthS;
+            int xt = origX + tileX * drawW;
             int x1 = misc::max (xt, x);
             int x2 = misc::min (xt + imgWidthT, x + width);
-            int yt = origY + tileY * imgHeightS;
+            int yt = origY + tileY * drawH;
             int y1 = misc::max (yt, y);
             int y2 = misc::min (yt + imgHeightT, y + height);
 
@@ -1534,6 +1590,9 @@ void drawBackgroundImage (View *view, StyleImage *backgroundImage,
                              x2 - x1, y2 - y1);
          }
    }
+
+   if (scaled)
+      imgbufUse->unref();
 }
 
 void calcBackgroundRelatedValues (StyleImage *backgroundImage,

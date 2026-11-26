@@ -144,7 +144,10 @@ class StyleEngine {
          (dw::core::style::BackgroundRepeat *bgRepeat,
           dw::core::style::BackgroundAttachment *bgAttachment,
           dw::core::style::Length *bgPositionX,
-          dw::core::style::Length *bgPositionY);
+          dw::core::style::Length *bgPositionY,
+          dw::core::style::Length *bgSizeX,
+          dw::core::style::Length *bgSizeY,
+          int *bgSizeKeyword);
 
       inline dw::core::style::Style *style (BrowserWindow *bw) {
          dw::core::style::Style *s = stack->getRef (stack->size () - 1)->style;

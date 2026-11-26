@@ -176,6 +176,7 @@ const CssPropertyInfo Css_property_info[CSS_PROPERTY_LAST] = {
     NULL},
    {"background-repeat", {CSS_TYPE_ENUM, CSS_TYPE_UNUSED},
     Css_background_repeat_enum_vals},
+   {"background-size", {CSS_TYPE_BACKGROUND_SIZE, CSS_TYPE_UNUSED}, NULL},
    {"border-bottom-color", {CSS_TYPE_ENUM, CSS_TYPE_COLOR, CSS_TYPE_UNUSED},
     Css_border_color_enum_vals},
    {"border-bottom-style", {CSS_TYPE_ENUM, CSS_TYPE_UNUSED},
@@ -822,6 +823,16 @@ bool CssParser::tokenMatchesProperty(CssPropertyName prop, CssValueType *type)
             return true;
          break;
 
+      case CSS_TYPE_BACKGROUND_SIZE:
+         if (ttype == CSS_TK_SYMBOL &&
+             (dStrAsciiCasecmp(tval, "auto") == 0 ||
+              dStrAsciiCasecmp(tval, "cover") == 0 ||
+              dStrAsciiCasecmp(tval, "contain") == 0))
+            return true;
+         if (ttype == CSS_TK_DECINT || ttype == CSS_TK_FLOAT)
+            return true;
+         break;
+
       case CSS_TYPE_GRID_VALUE:
          /* Accept any token; the value ends at ';' or '}'. */
          if (ttype == CSS_TK_END ||
@@ -1348,6 +1359,63 @@ bool CssParser::parseValue(CssPropertyName prop,
                 val->posVal->posY = pos[0];
             }
          }
+      }
+      break;
+
+   case CSS_TYPE_BACKGROUND_SIZE:
+      {
+         CssValueType typeTmp;
+         CssBackgroundSize *bs = dNew(CssBackgroundSize, 1);
+         bs->keyword = CSS_BACKGROUND_SIZE_AUTO;
+         bs->sizeX = CSS_CREATE_LENGTH(0.0, CSS_LENGTH_TYPE_AUTO);
+         bs->sizeY = CSS_CREATE_LENGTH(0.0, CSS_LENGTH_TYPE_AUTO);
+
+         if (ttype == CSS_TK_SYMBOL) {
+            if (dStrAsciiCasecmp(tval, "cover") == 0) {
+               bs->keyword = CSS_BACKGROUND_SIZE_COVER;
+               ret = true;
+               nextToken();
+            } else if (dStrAsciiCasecmp(tval, "contain") == 0) {
+               bs->keyword = CSS_BACKGROUND_SIZE_CONTAIN;
+               ret = true;
+               nextToken();
+            } else if (dStrAsciiCasecmp(tval, "auto") == 0) {
+               nextToken();
+               if (tokenMatchesProperty(prop, &typeTmp)) {
+                  if (ttype == CSS_TK_SYMBOL &&
+                      dStrAsciiCasecmp(tval, "auto") == 0) {
+                     nextToken();
+                  } else {
+                     CssPropertyValue valTmp;
+                     if (parseValue(prop, CSS_TYPE_LENGTH_PERCENTAGE,
+                                    &valTmp))
+                        bs->sizeY = valTmp.lenVal;
+                  }
+               }
+               ret = true;
+            }
+         } else {
+            CssPropertyValue valTmp;
+            if (parseValue(prop, CSS_TYPE_LENGTH_PERCENTAGE, &valTmp)) {
+               bs->sizeX = valTmp.lenVal;
+               ret = true;
+               if (tokenMatchesProperty(prop, &typeTmp)) {
+                  if (ttype == CSS_TK_SYMBOL &&
+                      dStrAsciiCasecmp(tval, "auto") == 0) {
+                     nextToken();
+                  } else if (parseValue(prop, CSS_TYPE_LENGTH_PERCENTAGE,
+                                        &valTmp))
+                     bs->sizeY = valTmp.lenVal;
+               } else {
+                  bs->sizeY = CSS_CREATE_LENGTH(0.0, CSS_LENGTH_TYPE_AUTO);
+               }
+            }
+         }
+
+         if (ret)
+            val->sizeVal = bs;
+         else
+            dFree(bs);
       }
       break;
 

@@ -268,6 +268,8 @@ Layout::Layout (Platform *platform, bool limit)
 
    bgColor = NULL;
    bgImage = NULL;
+   bgSizeX = bgSizeY = style::LENGTH_AUTO;
+   bgSizeKeyword = 0;
    cursor = style::CURSOR_DEFAULT;
 
    canvasWidth = canvasAscent = canvasDescent = 0;
@@ -679,6 +681,7 @@ void Layout::draw (View *view, Rectangle *area)
    if (bgImage != NULL && bgImage->getImgbufSrc() != NULL)
       style::drawBackgroundImage (view, bgImage, bgRepeat, bgAttachment,
                                   bgPositionX, bgPositionY,
+                                  bgSizeX, bgSizeY, bgSizeKeyword,
                                   area->x, area->y, area->width,
                                   area->height, 0, 0,
                                   // Reference area: maximum of canvas size and
@@ -839,7 +842,9 @@ void Layout::setBgColor (style::Color *color)
 void Layout::setBgImage (style::StyleImage *bgImage,
                          style::BackgroundRepeat bgRepeat,
                          style::BackgroundAttachment bgAttachment,
-                         style::Length bgPositionX, style::Length bgPositionY)
+                         style::Length bgPositionX, style::Length bgPositionY,
+                         style::Length bgSizeX, style::Length bgSizeY,
+                         int bgSizeKeyword)
 {
    if (layoutImgRenderer && this->bgImage)
       this->bgImage->removeExternalImgRenderer (layoutImgRenderer);
@@ -855,6 +860,9 @@ void Layout::setBgImage (style::StyleImage *bgImage,
    this->bgAttachment = bgAttachment;
    this->bgPositionX = bgPositionX;
    this->bgPositionY = bgPositionY;
+   this->bgSizeX = bgSizeX;
+   this->bgSizeY = bgSizeY;
+   this->bgSizeKeyword = bgSizeKeyword;
 
    if (bgImage) {
       // Create instance of LayoutImgRenderer when needed. Until this

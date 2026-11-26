@@ -267,7 +267,10 @@ dw::core::style::StyleImage *StyleEngine::backgroundImage
    (dw::core::style::BackgroundRepeat *bgRepeat,
     dw::core::style::BackgroundAttachment *bgAttachment,
     dw::core::style::Length *bgPositionX,
-    dw::core::style::Length *bgPositionY) {
+    dw::core::style::Length *bgPositionY,
+    dw::core::style::Length *bgSizeX,
+    dw::core::style::Length *bgSizeY,
+    int *bgSizeKeyword) {
    for (int i = 1; i < stack->size (); i++) {
       Node *n = stack->getRef (i);
 
@@ -276,6 +279,9 @@ dw::core::style::StyleImage *StyleEngine::backgroundImage
          *bgAttachment = n->style->backgroundAttachment;
          *bgPositionX = n->style->backgroundPositionX;
          *bgPositionY = n->style->backgroundPositionY;
+         *bgSizeX = n->style->backgroundSizeX;
+         *bgSizeY = n->style->backgroundSizeY;
+         *bgSizeKeyword = n->style->backgroundSizeKeyword;
          return n->style->backgroundImage;
       }
    }
@@ -328,6 +334,12 @@ void StyleEngine::preprocessAttrs (dw::core::style::StyleAttrs *attrs) {
          stack->getRef (stack->size () - 2)->style->backgroundPositionX;
       attrs->backgroundPositionY =
          stack->getRef (stack->size () - 2)->style->backgroundPositionY;
+      attrs->backgroundSizeX =
+         stack->getRef (stack->size () - 2)->style->backgroundSizeX;
+      attrs->backgroundSizeY =
+         stack->getRef (stack->size () - 2)->style->backgroundSizeY;
+      attrs->backgroundSizeKeyword =
+         stack->getRef (stack->size () - 2)->style->backgroundSizeKeyword;
 
       attrs->valign = stack->getRef (stack->size () - 2)->style->valign;
    }
@@ -663,6 +675,13 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
                            attrs->font);
             computeLength (&attrs->backgroundPositionY, p->value.posVal->posY,
                            attrs->font);
+            break;
+         case CSS_PROPERTY_BACKGROUND_SIZE:
+            computeLength (&attrs->backgroundSizeX, p->value.sizeVal->sizeX,
+                           attrs->font);
+            computeLength (&attrs->backgroundSizeY, p->value.sizeVal->sizeY,
+                           attrs->font);
+            attrs->backgroundSizeKeyword = (int)p->value.sizeVal->keyword;
             break;
          case CSS_PROPERTY_BACKGROUND_REPEAT:
             attrs->backgroundRepeat = (BackgroundRepeat) p->value.intVal;

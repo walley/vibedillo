@@ -72,7 +72,8 @@ int a_Web_dispatch_by_type (const char *Type, DilloWeb *Web,
       layout->setBgImage (NULL, style::BACKGROUND_REPEAT,
                           style::BACKGROUND_ATTACHMENT_SCROLL,
                           style::createPerLength (0),
-                          style::createPerLength (0));
+                          style::createPerLength (0),
+                          style::LENGTH_AUTO, style::LENGTH_AUTO, 0);
 
       /* Set a style for the widget */
       StyleEngine styleEngine (layout, Web->url, Web->url, bw->zoom);

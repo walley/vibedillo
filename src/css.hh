@@ -62,6 +62,7 @@ typedef enum {
                                    'font-family'. */
    CSS_TYPE_URI,                /**< <uri> */
    CSS_TYPE_BACKGROUND_POSITION,
+    CSS_TYPE_BACKGROUND_SIZE,
    CSS_TYPE_GRID_VALUE,         /**< Raw value up to ';' or '}' (used for
                                    grid track lists / placements, which contain
                                    brackets and parentheses), as string. */
@@ -175,6 +176,7 @@ typedef enum {
    CSS_PROPERTY_BACKGROUND_IMAGE,
    CSS_PROPERTY_BACKGROUND_POSITION,
    CSS_PROPERTY_BACKGROUND_REPEAT,
+    CSS_PROPERTY_BACKGROUND_SIZE,
    CSS_PROPERTY_BORDER_BOTTOM_COLOR,
    CSS_PROPERTY_BORDER_BOTTOM_STYLE,
    CSS_PROPERTY_BORDER_BOTTOM_WIDTH,
@@ -275,11 +277,24 @@ typedef struct {
    CssLength posY;
 } CssBackgroundPosition;
 
+typedef enum {
+   CSS_BACKGROUND_SIZE_AUTO,
+   CSS_BACKGROUND_SIZE_COVER,
+   CSS_BACKGROUND_SIZE_CONTAIN
+} CssBackgroundSizeKeyword;
+
+typedef struct {
+   CssLength sizeX;
+   CssLength sizeY;
+   CssBackgroundSizeKeyword keyword;
+} CssBackgroundSize;
+
 typedef union {
    int32_t intVal;
    CssLength lenVal;
    char *strVal;
    CssBackgroundPosition *posVal;
+   CssBackgroundSize *sizeVal;
 } CssPropertyValue;
 
 typedef enum {
@@ -338,6 +353,10 @@ class CssProperty {
                break;
             case CSS_TYPE_BACKGROUND_POSITION:
                dFree (value.posVal);
+               break;
+            case CSS_TYPE_BACKGROUND_SIZE:
+               dFree (value.sizeVal);
+               break;
             default:
                break;
          }

@@ -1898,6 +1898,8 @@ static void Html_tag_open_body(DilloHtml *html, const char *tag, int tagsize)
    style::BackgroundRepeat bgRepeat;
    style::BackgroundAttachment bgAttachment;
    style::Length bgPositionX, bgPositionY;
+   style::Length bgSizeX, bgSizeY;
+   int bgSizeKeyword;
 
    _MSG("Html_tag_open_body Num_BODY=%d\n", html->Num_BODY);
    if (!(html->InFlags & IN_BODY))
@@ -1981,10 +1983,12 @@ bgColor = html->styleEngine->backgroundColor ();
    if (bgColor)
       HT2LT(html)->setBgColor(bgColor);
    bgImage = html->styleEngine->backgroundImage (&bgRepeat, &bgAttachment,
-                                                 &bgPositionX, &bgPositionY);
+                                                 &bgPositionX, &bgPositionY,
+                                                 &bgSizeX, &bgSizeY,
+                                                 &bgSizeKeyword);
    if (bgImage)
       HT2LT(html)->setBgImage(bgImage, bgRepeat, bgAttachment, bgPositionX,
-                              bgPositionY);
+                              bgPositionY, bgSizeX, bgSizeY, bgSizeKeyword);
 
    /* Also set body element's background to transparent in dark mode,
  * so the layout's dark background shows through the body element */

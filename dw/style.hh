@@ -571,6 +571,10 @@ public:
    BackgroundAttachment backgroundAttachment;
    Length backgroundPositionX; // "left" defined by "0%" etc. (see CSS spec)
    Length backgroundPositionY; // "top" defined by "0%" etc. (see CSS spec)
+   /* background-size: X and Y as Length (px or %), or LENGTH_AUTO for "auto";
+    * backgroundSizeKeyword for cover/contain */
+   Length backgroundSizeX, backgroundSizeY;
+   int backgroundSizeKeyword; /* 0=auto, 1=cover, 2=contain */
 
    TextAlignType textAlign;
    VAlignType valign;
@@ -961,6 +965,9 @@ void drawBackgroundImage (View *view, StyleImage *backgroundImage,
                           BackgroundAttachment backgroundAttachment,
                           Length backgroundPositionX,
                           Length backgroundPositionY,
+                          Length backgroundSizeX,
+                          Length backgroundSizeY,
+                          int backgroundSizeKeyword,
                           int x, int y, int width, int height,
                           int xRef, int yRef, int widthRef, int heightRef);
 void numtostr (int num, char *buf, int buflen, ListStyleType listStyleType);
