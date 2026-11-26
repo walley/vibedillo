@@ -1718,6 +1718,7 @@ void a_UIcmd_set_location_text(void *vbw, const char *text)
 {
    BrowserWindow *bw = (BrowserWindow*)vbw;
    BW2UI(bw)->set_location(text);
+   BW2UI(bw)->set_loaded_url(text);
 }
 
 /*

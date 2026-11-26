@@ -177,7 +177,13 @@ int CustInput::handle(int e)
       return 0;
    } else if (e == FL_KEYBOARD) {
       if (k == FL_Escape && modifier == 0) {
-         // Let the parent group handle this Esc key
+         // Restore URL bar to the loaded page's URL
+         UI *ui = (UI*)this->parent()->parent()->parent();
+         if (ui && ui->loaded_url) {
+            ui->set_location(ui->loaded_url);
+            return 1;
+         }
+         // No loaded URL to restore, let parent handle
          return 0;
       } else if (modifier == FL_SHIFT) {
          if (k == FL_Left || k == FL_Right) {
@@ -768,6 +774,7 @@ UI::UI(int x, int y, int ui_w, int ui_h, const char* label, const UI *cur_ui) :
    TopGroup = this;
    TopGroup->box(FL_NO_BOX);
    clear_flag(SHORTCUT_LABEL);
+   loaded_url = NULL;
 
    PanelTemporary = false;
    if (cur_ui) {
@@ -819,6 +826,10 @@ UI::UI(int x, int y, int ui_w, int ui_h, const char* label, const UI *cur_ui) :
 UI::~UI()
 {
    _MSG("UI::~UI()\n");
+   if (loaded_url) {
+      free(loaded_url);
+      loaded_url = NULL;
+   }
 }
 
 /**
@@ -957,6 +968,16 @@ void UI::set_location(const char *str)
    if (!str) str = "";
    Location->value(str);
    ((CustInput *) Location)->d_position((Fl::focus() == Location) ? strlen(str) : 0);
+}
+
+/**
+ * Store the URL of the loaded page (for Escape restore).
+ */
+void UI::set_loaded_url(const char *str)
+{
+   if (loaded_url)
+      free(loaded_url);
+   loaded_url = str ? dStrdup(str) : NULL;
 }
 
 /**

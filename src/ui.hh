@@ -154,6 +154,9 @@ class UI : public CustGroupVertical {
 
 public:
 
+   // URL of the currently loaded page (for Escape restore in location bar)
+   char *loaded_url;
+
    UI(int x,int y,int w,int h, const char* label = 0, const UI *cur_ui=NULL);
    ~UI();
 
@@ -162,6 +165,7 @@ public:
 
    const char *get_location();
    void set_location(const char *str);
+   void set_loaded_url(const char *str);
    void focus_location();
    void focus_main();
    void set_status(const char *str);
