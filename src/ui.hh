@@ -141,7 +141,6 @@ class UI : public CustGroupVertical {
    bool PanelTemporary;
 
    UIPanelmode Panelmode;
-
    CustButton *make_button(const char *label, Fl_Image *img, Fl_Image*deimg,
                            int b_n, int start = 0);
    void make_toolbar(int tw, int th);
@@ -154,10 +153,6 @@ class UI : public CustGroupVertical {
    void make_status_bar(int ww, int wh);
 
 public:
-
-   // Store original URL for Escape key restoration
-   char *orig_location_text;
-   Fl_Input *get_location_widget() { return Location; }
 
    UI(int x,int y,int w,int h, const char* label = 0, const UI *cur_ui=NULL);
    ~UI();
