@@ -10,7 +10,6 @@
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Image.H>
 #include <FL/Fl_Tabs.H>
-#include <FL/Fl_Menu_Bar.H>
 
 #include "tipwin.hh"
 #include "findbar.hh"
@@ -40,7 +39,7 @@ typedef enum {
 
 // Private classes
 class CustProgressBox;
-class CustWindow;
+class CustTabs;
 
 
 // Class definitions ---------------------------------------------------------
@@ -122,11 +121,12 @@ public:
 // UI class definition -------------------------------------------------------
 //
 class UI : public CustGroupVertical {
-   CustWindow *Tabs;
+   CustTabs *Tabs;
 
    CustGroupVertical *TopGroup;
    CustButton *Back, *Forw, *Home, *Reload, *Save, *Stop, *Bookmarks,
-              *Tools, *Clear, *Search, *Help, *BugMeter, *ThemeButton;
+              *Tools, *Clear, *Search, *Help, *BugMeter, *FileButton, *EditButton,
+              *ThemeButton;
    CustGroupHorizontal *LocBar, *NavBar, *StatusBar;
    Fl_Input *Location;
    CustProgressBox *PProg, *IProg;
@@ -147,6 +147,8 @@ class UI : public CustGroupVertical {
    void make_location(int ww);
    void make_progress_bars(int wide, int thin_up);
    void make_menubar(int x, int y, int w, int h);
+   void make_filemenu_button();
+   void make_editmenu_button();
    void make_panel(int ww);
    void make_status_bar(int ww, int wh);
 
@@ -176,8 +178,8 @@ public:
    void findbar_toggle(bool add);
    void panels_toggle();
 
-   CustWindow *tabs() { return Tabs; }
-   void tabs(CustWindow *tabs) { Tabs = tabs; }
+   CustTabs *tabs() { return Tabs; }
+   void tabs(CustTabs *tabs) { Tabs = tabs; }
    Fl_Group *main_group() { return Main; }
    bool temporaryPanels() { return PanelTemporary; }
    void temporaryPanels(bool val) { PanelTemporary = val; }

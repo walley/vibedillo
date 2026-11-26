@@ -30,7 +30,6 @@
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Pack.H>
 #include <FL/Fl_Scroll.H>
-#include <FL/Fl_Menu_Bar.H>
 #include <FL/names.h>
 #include <FL/fl_draw.H>
 #include <png.h>
@@ -75,27 +74,26 @@ using namespace dw::fltk;
 static const char *save_dir = "";
 
 struct Tabgroup {
-   CustWindow *tabs;
+   CustTabs *tabs;
    struct Tabgroup *next;
 };
 
-/* An stack of CustWindow groups, each maps to one FLTK window. Points to
+/* An stack of CustTabs groups, each maps to one FLTK window. Points to
  * the last one created. */
 static struct Tabgroup *tabgroups = NULL;
 
 /*
  * Forward declarations
  */
-static BrowserWindow *UIcmd_tab_new(CustWindow *tabs, UI *old_ui, int focus);
+static BrowserWindow *UIcmd_tab_new(CustTabs *tabs, UI *old_ui, int focus);
 static void close_tab_btn_cb (Fl_Widget *w, void *cb_data);
-static void tab_switch_btn_cb (Fl_Widget *w, void *cb_data);
 static char *UIcmd_make_search_str(const char *str);
 static void UIcmd_set_window_labels(Fl_Window *win, const char *str);
 
 //----------------------------------------------------------------------------
 
 /*
- * CustWindow (main window container) ---------------------------------------------------------------
+ * CustTabs ---------------------------------------------------------------
  */
 
 /**
@@ -123,68 +121,18 @@ static int btn_cmp(const void *p1, const void *p2)
 /**
  * Allows fine control of the tabbed interface
  */
-class CustWindow : public Fl_Group {
+class CustTabs : public Fl_Group {
    uint_t focus_counter; // An increasing counter
-   int tab_w, tab_h, ctab_h, btn_w, ctl_w, menu_h;
-   Fl_Menu_Bar *MenuBar;
-   Fl_Group *Wizard;
+   int tab_w, tab_h, ctab_h, btn_w, ctl_w;
+   Fl_Wizard *Wizard;
    Fl_Scroll *Scroll;
    Fl_Pack *Pack;
    Fl_Group *Control;
-   CustButton *PrevBtn, *NextBtn, *CloseBtn;
+   CustButton *CloseBtn;
 
-public:
-   UI *current_ui;
    void update_pack_offset(void);
-   void resize(int x, int y, int w, int h) {
-      /* Enforce minimum window size */
-      const int MIN_W = 400;
-      const int MIN_H = 300;
-      if (w < MIN_W) w = MIN_W;
-      if (h < MIN_H) h = MIN_H;
-      
-      /* Use Fl_Widget::resize (not Fl_Group::resize) to avoid FLTK's
-       * automatic layout which scales children from initial size. */
-      Fl_Widget::resize(x, y, w, h);
-      layout();
-   }
-
-   /* Manual layout: position all children explicitly.
-    * This is called from resize() and can be called explicitly. */
-   void layout() {
-      int w = this->w(), h = this->h();
-      int mh = prefs.show_filemenu ? menu_h : 0;
-      if (mh < 20) mh = 25;  // fallback minimum
-      
-      if (MenuBar) MenuBar->resize(0, 0, w, mh);
-      if (Scroll) {
-         Scroll->resize(0, mh, w-ctl_w, ctab_h);
-         if (Pack) Pack->resize(0, 0, w-ctl_w, tab_h);
-      }
-      if (Control) {
-         Control->resize(w-ctl_w, mh, ctl_w, ctab_h);
-         if (PrevBtn) PrevBtn->resize(w-ctl_w, mh, btn_w, ctab_h);
-         if (NextBtn) NextBtn->resize(w-ctl_w+btn_w+1, mh, btn_w, ctab_h);
-         if (CloseBtn) CloseBtn->resize(w-ctl_w+2*btn_w+2, mh, btn_w, ctab_h);
-      }
-      if (Wizard) {
-         Wizard->resize(0, mh+ctab_h, w, h-mh-ctab_h);
-         /* Show current UI, hide others */
-         for (int i = 0; i < Wizard->children(); i++) {
-            Fl_Widget *w = Wizard->child(i);
-            if (w == current_ui) {
-               w->show();
-            } else {
-               w->hide();
-            }
-         }
-         if (current_ui) {
-            current_ui->resize(0, 0, Wizard->w(), Wizard->h());
-            current_ui->rearrange();
-         }
-      }
-      update_pack_offset();
-   }
+   void resize(int x, int y, int w, int h)
+      { Fl_Group::resize(x,y,w,h); update_pack_offset(); }
    int get_btn_idx(UI *ui);
    void increase_focus_counter() {
       if (focus_counter < UINT_MAX) /* check for overflow */
@@ -203,33 +151,14 @@ public:
    }
 
 public:
-   CustWindow (int ww, int wh, int th, const char *lbl=0) :
-      Fl_Group(0,0,ww,wh,lbl) {
+   CustTabs (int ww, int wh, int th, const char *lbl=0) :
+      Fl_Group(0,0,ww,th,lbl) {
       Pack = NULL;
-      MenuBar = NULL;
-      Scroll = NULL;
-      Control = NULL;
-      Wizard = NULL;
-      current_ui = NULL;
-      PrevBtn = NextBtn = CloseBtn = NULL;
       focus_counter = 0;
-      tab_w = 50, tab_h = th, ctab_h = th, btn_w = 20, ctl_w = 3*btn_w+2;
-
-      /* real top menu bar, above the tab strip */
-      menu_h = prefs.show_filemenu ? 25 : 0;
-      MenuBar = new Fl_Menu_Bar(0,0,ww,25);
-      MenuBar->textsize(13);
-      MenuBar->copy(a_Menu_menubar_items());
-      if (!prefs.show_filemenu)
-         MenuBar->hide();
-
-      /* Standard menu bar height with 13pt font is 25px */
-      menu_h = prefs.show_filemenu ? 25 : 0;
-
-      /* Initial resize to full window height */
-      resize(0,0,ww,wh);
+      tab_w = 50, tab_h = th, ctab_h = 1, btn_w = 20, ctl_w = 1*btn_w+2;
+      resize(0,0,ww,ctab_h);
       /* tab buttons go inside a pack within a scroll */
-      Scroll = new Fl_Scroll(0,menu_h,ww-ctl_w,ctab_h);
+      Scroll = new Fl_Scroll(0,0,ww-ctl_w,ctab_h);
       Scroll->type(0); /* no scrollbars */
       Scroll->box(FL_NO_BOX);
        Pack = new Fl_Pack(0,0,ww-ctl_w,tab_h);
@@ -240,20 +169,8 @@ public:
       resizable(Scroll);
 
       /* control buttons go inside a group */
-      Control = new Fl_Group(ww-ctl_w,menu_h,ctl_w,ctab_h);
-       PrevBtn = new CustButton(ww-ctl_w,menu_h,btn_w,ctab_h, "<");
-       PrevBtn->box(FL_THIN_UP_BOX);
-       PrevBtn->clear_visible_focus();
-       PrevBtn->set_tooltip("Switch to previous tab");
-       PrevBtn->callback(tab_switch_btn_cb, this);
-       PrevBtn->hide();
-       NextBtn = new CustButton(ww-ctl_w+btn_w+1,menu_h,btn_w,ctab_h, ">");
-       NextBtn->box(FL_THIN_UP_BOX);
-       NextBtn->clear_visible_focus();
-       NextBtn->set_tooltip("Switch to next tab");
-       NextBtn->callback(tab_switch_btn_cb, this);
-       NextBtn->hide();
-       CloseBtn = new CustButton(ww-ctl_w+2*btn_w+2,menu_h,btn_w,ctab_h, "X");
+      Control = new Fl_Group(ww-ctl_w,0,ctl_w,ctab_h);
+       CloseBtn = new CustButton(ww-ctl_w+2,0,btn_w,ctab_h, "X");
        CloseBtn->box(FL_THIN_UP_BOX);
        CloseBtn->clear_visible_focus();
        CloseBtn->set_tooltip(prefs.right_click_closes_tab ?
@@ -263,20 +180,17 @@ public:
        CloseBtn->hide();
       Control->end();
 
-      /* The page area is a simple Fl_Group (not Fl_Wizard) so that one
-       * resize() lays out menu bar + tab strip + page area together. */
-      Wizard = new Fl_Group(0,menu_h+ctab_h,ww,wh-menu_h-ctab_h);
-      Wizard->box(FL_NO_BOX);
-      Wizard->end();
-
       box(FL_FLAT_BOX);
       end();
+
+      Wizard = new Fl_Wizard(0,ctab_h,ww,wh-ctab_h);
+      Wizard->box(FL_NO_BOX);
+      Wizard->end();
    };
    int handle(int e);
    UI *add_new_tab(UI *old_ui, int focus);
    void remove_tab(UI *ui);
-   Fl_Group *wizard(void) { return Wizard; }
-   Fl_Menu_Bar *menu_bar(void) { return MenuBar; }
+   Fl_Wizard *wizard(void) { return Wizard; }
    int num_tabs() { return (Pack ? Pack->children() : 0); }
    void switch_tab(CustTabButton *cbtn);
    void switch_tab(int index);
@@ -291,7 +205,7 @@ public:
 static void tab_btn_cb (Fl_Widget *w, void *cb_data)
 {
    CustTabButton *btn = (CustTabButton*) w;
-   CustWindow *tabs = (CustWindow*) cb_data;
+   CustTabs *tabs = (CustTabs*) cb_data;
    int b = Fl::event_button();
 
    if (b == FL_LEFT_MOUSE) {
@@ -308,44 +222,28 @@ static void tab_btn_cb (Fl_Widget *w, void *cb_data)
  */
 static void close_tab_btn_cb (Fl_Widget *, void *cb_data)
 {
-   CustWindow *tabs = (CustWindow*) cb_data;
+   CustTabs *tabs = (CustTabs*) cb_data;
    int b = Fl::event_button();
 
    if (b == FL_LEFT_MOUSE) {
-      a_UIcmd_close_bw(a_UIcmd_get_bw_by_widget(tabs->current_ui));
+      a_UIcmd_close_bw(a_UIcmd_get_bw_by_widget(tabs->wizard()->value()));
    }
 }
 
-/**
- * Callback for the "<" / ">" tab-switch buttons
- */
-static void tab_switch_btn_cb (Fl_Widget *w, void *cb_data)
-{
-   CustWindow *tabs = (CustWindow*) cb_data;
-   int b = Fl::event_button();
-
-   if (b == FL_LEFT_MOUSE) {
-      if (w->label() && w->label()[0] == '<')
-         tabs->prev_tab();
-      else
-         tabs->next_tab();
-   }
-}
-
-int CustWindow::handle(int e)
+int CustTabs::handle(int e)
 {
    int ret = 0;
 
-   _MSG("CustWindow::handle e=%s\n", fl_eventnames[e]);
+   _MSG("CustTabs::handle e=%s\n", fl_eventnames[e]);
    if (e == FL_KEYBOARD) {
       return 0; // Receive as shortcut
    } else if (e == FL_SHORTCUT) {
-      UI *ui = (UI*)current_ui;
+      UI *ui = (UI*)wizard()->value();
       BrowserWindow *bw = a_UIcmd_get_bw_by_widget(ui);
       KeysCommand_t cmd = Keys::getKeyCmd();
       if (cmd == KEYS_NOP) {
          // Do nothing
-         _MSG("CustWindow::handle KEYS_NOP\n");
+         _MSG("CustTabs::handle KEYS_NOP\n");
       } else if (cmd == KEYS_NEW_TAB) {
          a_UIcmd_open_url_nt(bw, NULL, 1);
          ret = 1;
@@ -388,13 +286,13 @@ int CustWindow::handle(int e)
 /**
  * Create a new tab with its own UI
  */
-UI *CustWindow::add_new_tab(UI *old_ui, int focus)
+UI *CustTabs::add_new_tab(UI *old_ui, int focus)
 {
    if (num_tabs() == 1) {
       // Show tabbar
-      resize(0,0,window()->w(),window()->h());    // relayout: menu+tabbar+wizard
-      PrevBtn->show();
-      NextBtn->show();
+      ctab_h = tab_h;
+      Wizard->resize(0,ctab_h,Wizard->w(),window()->h()-ctab_h);
+      resize(0,0,window()->w(),ctab_h);    // tabbar
       CloseBtn->show();
       {int w = 0, h; Pack->child(0)->measure_label(w, h);
        Pack->child(0)->size(w+14,ctab_h);}
@@ -409,7 +307,7 @@ UI *CustWindow::add_new_tab(UI *old_ui, int focus)
    new_ui->resize(0,ctab_h,Wizard->w(),Wizard->h());
    new_ui->tabs(this);
    Wizard->add(new_ui);
-   new_ui->hide(); // Initially hidden, will be shown when activated
+   new_ui->show();
 
    CustTabButton *btn = new CustTabButton(num_tabs()*tab_w,0,tab_w,ctab_h);
    btn->align(FL_ALIGN_INSIDE);
@@ -445,12 +343,12 @@ UI *CustWindow::add_new_tab(UI *old_ui, int focus)
 /**
  * Remove tab by UI
  */
-void CustWindow::remove_tab(UI *ui)
+void CustTabs::remove_tab(UI *ui)
 {
    CustTabButton *btn;
 
    // get active tab idx
-   int act_idx = get_btn_idx(current_ui);
+   int act_idx = get_btn_idx((UI*)Wizard->value());
    // get to-be-removed tab idx
    int rm_idx = get_btn_idx(ui);
    btn = (CustTabButton*)Pack->child(rm_idx);
@@ -478,18 +376,18 @@ void CustWindow::remove_tab(UI *ui)
 
    if (num_tabs() == 1) {
       // hide tabbar
-      PrevBtn->hide();
-      NextBtn->hide();
+      ctab_h = 1;
       CloseBtn->hide();
       Pack->child(0)->size(0,0);
       Pack->child(0)->hide(); // first tab button
-      resize(0,0,window()->w(),window()->h());    // relayout: menu+tabbar+wizard
+      resize(0,0,window()->w(),ctab_h);    // tabbar
+      Wizard->resize(0,ctab_h,Wizard->w(),window()->h()-ctab_h);
       window()->init_sizes();
       window()->redraw();
    }
 }
 
-int CustWindow::get_btn_idx(UI *ui)
+int CustTabs::get_btn_idx(UI *ui)
 {
    for (int i = 0; i < num_tabs(); ++i) {
       CustTabButton *btn = (CustTabButton*)Pack->child(i);
@@ -503,12 +401,12 @@ int CustWindow::get_btn_idx(UI *ui)
  * Keep active tab visible.
  * (Pack children have unusable x() coordinate)
  */
-void CustWindow::update_pack_offset()
+void CustTabs::update_pack_offset()
 {
    dReturn_if (num_tabs() == 0);
 
    // get active tab button
-   int act_idx = get_btn_idx(current_ui);
+   int act_idx = get_btn_idx((UI*)Wizard->value());
    CustTabButton *cbtn = (CustTabButton*)Pack->child(act_idx);
 
    // calculate tab button's x() coordinates
@@ -535,12 +433,12 @@ void CustWindow::update_pack_offset()
 /**
  * Make cbtn's tab the active one.
  */
-void CustWindow::switch_tab(CustTabButton *cbtn)
+void CustTabs::switch_tab(CustTabButton *cbtn)
 {
    int idx;
    CustTabButton *btn;
    BrowserWindow *bw;
-   UI *old_ui = current_ui;
+   UI *old_ui = (UI*)Wizard->value();
 
    if (cbtn && cbtn->ui() != old_ui) {
       // Set old tab label to normal color
@@ -559,9 +457,8 @@ void CustWindow::switch_tab(CustTabButton *cbtn)
        * shown, fl_fix_focus will fix everything with Fl::e_keysym temporarily
        * cleared.
        */
-      if (old_ui) old_ui->hide();
       cbtn->ui()->show();
-      current_ui = cbtn->ui();
+      Wizard->value(cbtn->ui());
       cbtn->color(PREFS_UI_TAB_ACTIVE_BG_COLOR);
       cbtn->labelcolor(PREFS_UI_TAB_ACTIVE_FG_COLOR);
       cbtn->redraw();
@@ -578,26 +475,26 @@ void CustWindow::switch_tab(CustTabButton *cbtn)
    }
 }
 
-void CustWindow::prev_tab()
+void CustTabs::prev_tab()
 {
    int idx;
 
-   if ((idx = get_btn_idx(current_ui)) != -1)
+   if ((idx = get_btn_idx((UI*)Wizard->value())) != -1)
       switch_tab((CustTabButton*)Pack->child(idx>0 ? idx-1 : num_tabs()-1));
 }
 
-void CustWindow::next_tab()
+void CustTabs::next_tab()
 {
    int idx;
 
-   if ((idx = get_btn_idx(current_ui)) != -1)
+   if ((idx = get_btn_idx((UI*)Wizard->value())) != -1)
       switch_tab((CustTabButton*)Pack->child((idx+1<num_tabs()) ? idx+1 : 0));
 }
 
 /**
  * Make index tab the active one, starting from 0.
  */
-void CustWindow::switch_tab(int index)
+void CustTabs::switch_tab(int index)
 {
    if (index >= 0 && index < num_tabs())
       switch_tab((CustTabButton*)Pack->child(index));
@@ -606,7 +503,7 @@ void CustWindow::switch_tab(int index)
 /**
  * Set this UI's tab button label.
  */
-void CustWindow::set_tab_label(UI *ui, const char *label)
+void CustTabs::set_tab_label(UI *ui, const char *label)
 {
    char title[128];
    int idx = get_btn_idx(ui);
@@ -636,7 +533,7 @@ void CustWindow::set_tab_label(UI *ui, const char *label)
 //----------------------------------------------------------------------------
 
 static void win_cb (Fl_Widget *w, void *cb_data) {
-   CustWindow *tabs = (CustWindow*) cb_data;
+   CustTabs *tabs = (CustTabs*) cb_data;
    int choice = 1, ntabs = tabs->num_tabs();
 
    if (Fl::event_key() == FL_Escape) {
@@ -651,7 +548,7 @@ static void win_cb (Fl_Widget *w, void *cb_data) {
                                "Close", "Cancel", NULL);
    if (choice == 1)
       while (ntabs-- > 0)
-         a_UIcmd_close_bw(a_UIcmd_get_bw_by_widget(tabs->current_ui));
+         a_UIcmd_close_bw(a_UIcmd_get_bw_by_widget(tabs->wizard()->value()));
 }
 
 /*
@@ -665,20 +562,6 @@ BrowserWindow *a_UIcmd_get_bw_by_widget(void *v_wid)
       if (((UI*)bw->ui)->contains((Fl_Widget*)v_wid)) {
          return bw;
       }
-   }
-   return NULL;
-}
-
-/*
- * Given a window-level widget (e.g. the top menu bar, which is a child
- * of CustWindow, not of a UI), return the bw of the active tab in that
- * window.
- */
-BrowserWindow *a_UIcmd_get_bw_by_menubar(void *v_wid)
-{
-   for (struct Tabgroup *tg = tabgroups; tg; tg = tg->next) {
-      if (tg->tabs->contains((Fl_Widget*)v_wid))
-         return a_UIcmd_get_bw_by_widget(tg->tabs->current_ui);
    }
    return NULL;
 }
@@ -709,7 +592,7 @@ BrowserWindow *a_UIcmd_browser_window_new(int ww, int wh,
       win = new Fl_Double_Window(ww, wh);
 
    win->box(FL_NO_BOX);
-   CustWindow *DilloTabs = new CustWindow(ww, wh, prefs.ui_tab_height);
+   CustTabs *DilloTabs = new CustTabs(ww, wh, prefs.ui_tab_height);
 
    struct Tabgroup *tg = new Tabgroup;
    tg->tabs = DilloTabs;
@@ -718,16 +601,11 @@ BrowserWindow *a_UIcmd_browser_window_new(int ww, int wh,
    _MSG("new: tabgroups=%p\n", (void *) tg);
 
    win->end();
-   win->resizable(DilloTabs);
+   win->resizable(DilloTabs->wizard());
 
    int focus = 1;
    new_bw = UIcmd_tab_new(DilloTabs, old_ui, focus);
    win->show();
-
-   /* Set fullscreen if requested */
-   if (prefs.fullwindow_start) {
-      win->fullscreen();
-   }
 
    if (old_bw == NULL) {
       new_bw->zoom = prefs.zoom_factor;
@@ -759,7 +637,7 @@ static void UIcmd_set_window_labels(Fl_Window *win, const char *str)
  * Create a new Tab button, UI and its associated BrowserWindow data
  * structure.
  */
-static BrowserWindow *UIcmd_tab_new(CustWindow *tabs, UI *old_ui, int focus)
+static BrowserWindow *UIcmd_tab_new(CustTabs *tabs, UI *old_ui, int focus)
 {
    _MSG(" UIcmd_tab_new\n");
 
@@ -812,7 +690,7 @@ void a_UIcmd_close_bw(void *vbw)
 {
    BrowserWindow *bw = (BrowserWindow *)vbw;
    UI *ui = BW2UI(bw);
-   CustWindow *tabs = ui->tabs();
+   CustTabs *tabs = ui->tabs();
    Layout *layout = (Layout*)bw->render_layout;
 
    _MSG("a_UIcmd_close_bw\n");
@@ -1080,7 +958,7 @@ BrowserWindow *a_UIcmd_get_first_active_bw(void)
 {
    struct Tabgroup *tg = tabgroups;
    for (tg = tabgroups; tg; tg = tg->next) {
-      BrowserWindow *bw = a_UIcmd_get_bw_by_widget(tg->tabs->current_ui);
+      BrowserWindow *bw = a_UIcmd_get_bw_by_widget(tg->tabs->wizard()->value());
       if (bw)
          return bw;
    }
@@ -1095,7 +973,7 @@ void a_UIcmd_reload_all_active()
 {
    struct Tabgroup *tg = tabgroups;
    for (tg = tabgroups; tg; tg = tg->next) {
-      BrowserWindow *bw = a_UIcmd_get_bw_by_widget(tg->tabs->current_ui);
+      BrowserWindow *bw = a_UIcmd_get_bw_by_widget(tg->tabs->wizard()->value());
       if (bw)
          a_UIcmd_reload(bw);
    }
@@ -1576,15 +1454,6 @@ void a_UIcmd_file_popup(void *vbw, void *v_wid)
 }
 
 /*
- * Return the window-level menu bar widget for the UI's tab group
- */
-void *a_UIcmd_get_menubar(void *v_ui)
-{
-   UI *ui = (UI*)v_ui;
-   return ui->tabs() ? (void*)ui->tabs()->menu_bar() : NULL;
-}
-
-/*
  * Pop up the edit menu
  */
 void a_UIcmd_edit_popup(void *vbw, void *v_wid)
@@ -1862,7 +1731,7 @@ void a_UIcmd_set_page_title(BrowserWindow *bw, const char *label)
    BW2UI(bw)->copy_label(title);
    BW2UI(bw)->tabs()->set_tab_label(BW2UI(bw), label ? label : "");
 
-   if (a_UIcmd_get_bw_by_widget(BW2UI(bw)->tabs()->current_ui) == bw) {
+   if (a_UIcmd_get_bw_by_widget(BW2UI(bw)->tabs()->wizard()->value()) == bw) {
       // This is the focused bw, set window title
       UIcmd_set_window_labels(BW2UI(bw)->window(), title);
    }
@@ -2018,7 +1887,7 @@ void a_UIcmd_focus_tab(void *vbw, int index)
 {
    BrowserWindow *bw = (BrowserWindow*)vbw;
    UI *ui = BW2UI(bw);
-   CustWindow *tabs = ui->tabs();
+   CustTabs *tabs = ui->tabs();
    if (tabs)
       tabs->switch_tab(index);
 }
@@ -2031,7 +1900,7 @@ int a_UIcmd_by_name(void *vbw, const char *cmd_name)
       return -1;
 
    UI *ui = BW2UI(bw);
-   CustWindow *tabs = ui->tabs();
+   CustTabs *tabs = ui->tabs();
 
    if (cmd == KEYS_NEW_TAB) {
       a_UIcmd_open_url_nt(bw, NULL, 1);

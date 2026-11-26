@@ -313,6 +313,28 @@ static void help_cb(Fl_Widget *w, void *)
 }
 
 /**
+ * Callback for the File menu button.
+ */
+static void filemenu_cb(Fl_Widget *wid, void *)
+{
+   int b = Fl::event_button();
+   if (b == FL_LEFT_MOUSE || b == FL_RIGHT_MOUSE) {
+      a_UIcmd_file_popup(a_UIcmd_get_bw_by_widget(wid), wid);
+   }
+}
+
+/**
+ * Callback for the Edit menu button.
+ */
+static void editmenu_cb(Fl_Widget *wid, void *)
+{
+   int b = Fl::event_button();
+   if (b == FL_LEFT_MOUSE || b == FL_RIGHT_MOUSE) {
+      a_UIcmd_edit_popup(a_UIcmd_get_bw_by_widget(wid), wid);
+   }
+}
+
+/**
  * Callback for the location's clear-button.
  */
 static void clear_cb(Fl_Widget *w, void *data)
@@ -563,6 +585,57 @@ void UI::make_progress_bars(int wide, int thin_up)
 }
 
 /**
+ * Create the "File" menu.
+ * Static function for File menu callbacks.
+ */
+void UI::make_filemenu_button()
+{
+   CustButton *btn;
+   int w = 0, h = 0, padding;
+
+   FileButton = btn = new CustButton(p_xpos,0,bw,bh,"W");
+   btn->labeltype(FL_FREE_LABELTYPE);
+   btn->measure_label(w, h);
+   padding = w;
+   btn->copy_label(PanelSize == P_tiny ? "&F" : "&File");
+   btn->measure_label(w,h);
+   h = (PanelSize == P_tiny) ? bh : lh;
+   btn->size(w+padding, h);
+   p_xpos += btn->w();
+   _MSG("UI::make_filemenu_button w=%d h=%d padding=%d\n", w, h, padding);
+   btn->box(FL_THIN_UP_BOX);
+   btn->callback(filemenu_cb, this);
+   btn->set_tooltip("File menu");
+   btn->clear_visible_focus();
+   if (!prefs.show_filemenu)
+      btn->hide();
+}
+
+/**
+ * Create the "Edit" menu button (next to File).
+ */
+void UI::make_editmenu_button()
+{
+   CustButton *btn;
+   int w = 0, h = 0, padding;
+
+   EditButton = btn = new CustButton(p_xpos,0,bw,bh,"W");
+   btn->labeltype(FL_FREE_LABELTYPE);
+   btn->measure_label(w, h);
+   padding = w;
+   btn->copy_label("&Edit");
+   btn->measure_label(w,h);
+   h = (PanelSize == P_tiny) ? bh : lh;
+   btn->size(w+padding, h);
+   p_xpos += btn->w();
+   btn->box(FL_THIN_UP_BOX);
+   btn->callback(editmenu_cb, this);
+   btn->set_tooltip("Edit menu");
+   btn->clear_visible_focus();
+}
+
+
+/**
  * Create the control panel
  */
 void UI::make_panel(int ww)
@@ -600,6 +673,8 @@ void UI::make_panel(int ww)
       NavBar->box(FL_NO_BOX);
       NavBar->begin();
        make_toolbar(ww,bh);
+       make_filemenu_button();
+       make_editmenu_button();
        make_location(ww);
        NavBar->resizable(LocationGroup);
        make_progress_bars(0,1);
@@ -613,6 +688,8 @@ void UI::make_panel(int ww)
        LocBar->box(FL_NO_BOX);
        LocBar->begin();
         p_xpos = 0;
+        make_filemenu_button();
+        make_editmenu_button();
         make_location(ww);
         LocBar->resizable(LocationGroup);
        LocBar->end();
@@ -816,8 +893,7 @@ int UI::handle(int event)
          a_UIcmd_save(a_UIcmd_get_bw_by_widget(this));
          ret = 1;
       } else if (cmd == KEYS_FILE_MENU) {
-         a_UIcmd_file_popup(a_UIcmd_get_bw_by_widget(this),
-                            a_UIcmd_get_menubar(this));
+         a_UIcmd_file_popup(a_UIcmd_get_bw_by_widget(this), FileButton);
          ret = 1;
       } else if (cmd == KEYS_VIEW_SOURCE) {
          BrowserWindow *bw = a_UIcmd_get_bw_by_widget(this);

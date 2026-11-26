@@ -4,7 +4,6 @@
 #include "bw.h"
 
 #ifdef __cplusplus
-struct Fl_Menu_Item;
 extern "C" {
 #endif /* __cplusplus */
 
@@ -17,9 +16,6 @@ void a_Menu_image_popup(BrowserWindow *bw, const DilloUrl *url,
                         DilloUrl *link_url);
 void a_Menu_form_popup(BrowserWindow *bw, const DilloUrl *page_url,
                        void *vform, bool_t showing_hiddens);
-#ifdef __cplusplus
-const struct Fl_Menu_Item *a_Menu_menubar_items(void);
-#endif /* __cplusplus */
 void a_Menu_file_popup(BrowserWindow *bw, void *v_wid);
 void a_Menu_edit_popup(BrowserWindow *bw, void *v_wid);
 void a_Menu_bugmeter_popup(BrowserWindow *bw, const DilloUrl *url);
