@@ -137,24 +137,38 @@ public:
    UI *current_ui;
    void update_pack_offset(void);
    void resize(int x, int y, int w, int h) {
-      Fl_Group::resize(x,y,w,h);
-      /* CustWindow is the window's resizable, so h is the full window
-       * height here. Lay out menu bar, tab strip and page area. */
+      /* Enforce minimum window size */
+      const int MIN_W = 400;
+      const int MIN_H = 300;
+      if (w < MIN_W) w = MIN_W;
+      if (h < MIN_H) h = MIN_H;
+      
+      /* Use Fl_Widget::resize (not Fl_Group::resize) to avoid FLTK's
+       * automatic layout which scales children from initial size. */
+      Fl_Widget::resize(x, y, w, h);
+      layout();
+   }
+
+   /* Manual layout: position all children explicitly.
+    * This is called from resize() and can be called explicitly. */
+   void layout() {
+      int w = this->w(), h = this->h();
       int mh = prefs.show_filemenu ? menu_h : 0;
       if (mh < 20) mh = 25;  // fallback minimum
-      if (MenuBar) MenuBar->resize(x, y, w, mh);
+      
+      if (MenuBar) MenuBar->resize(0, 0, w, mh);
       if (Scroll) {
-         Scroll->resize(x, y+mh, w-ctl_w, ctab_h);
+         Scroll->resize(0, mh, w-ctl_w, ctab_h);
          if (Pack) Pack->resize(0, 0, w-ctl_w, tab_h);
       }
       if (Control) {
-         Control->resize(x+w-ctl_w, y+mh, ctl_w, ctab_h);
-         if (PrevBtn) PrevBtn->resize(x+w-ctl_w, y+mh, btn_w, ctab_h);
-         if (NextBtn) NextBtn->resize(x+w-ctl_w+btn_w+1, y+mh, btn_w, ctab_h);
-         if (CloseBtn) CloseBtn->resize(x+w-ctl_w+2*btn_w+2, y+mh, btn_w, ctab_h);
+         Control->resize(w-ctl_w, mh, ctl_w, ctab_h);
+         if (PrevBtn) PrevBtn->resize(w-ctl_w, mh, btn_w, ctab_h);
+         if (NextBtn) NextBtn->resize(w-ctl_w+btn_w+1, mh, btn_w, ctab_h);
+         if (CloseBtn) CloseBtn->resize(w-ctl_w+2*btn_w+2, mh, btn_w, ctab_h);
       }
       if (Wizard) {
-         Wizard->resize(x, y+mh+ctab_h, w, h-mh-ctab_h);
+         Wizard->resize(0, mh+ctab_h, w, h-mh-ctab_h);
          /* Show current UI, hide others */
          for (int i = 0; i < Wizard->children(); i++) {
             Fl_Widget *w = Wizard->child(i);
@@ -171,9 +185,6 @@ public:
       }
       update_pack_offset();
    }
-
-   // Prevent Fl_Group from calling its default layout
-   void layout() { /* do nothing - we handle layout in resize() */ }
    int get_btn_idx(UI *ui);
    void increase_focus_counter() {
       if (focus_counter < UINT_MAX) /* check for overflow */
