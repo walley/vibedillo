@@ -115,7 +115,7 @@ static const KeyBinding_t default_keys[] = {
    { "reload"       , KEYS_RELOAD       , FL_CTRL   , 'r'             },
    { "stop"         , KEYS_STOP         , 0         , 0               },
    { "save"         , KEYS_SAVE         , 0         , 0               },
-   { "hide-panels"  , KEYS_HIDE_PANELS  , 0         , FL_Escape       },
+   { "hide-panels"  , KEYS_HIDE_PANELS  , 0         , FL_F + 11       },
    { "file-menu"    , KEYS_FILE_MENU    , FL_ALT    , 'f'             },
    { "close-all"    , KEYS_CLOSE_ALL    , FL_CTRL   , 'q'             },
    { "back"         , KEYS_BACK         , 0         , FL_BackSpace    },
