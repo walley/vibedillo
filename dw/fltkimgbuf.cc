@@ -157,6 +157,8 @@ void FltkImgbuf::init (Type type, int width, int height, double gamma,
       else
          scaledBuffers = NULL;
 
+      excessiveDummy = NULL;
+
       if (!isRoot()) {
          // Scaling
          for (int row = 0; row < root->height; row++) {
@@ -402,13 +404,20 @@ core::Imgbuf* FltkImgbuf::getScaledBuf (int width, int height)
 
    // Check for excessive image sizes FIRST, before any dimension capping.
    // This prevents recursive calls with capped dimensions that still
-   // exceed the safe area limit, and avoids returning the root buffer
-   // for a size it wasn't designed for.
+   // exceed the safe area limit.
    if (excessiveImageDimensions (width, height)) {
       MSG("FltkImgbuf::getScaledBuf: suspicious image size request %d x %d\n",
            width, height);
-      ref ();
-      return this;
+      // Return a small dummy scaled buffer (1x1) instead of the root
+      // buffer, so the caller can safely use it without dimension mismatch.
+      // Cache it to avoid creating many duplicates.
+      if (!excessiveDummy) {
+         excessiveDummy = new FltkImgbuf (type, 1, 1, gamma, this);
+         scaledBuffers->append (excessiveDummy);
+         DBG_OBJ_ASSOC_CHILD (excessiveDummy);
+      }
+      excessiveDummy->ref ();
+      return excessiveDummy;
    }
 
    if (width > MAX_WIDTH) {

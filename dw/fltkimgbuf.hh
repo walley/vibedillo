@@ -23,6 +23,10 @@ private:
    bool deleteOnUnref;
    lout::container::typed::List <FltkImgbuf> *scaledBuffers;
 
+   // Cached 1x1 dummy buffer for excessive image size requests,
+   // to avoid returning the root buffer with wrong dimensions.
+   FltkImgbuf *excessiveDummy;
+
    int width, height;
    Type type;
    double gamma;
