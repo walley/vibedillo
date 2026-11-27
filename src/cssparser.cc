@@ -2434,6 +2434,11 @@ bool CssParser::parseMediaExpression (DilloHtml *html, bool *result)
       dw::core::Layout *layout = (dw::core::Layout*)html->bw->render_layout;
       vw = layout->getWidthViewport ();
       vh = layout->getHeightViewport ();
+      /* Before the layout is sized (viewportWidth == 0), fall back to a
+       * desktop width so that max-width media queries do not all match and
+       * hide content (e.g. Slashdot's nav-user span at max-width: 919px). */
+      if (vw <= 100) vw = 1024;
+      if (vh <= 100) vh = 768;
    }
 
    if (dStrAsciiCasecmp(feature, "width") == 0 ||
