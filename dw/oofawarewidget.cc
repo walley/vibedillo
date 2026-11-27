@@ -156,12 +156,15 @@ bool OOFAwareWidget::isOOFContainer (Widget *widget, int oofmIndex)
            // (the default value) 'visible'.
            widget->getStyle()->overflow != OVERFLOW_VISIBLE ||
            // Finally, "out of flow" in a narrower sense: floats;
-           // absolutely and fixedly positioned elements. (No
-           // relatively positioned elements; since the latters
-           // constitute a stacking context, drawing of floats gets
-           // somewhat more complicated; see "interrupting the drawing
-           // process" in "dw-stacking-context.doc".
-           testWidgetOutOfFlow (widget)));
+           // absolutely and fixedly positioned elements. Relatively
+           // positioned blocks are valid float containers, too: per
+           // CSS 2.1 the containing block of a float is the nearest
+           // block container ancestor, regardless of
+           // 'position: relative'. Their own background is painted at
+           // SL_BACKGROUND, before the floats at SL_OOF_FLOATS, so the
+           // floats are drawn above the background, as required.
+           testWidgetOutOfFlow (widget) ||
+           testWidgetRelativelyPositioned (widget)));
       
    case OOFM_RELATIVE:
    case OOFM_ABSOLUTE:
