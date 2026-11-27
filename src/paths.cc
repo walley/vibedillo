@@ -137,7 +137,7 @@ void Paths::create_default_config(const char *rcFile, const char *path)
          "\n"
          "# Set the desired initial browser size\n"
          "# geometry=650x545+0+20\n"
-         "#geometry=780x580\n"
+         "#geometry=1024x768\n"
          "\n"
          "# Change this (and the following option) if you want to have text-only browsing\n"
          "# from the start. (While browsing, this can be changed from the tools/settings\n"

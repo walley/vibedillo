@@ -468,12 +468,27 @@ void StyleEngine::apply (int i, StyleAttrs *attrs, CssPropertyList *props,
    for (int j = 0; j < props->size (); j++) {
       CssProperty *p = props->getRef (j);
 
-      /* Skip unresolved CSS variables, custom property definitions, and
-       * the 'inherit' keyword (which means: keep the parent's value that
-       * is already in attrs from the cascade) */
-      if (p->type == CSS_TYPE_VAR || p->type == CSS_TYPE_INHERIT ||
-          p->name == CSS_PROPERTY_CUSTOM)
+      /* Skip unresolved CSS variables and custom property definitions.
+       * For 'inherit', copy the parent's computed value for non-inherited
+       * properties (for inherited properties, the parent's value is already
+       * in attrs from the cascade). */
+      if (p->type == CSS_TYPE_VAR || p->name == CSS_PROPERTY_CUSTOM)
          continue;
+      if (p->type == CSS_TYPE_INHERIT) {
+         Style *parentStyle = (i > 0) ? stack->get (i - 1).style : NULL;
+         if (parentStyle) {
+            switch (p->name) {
+            case CSS_PROPERTY_WIDTH:  attrs->width = parentStyle->width; break;
+            case CSS_PROPERTY_HEIGHT: attrs->height = parentStyle->height; break;
+            case CSS_PROPERTY_MIN_WIDTH:  attrs->minWidth = parentStyle->minWidth; break;
+            case CSS_PROPERTY_MAX_WIDTH:  attrs->maxWidth = parentStyle->maxWidth; break;
+            case CSS_PROPERTY_MIN_HEIGHT: attrs->minHeight = parentStyle->minHeight; break;
+            case CSS_PROPERTY_MAX_HEIGHT: attrs->maxHeight = parentStyle->maxHeight; break;
+            default: break; /* inherited props: already in attrs */
+            }
+         }
+         continue;
+      }
 
       switch (p->name) {
          case CSS_PROPERTY_FONT_FAMILY:
