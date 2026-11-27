@@ -400,6 +400,17 @@ core::Imgbuf* FltkImgbuf::getScaledBuf (int width, int height)
    if (!isRoot())
       return root->getScaledBuf (width, height);
 
+   // Check for excessive image sizes FIRST, before any dimension capping.
+   // This prevents recursive calls with capped dimensions that still
+   // exceed the safe area limit, and avoids returning the root buffer
+   // for a size it wasn't designed for.
+   if (excessiveImageDimensions (width, height)) {
+      MSG("FltkImgbuf::getScaledBuf: suspicious image size request %d x %d\n",
+           width, height);
+      ref ();
+      return this;
+   }
+
    if (width > MAX_WIDTH) {
       // Similar to init.
       MSG("FltkImgbuf::getScaledBuf: cannot handle large width %d\n", width);
@@ -421,16 +432,6 @@ core::Imgbuf* FltkImgbuf::getScaledBuf (int width, int height)
          sb->ref ();
          return sb;
       }
-   }
-
-   // Check for excessive image sizes which would cause crashes due to
-   // too big allocations for the image buffer. In this case we return
-   // a pointer to the unscaled image buffer.
-   if (excessiveImageDimensions (width, height)) {
-      MSG("FltkImgbuf::getScaledBuf: suspicious image size request %d x %d\n",
-           width, height);
-      ref ();
-      return this;
    }
 
    // This size is not yet used, so a new buffer has to be created.
