@@ -498,6 +498,7 @@ class CssSelector {
       int specificity ();
       bool checksPseudoClass ();
       bool checksHistoryPseudoClass ();
+      bool checksHoverPseudoClass ();
       void print ();
       inline void ref () { refCount++; }
       inline void unref () { if (--refCount == 0) delete this; }
@@ -583,9 +584,12 @@ class CssContext {
       CssStyleSheet sheet[CSS_PRIMARY_USER_IMPORTANT + 1];
       MatchCache matchCache;
       int pos;
+      bool hasHoverRules; /**< whether any rule with a :hover pseudo class exists */
 
    public:
       CssContext ();
+
+      inline bool getHasHoverRules () { return hasHoverRules; }
 
       void addRule (CssSelector *sel, CssPropertyList *props,
                     CssPrimaryOrder order, int pos);

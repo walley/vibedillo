@@ -325,6 +325,8 @@ Style::Style (StyleAttrs *attrs)
 {
    DBG_OBJ_CREATE ("dw::core::style::Style");
 
+   hoverStyle = NULL;
+
    copyAttrs (attrs);
 
    DBG_OBJ_ASSOC_CHILD (font);
@@ -380,6 +382,8 @@ Style::~Style ()
       borderColor.right->unref();
    if (x_tooltip)
       x_tooltip->unref();
+   if (hoverStyle)
+      hoverStyle->unref();
 
    styleTable->remove (this);
    totalRef--;

@@ -99,6 +99,8 @@ Widget::Widget ()
    extraSpace.top = extraSpace.right = extraSpace.bottom = extraSpace.left = 0;
 
    style = NULL;
+   hovered = false;
+   hoverNormalStyle = NULL;
    bgColor = NULL;
    buttonSensitive = true;
    buttonSensitiveSet = false;
@@ -2247,6 +2249,13 @@ void Widget::enterNotifyImpl (EventCrossing *)
 
    if (tooltip)
       tooltip->onEnter();
+
+   /* CSS :hover: switch to the hover variant of the style, if any. */
+   if (!hovered && style && style->hoverStyle) {
+      hovered = true;
+      hoverNormalStyle = style;
+      setStyle (style->hoverStyle);
+   }
 }
 
 void Widget::leaveNotifyImpl (EventCrossing *)
@@ -2255,6 +2264,13 @@ void Widget::leaveNotifyImpl (EventCrossing *)
 
    if (tooltip)
       tooltip->onLeave();
+
+   /* CSS :hover: restore the normal style. */
+   if (hovered) {
+      hovered = false;
+      setStyle (hoverNormalStyle);
+      hoverNormalStyle = NULL;
+   }
 }
 
 

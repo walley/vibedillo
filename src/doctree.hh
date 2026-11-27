@@ -13,6 +13,11 @@ class DoctreeNode {
       lout::misc::SimpleVector<char*> *klass;
       const char *pseudo;
       const char *id;
+      /* Dynamic pseudo-class state (:hover, :active), independent of
+       * the static "pseudo" string (:link/:visited/:first-child), so
+       * that e.g. a hovered link still matches :link rules. */
+      bool hovered;
+      bool active;
 
       DoctreeNode () {
          parent = NULL;
@@ -22,6 +27,8 @@ class DoctreeNode {
          pseudo = NULL;
          id = NULL;
          element = 0;
+         hovered = false;
+         active = false;
       };
 
       ~DoctreeNode () {

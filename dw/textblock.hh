@@ -650,6 +650,14 @@ protected:
 
    int hoverLink;  /* The link under the mouse pointer */
 
+   /* CSS :hover for inline content: the word under the mouse pointer
+    * whose style has been switched to its hover variant (NULL if none),
+    * plus the saved original styles. */
+   Word *hoverWord;
+   core::style::Style *hoverWordStyle, *hoverWordSpaceStyle;
+
+   void setHoverWord (Word *word);
+
    int numSizeReferences;
    Widget *sizeReferences[NUM_OOFM];
    

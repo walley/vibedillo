@@ -208,6 +208,20 @@ bool CssSelector::checksHistoryPseudoClass () {
 }
 
 /**
+ * \brief Return whether the selector contains the dynamic pseudo class
+ *        :hover (used to decide whether hover styles must be computed).
+ */
+bool CssSelector::checksHoverPseudoClass () {
+   for (int i = 0; i < selectorList.size (); i++) {
+      const char *pseudo =
+         selectorList.getRef (i)->selector->getPseudoClass ();
+      if (pseudo && dStrAsciiCasecmp (pseudo, "hover") == 0)
+         return true;
+   }
+   return false;
+}
+
+/**
  * \brief Return the specificity of the selector.
  *
  * The specificity of a CSS selector is defined in
@@ -303,6 +317,14 @@ bool CssSimpleSelector::match (const DoctreeNode *n) {
       /* :root matches the root element (html) */
       if (dStrAsciiCasecmp (pseudo, "root") == 0) {
          if (n->element != a_Html_tag_index("html"))
+            return false;
+      } else if (dStrAsciiCasecmp (pseudo, "hover") == 0) {
+         /* Dynamic pseudo-class, tracked via a flag on the node, so that
+          * it can be combined with :link/:visited. */
+         if (!n->hovered)
+            return false;
+      } else if (dStrAsciiCasecmp (pseudo, "active") == 0) {
+         if (!n->active)
             return false;
       } else if (n->pseudo == NULL || dStrAsciiCasecmp (pseudo, n->pseudo) != 0)
          return false;
@@ -643,6 +665,7 @@ CssStyleSheet CssContext::userAgentSheet;
 
 CssContext::CssContext () {
    pos = 0;
+   hasHoverRules = false;
    matchCache.setSize (userAgentSheet.getRequiredMatchCache (), -1);
 }
 
@@ -700,6 +723,9 @@ void CssContext::addRule (CssSelector *sel, CssPropertyList *props,
 
    if (props->size () > 0) {
       CssRule *rule = new CssRule (sel, props, pos);
+
+      if (sel->checksHoverPseudoClass ())
+         hasHoverRules = true;
 
       if ((order == CSS_PRIMARY_AUTHOR ||
            order == CSS_PRIMARY_AUTHOR_IMPORTANT) &&

@@ -680,6 +680,11 @@ protected:
    void copyAttrs (StyleAttrs *attrs);
 
 public:
+   /* Style variant for the :hover pseudo class, computed by the style
+    * engine when :hover rules match the element. NULL if there are none.
+    * Not part of StyleAttrs, so it does not affect the style cache key. */
+   Style *hoverStyle;
+
    inline static Style *create (StyleAttrs *attrs)
    {
       Style *style = styleTable->get (attrs);
@@ -690,6 +695,14 @@ public:
          styleTable->put(style, style);
       }
       return style;
+   }
+
+   inline void setHoverStyle (Style *s) {
+      if (hoverStyle)
+         hoverStyle->unref ();
+      hoverStyle = s;
+      if (s)
+         s->ref ();
    }
 
    inline void ref () { refCount++; }

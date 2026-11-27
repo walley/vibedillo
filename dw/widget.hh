@@ -150,6 +150,15 @@ private:
    
    style::Style *style;
 
+   /**
+    * \brief Whether the mouse pointer is currently inside this widget
+    *    (CSS :hover). When set, the style has been switched to
+    *    style->hoverStyle (if any), and \em hoverNormalStyle holds the
+    *    original style.
+    */
+   bool hovered;
+   style::Style *hoverNormalStyle;
+
    Flags flags;
 
    /**

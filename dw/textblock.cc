@@ -249,6 +249,8 @@ Textblock::Textblock (bool limitTextWidth, bool treatAsInline)
    DBG_OBJ_SET_NUM ("wrapRefLinesFCY", wrapRefLinesFCY);
 
    hoverLink = -1;
+   hoverWord = NULL;
+   hoverWordStyle = hoverWordSpaceStyle = NULL;
 
    // -1 means undefined.
    lineBreakWidth = -1;
@@ -1030,6 +1032,57 @@ bool Textblock::buttonReleaseImpl (core::EventButton *event)
 }
 
 /*
+ * Switch the CSS :hover style of the word under the mouse pointer:
+ * restore the previously hovered word's style, and apply the hover
+ * variant (word->style->hoverStyle, computed by the style engine) to
+ * the new word, if any.
+ */
+void Textblock::setHoverWord (Word *word)
+{
+   if (word == hoverWord)
+      return;
+
+   if (hoverWord) {
+      core::style::Style *s;
+
+      s = hoverWord->style;
+      hoverWord->style = hoverWordStyle;
+      s->unref ();
+      hoverWordStyle->unref ();
+      hoverWordStyle = NULL;
+
+      s = hoverWord->spaceStyle;
+      hoverWord->spaceStyle = hoverWordSpaceStyle;
+      s->unref ();
+      hoverWordSpaceStyle->unref ();
+      hoverWordSpaceStyle = NULL;
+
+      hoverWord = NULL;
+      queueDraw ();
+   }
+
+   if (word && word->style && word->style->hoverStyle) {
+      hoverWord = word;
+      hoverWordStyle = word->style;
+      hoverWordStyle->ref ();
+      hoverWordSpaceStyle = word->spaceStyle;
+      hoverWordSpaceStyle->ref ();
+
+      core::style::Style *hs = word->style->hoverStyle;
+      hs->ref ();
+      word->style = hs;
+
+      if (word->spaceStyle->hoverStyle) {
+         hs = word->spaceStyle->hoverStyle;
+         hs->ref ();
+         word->spaceStyle = hs;
+      }
+
+      queueDraw ();
+   }
+}
+
+/*
  * Handle motion inside the widget
  * (special care is necessary when switching from another widget,
  *  because hoverLink and hoverTooltip are meaningless then).
@@ -1056,6 +1109,9 @@ bool Textblock::motionNotifyImpl (core::EventMotion *event)
          hoverTooltip = style->x_tooltip;
       }
 
+      // CSS :hover for the word under the pointer
+      setHoverWord (const_cast<Word *> (word));
+
       // Show/hide tooltip
       if (tooltipOld != hoverTooltip) {
          if (tooltipOld)
@@ -1081,6 +1137,8 @@ void Textblock::enterNotifyImpl (core::EventCrossing *event)
    _MSG(" tb=%p, ENTER NotifyImpl hoverTooltip=%p\n", this, hoverTooltip);
    /* reset hoverLink so linkEnter is detected */
    hoverLink = -2;
+   setHoverWord (NULL);
+   Widget::enterNotifyImpl (event);
 }
 
 void Textblock::leaveNotifyImpl (core::EventCrossing *event)
@@ -1091,10 +1149,14 @@ void Textblock::leaveNotifyImpl (core::EventCrossing *event)
    if (hoverLink >= 0)
       layout->emitLinkEnter (this, -1, -1, -1, -1);
 
+   setHoverWord (NULL);
+
    if (hoverTooltip) {
       hoverTooltip->onLeave();
       hoverTooltip = NULL;
    }
+
+   Widget::leaveNotifyImpl (event);
 }
 
 /**

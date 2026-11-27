@@ -56,6 +56,8 @@ class StyleEngine {
       void stackPush ();
       void stackPop ();
       void buildUserStyle ();
+      dw::core::style::Style *computeStyle (int i, BrowserWindow *bw);
+      dw::core::style::Style *computeWordStyle (dw::core::style::Style *s);
       dw::core::style::Style *style0 (int i, BrowserWindow *bw);
       dw::core::style::Style *wordStyle0 (BrowserWindow *bw);
       dw::core::style::Style *pseudoElementStyle0 (int i, BrowserWindow *bw,

@@ -1416,19 +1416,14 @@ void StyleEngine::resolveCssVariables (int i, CssPropertyList *props) {
    }
 }
 
-Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
+/* Compute the style of stack entry i from its parent's style and all
+ * matching CSS rules. When the node's "hovered" flag is set, :hover rules
+ * match as well. Returns a new reference (via Style::create()). */
+Style * StyleEngine::computeStyle (int i, BrowserWindow *bw) {
    CssPropertyList props, *styleAttrProperties, *styleAttrPropertiesImportant;
    CssPropertyList *nonCssProperties;
    // get previous style from the stack
    StyleAttrs attrs = *stack->getRef (i - 1)->style;
-
-   // Ensure that StyleEngine::style0() has not been called before for
-   // this element.
-   // Style computation is expensive so limit it as much as possible.
-   // If this assertion is hit, you need to rearrange the code that is
-   // doing styleEngine calls to call setNonCssHint() before calling
-   // style() or wordStyle() for each new element.
-   assert (stack->getRef (i)->style == NULL);
 
    // reset values that are not inherited according to CSS
    attrs.resetValues ();
@@ -1465,13 +1460,41 @@ Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
          attrs.display = DISPLAY_INLINE_BLOCK;
    }
 
-   stack->getRef (i)->style = Style::create (&attrs);
+   return Style::create (&attrs);
+}
+
+Style * StyleEngine::style0 (int i, BrowserWindow *bw) {
+   // Ensure that StyleEngine::style0() has not been called before for
+   // this element.
+   // Style computation is expensive so limit it as much as possible.
+   // If this assertion is hit, you need to rearrange the code that is
+   // doing styleEngine calls to call setNonCssHint() before calling
+   // style() or wordStyle() for each new element.
+   assert (stack->getRef (i)->style == NULL);
+
+   Style *s = computeStyle (i, bw);
+   stack->getRef (i)->style = s;
+
+   /* Compute the :hover variant of the style (only when the document
+    * contains :hover rules at all), so that widgets can switch to it
+    * when the mouse pointer enters them. */
+   if (cssContext->getHasHoverRules ()) {
+      DoctreeNode *dn = stack->getRef (i)->doctreeNode;
+      dn->hovered = true;
+      Style *hs = computeStyle (i, bw);
+      dn->hovered = false;
+      if (hs != s)
+         s->setHoverStyle (hs);
+      else
+         hs->unref ();
+   }
 
    return stack->getRef (i)->style;
 }
 
-Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
-   Style *s = style (bw);
+/* Derive the style of a word (inline content) from the style of its
+ * element. Returns a new reference (via Style::create()). */
+Style * StyleEngine::computeWordStyle (Style *s) {
    StyleAttrs attrs = *s;
    attrs.resetValues ();
 
@@ -1508,7 +1531,30 @@ Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
       attrs.left = s->left;
    }
 
-   stack->getRef(stack->size() - 1)->wordStyle = Style::create(&attrs);
+   return Style::create(&attrs);
+}
+
+Style * StyleEngine::wordStyle0 (BrowserWindow *bw) {
+   Style *s = style (bw);
+   Style *ws = computeWordStyle (s);
+   stack->getRef(stack->size() - 1)->wordStyle = ws;
+
+   /* Compute the :hover variant of the word style, derived from the
+    * :hover variant of the element style. */
+   if (cssContext->getHasHoverRules ()) {
+      int i = stack->size () - 1;
+      DoctreeNode *dn = stack->getRef (i)->doctreeNode;
+      dn->hovered = true;
+      Style *hs = computeStyle (i, bw);
+      Style *hws = computeWordStyle (hs);
+      dn->hovered = false;
+      hs->unref ();
+      if (hws != ws)
+         ws->setHoverStyle (hws);
+      else
+         hws->unref ();
+   }
+
    return stack->getRef (stack->size () - 1)->wordStyle;
 }
 

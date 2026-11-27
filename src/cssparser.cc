@@ -2086,18 +2086,17 @@ bool CssParser::parseSimpleSelector(CssSimpleSelector *selector)
             selectType = CssSimpleSelector::SELECT_PSEUDO_CLASS;
             if (selector->getPseudoClass ())
                // pseudo class has been set already.
-               // As dillo currently only supports :link and :visisted, a
-               // selector with more than one pseudo class will never match.
+               // As dillo currently only supports a single pseudo class per
+               // simple selector, a selector with more than one pseudo
+               // class will never match.
                // By returning false, the whole CssRule will be dropped.
-               // \todo adapt this when supporting :hover, :active...
                return false;
-            if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "hover") == 0) {
-               fprintf(stderr, "CSS PARSER: :hover pseudo-class encountered (not yet supported)\n");
-               fflush(stderr);
-            } else if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "first-child") == 0) {
+            if (ttype == CSS_TK_SYMBOL && dStrAsciiCasecmp(tval, "first-child") == 0) {
                fprintf(stderr, "CSS PARSER: :first-child pseudo-class encountered (not yet fully supported)\n");
                fflush(stderr);
             }
+            /* :hover and :active are supported; matching is based on
+             * dynamic state flags on the DoctreeNode. */
             break;
          case '[':
             // Attribute selector: [attr], [attr=v], [attr~=v], [attr|=v],
