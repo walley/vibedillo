@@ -260,6 +260,9 @@ int StyleAttrs::hashValue () {
       backgroundAttachment +
       backgroundPositionX +
       backgroundPositionY +
+      backgroundSizeX +
+      backgroundSizeY +
+      backgroundSizeKeyword +
       textAlign +
       valign +
       textAlignChar +
@@ -402,6 +405,9 @@ void Style::copyAttrs (StyleAttrs *attrs)
    backgroundAttachment = attrs->backgroundAttachment;
    backgroundPositionX = attrs->backgroundPositionX;
    backgroundPositionY = attrs->backgroundPositionY;
+   backgroundSizeX = attrs->backgroundSizeX;
+   backgroundSizeY = attrs->backgroundSizeY;
+   backgroundSizeKeyword = attrs->backgroundSizeKeyword;
    textAlign = attrs->textAlign;
    valign = attrs->valign;
    textAlignChar = attrs->textAlignChar;
